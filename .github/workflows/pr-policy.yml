@@ -1,0 +1,53 @@
+name: PR policy
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  issue-first:
+    name: Issue-first PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Require an earlier issue linked with Closed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node --input-type=module <<'JS'
+          const repository = process.env.GITHUB_REPOSITORY;
+          const headers = { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json' };
+          async function get(resource) {
+            const response = await fetch(`https://api.github.com/repos/${repository}/${resource}`, { headers });
+            if (!response.ok) throw new Error('Unable to verify the linked issue.');
+            return response.json();
+          }
+          try {
+            const pr = await get(`pulls/${process.env.PR_NUMBER}`);
+            const titlePattern = /^(?:fix|chore|feat|docs|test|ci|refactor|perf|build|style|revert)\([a-zA-Z0-9._/-]*\): [\x20-\x7E]+$/;
+            if (!titlePattern.test(pr.title)) throw new Error('Use an English title such as chore(workflow): describe the change.');
+            const links = [...(pr.body ?? '').matchAll(/\bClosed\s+#([1-9][0-9]*)\b/g)];
+            if (!links.length) throw new Error('Add Closed #n to the PR body, using an issue created before this PR.');
+            for (const [, number] of links) {
+              const issue = await get(`issues/${number}`);
+              if (!titlePattern.test(issue.title)) throw new Error('Use the same English type(scope): title format for linked issues.');
+              if (issue.pull_request || issue.state !== 'open' || Date.parse(issue.created_at) > Date.parse(pr.created_at)) {
+                throw new Error('Each Closed #n reference must identify an open issue created before this PR.');
+              }
+            }
+            console.log('Issue-first PR policy passed.');
+          } catch (error) {
+            console.error(error.message);
+            process.exitCode = 1;
+          }
+          JS
