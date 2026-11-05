@@ -1,15 +1,21 @@
 import { createInterface } from 'node:readline';
 import { Writable } from 'node:stream';
+import { StringDecoder } from 'node:string_decoder';
 
 const fail = (code: string) => new Error(code);
 /** Values never appear in argv, echoed terminal input, diagnostics or temporary files. */
 export async function readEnvironmentValue({ key, fromStdin = false }: { key: string; fromStdin?: boolean }): Promise<string> {
   if (fromStdin) {
-    let value = '';
+    const decoder = new StringDecoder('utf8');
+    let value = '', bytesRead = 0;
     for await (const chunk of process.stdin) {
-      value += chunk.toString();
-      if (Buffer.byteLength(value) > 8192) throw fail('set_value_too_large');
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      bytesRead += bytes.length;
+      if (bytesRead > 8192) throw fail('set_value_too_large');
+      value += decoder.write(bytes);
     }
+    value += decoder.end();
+    if (Buffer.byteLength(value) > 8192) throw fail('set_value_too_large');
     return value.replace(/\r?\n$/, '');
   }
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw fail('set_interactive_input_required');
