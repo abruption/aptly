@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { windowsPowerShellPath } from './windows-powershell.ts';
 
 // Static code only: paths are JSON on stdin, never PowerShell source/arguments.
 // Windows PowerShell's .NET Framework ACL APIs keep inherited ACEs visible.
@@ -75,7 +75,7 @@ try {
 `;
 function runScript(scriptText: string, input: object, options: WindowsPrivateOptions) {
  try {
-  const executable = join(process.env.SystemRoot ?? 'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
+  const executable = windowsPowerShellPath();
   const result = (options.execute ?? run)(executable,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(scriptText,'utf16le').toString('base64')],JSON.stringify(input));
   if (result !== 'private') throw new Error();
  } catch { throw new Error('windows_private_permissions'); }

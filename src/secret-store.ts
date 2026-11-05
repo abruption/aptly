@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { windowsPowerShellPath } from './windows-powershell.ts';
 
 export interface SecretExecOptions {
   input?: string;
@@ -179,7 +180,9 @@ function operate(action: 'store' | 'load' | 'delete', value: string | undefined,
   if (platform === 'win32') {
     if (action === 'store' && Buffer.byteLength(value!) > 2560) fail('secure_store_invalid_value');
     const input = JSON.stringify({ action, service, account, ...(action === 'store' ? { value } : {}) });
-    const result = execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', windowsScript], input, options);
+    let executable: string;
+    try { executable = windowsPowerShellPath(); } catch { return fail('secure_store_unavailable'); }
+    const result = execute(executable, ['-NoProfile', '-NonInteractive', '-Command', windowsScript], input, options);
     if (result.status !== 0) fail('secure_store_failed');
     let parsed: unknown;
     try { parsed = JSON.parse(String(result.stdout ?? '')); } catch { return fail('secure_store_failed'); }

@@ -1,3 +1,4 @@
+import { windowsPowerShellPath } from '../src/windows-powershell.ts';
 // Explicit CI-only native check. Uses a unique synthetic item and always deletes it.
 import {randomUUID} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -34,7 +35,7 @@ function fileAcl(path:string,restrict=false):string{
   [IO.File]::SetAccessControl([string]$r.path,$acl)
  }
  [Console]::Out.Write([IO.File]::GetAccessControl([string]$r.path).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access))`;
- return execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify({path,restrict}),encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});
+ return execFileSync(windowsPowerShellPath(),['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify({path,restrict}),encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});
 }
 try{
  const aclProbe=join(home,'acl-probe');mkdirSync(aclProbe);

@@ -47,7 +47,7 @@ test('Windows Credential Manager receives secrets only on stdin and uses a const
  storeSecret(secret,{platform:'win32',service:'dev.aptly.mcp',account:'codex:OPENAI_API_KEY',exec});
  assert.equal(loadSecret({platform:'win32',account:'claude:OPENAI_API_KEY',exec}),secret);
  assert.equal(deleteSecret({platform:'win32',exec}),undefined);
- const call=calls[0];assert.equal(call.command,'powershell.exe');
+ const call=calls[0];assert.match(call.command,/^[A-Za-z]:\\.*\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe$/);
  assert.deepEqual(call.args.slice(0,3),['-NoProfile','-NonInteractive','-Command']);
  assert.equal(JSON.stringify(call.args).includes(secret),false);
  assert.deepEqual(JSON.parse(call.options.input),{action:'store',service:'dev.aptly.mcp',account:'codex:OPENAI_API_KEY',value:secret});
@@ -81,4 +81,20 @@ test('invalid labels and secret values fail before invoking an OS tool', () => {
  for(const value of ['', ' leading', 'trailing ', 'two\nlines', 'nul\0value', 'x'.repeat(8193)])assert.throws(()=>storeSecret(value,{exec}),errorCode('secure_store_invalid_value'));
  assert.equal(invoked,false);
  assert.throws(()=>loadSecret({platform:'darwin',exec:()=>({status:0,stdout:'{"status":0,"value":""}'})}),errorCode('secure_store_invalid_value'));
+});
+
+test('Windows execution ignores PATH and rejects relative system roots before sending stdin', async () => {
+ const {windowsPowerShellPath}=await import('../src/windows-powershell.ts');
+ assert.equal(windowsPowerShellPath({SystemRoot:'D:\\Windows'}),'D:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe');
+ for(const SystemRoot of ['', '.', 'Windows', 'C:Windows', '\\Windows', '\\\\server\\Windows', 'C:\\Windows\\..\\evil', 'C:\\bad\nroot']) {
+  assert.throws(()=>windowsPowerShellPath({SystemRoot}),/windows_system_directory_invalid/);
+ }
+ const before=process.env.SystemRoot,oldPath=process.env.PATH;
+ try {
+  process.env.SystemRoot='D:\\Windows';process.env.PATH='C:\\untrusted';let calls=0;
+  assert.throws(()=>storeSecret(secret,{platform:'win32',exec(command){calls++;assert.equal(command,'D:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe');return{status:null,error:{code:'ENOENT'}};}}),errorCode('secure_store_unavailable'));
+  assert.equal(calls,1,'no fallback to a PATH executable');
+  process.env.SystemRoot='relative';
+  assert.throws(()=>storeSecret(secret,{platform:'win32',exec(){assert.fail('must not transmit');}}),errorCode('secure_store_unavailable'));
+ }finally{if(before===undefined)delete process.env.SystemRoot;else process.env.SystemRoot=before;if(oldPath===undefined)delete process.env.PATH;else process.env.PATH=oldPath;}
 });
