@@ -4,19 +4,19 @@
 
 [README に戻る](../../README.ja.md)
 
-韓国語版が正本です。このガイドは 0.1.0 ローカルパッケージ案を対象とします。npm registry で公開済みであることや、すべてのアカウントでモデルにアクセスできることを意味しません。子エージェントの実行・承認・サンドボックス・MCP 権限は、Claude Code または Codex が管理します。
+韓国語版が正本です。このガイドは npm で公開した Aptly 0.1.0 を対象とします。パッケージをインストールできることは、すべてのアカウントでモデルにアクセスできることを意味しません。子エージェントの実行・承認・サンドボックス・MCP 権限は、Claude Code または Codex が管理します。
 
 ## インストール
 
-Node.js 24 以上と Claude Code または Codex が必要です。確認済みのアーカイブとインストール先を指定してください。
+Node.js 24 以上と Claude Code または Codex が必要です。npm パッケージとインストール先を指定してください。
 
 ```sh
 aptly_install=/absolute/aptly-local
-npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+npm install --prefix "$aptly_install" aptly@0.1.0
 "$aptly_install/node_modules/.bin/aptly" setup --client all --mode defaults
 ```
 
-以降の例の `aptly` は、上記のインストール先にある実行ファイルを指します。PATH に追加していない場合はフルパスで実行してください。インストール済みの `node_modules` 内で TypeScript ソースを直接実行しないでください。
+確認済みのローカルアーカイブをインストールする場合は、インストールコマンドの `aptly@0.1.0` を `/absolute/path/aptly-0.1.0.tgz` などの実際のファイルパスに置き換えてください。以降の例の `aptly` は、上記のインストール先にある実行ファイルを指します。PATH に追加していない場合はフルパスで実行してください。インストール済みの `node_modules` 内で TypeScript ソースを直接実行しないでください。
 
 `postinstall` は、現在のユーザーの既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使う場合は、インストールプロセスにも同じ環境を渡してください。まだ存在しないホストディレクトリは自動登録ではスキップし、明示的な `setup` で作成できます。必要なホストだけを登録するには、`--client codex` または `--client claude` を使用してください。
 
@@ -39,7 +39,7 @@ npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
 ### スキップ・削除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```

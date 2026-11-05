@@ -4,19 +4,19 @@
 
 [返回 README](../../README.zh-CN.md)
 
-韩语文档是正本。本指南介绍 0.1.0 本地软件包草案，并不表示软件包已发布到 npm registry，或所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
+韩语文档是正本。本指南介绍已发布到 npm 的 Aptly 0.1.0。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
 
 ## 安装
 
-需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。请指定已审核的归档文件和安装位置。
+需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。请指定 npm 软件包和安装位置。
 
 ```sh
 aptly_install=/absolute/aptly-local
-npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+npm install --prefix "$aptly_install" aptly@0.1.0
 "$aptly_install/node_modules/.bin/aptly" setup --client all --mode defaults
 ```
 
-后续示例中的 `aptly` 指上述安装位置的可执行文件。如果尚未将它加入 PATH，请使用完整路径运行。不要直接执行已安装 `node_modules` 中的 TypeScript 源码。
+如需安装已审核的本地归档，请将安装命令中的 `aptly@0.1.0` 替换为实际文件路径，例如 `/absolute/path/aptly-0.1.0.tgz`。后续示例中的 `aptly` 指上述安装位置的可执行文件。如果尚未将它加入 PATH，请使用完整路径运行。不要直接执行已安装 `node_modules` 中的 TypeScript 源码。
 
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
 
@@ -39,7 +39,7 @@ npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
 ### 跳过与移除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```

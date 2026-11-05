@@ -1,14 +1,14 @@
 # npm OIDC 배포와 공개 준비
 
-GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준비했습니다. 기본 실행은 검증과 archive 생성만 수행하는 dry run입니다. 실제 원격 저장소 생성·push·npm 게시·계정 설정은 이 문서 준비와 별개입니다.
+GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준비했습니다. 수동 실행의 기본값은 검증과 archive 생성만 수행하는 dry run이며, `v*` 태그 push는 OIDC 게시를 자동 실행합니다. 실제 원격 저장소 생성·push·npm 게시·계정 설정은 이 문서 준비와 별개입니다.
 
-공개 소스 저장소는 [abruption/aptly](https://github.com/abruption/aptly)이며, `package.json`의 `repository.url`에도 같은 주소를 기록했습니다. `aptly` 0.1.0 게시 후보는 `private: false`와 공개 npm registry·provenance·`latest` 게시 설정을 명시합니다. 이는 게시 가능한 메타데이터를 준비한 상태이며 실제 npm 게시나 패키지 소유권 확보를 뜻하지 않습니다. CI는 메타데이터를 임시로 바꾸지 않으며 기본 dry run에서는 게시하지 않습니다.
+공개 소스 저장소는 [abruption/aptly](https://github.com/abruption/aptly)이며, `package.json`의 `repository.url`에도 같은 주소를 기록했습니다. `aptly` 0.1.0은 `private: false`와 공개 npm registry·provenance·`latest` 게시 설정을 명시합니다. CI는 메타데이터를 임시로 바꾸지 않으며 기본 dry run에서는 게시하지 않습니다.
 
-준비 시점의 로컬 npm 계정 확인은 `401 Unauthorized`로 완료되지 않았습니다. 게시에 사용할 npm 계정 로그인, 패키지명·소유권과 게시 권한, 아래 Trusted Publisher의 실제 연결을 확인해야 합니다. GitHub dry run 성공은 이 계정 설정을 대신 검증하지 않습니다.
+0.1.0의 최초 게시에는 태그 `v0.1.0`의 검증된 tarball을 그대로 사용했고, 로그인한 npm 계정의 인증으로 게시했습니다. 최초 버전에는 CI provenance가 첨부되지 않았습니다. 이 부트스트랩 예외는 이후 CI 배포의 provenance 설정을 해제하지 않습니다. npm 계정 인증과 `abruption/aptly`·`publish.yml`·`npm` environment의 Trusted Publisher 등록 성공을 확인했습니다. 실제 OIDC 교환과 게시 성공은 다음 새 버전 배포에서 확인해야 합니다. dry run 성공은 실제 OIDC 게시 성공을 대신 검증하지 않습니다.
 
 ## 워크플로 동작
 
-`npm OIDC publish`는 `workflow_dispatch`로만 실행합니다. push·PR·태그 생성만으로 npm에 게시하지 않습니다.
+`npm OIDC publish`는 `v*` 태그 push에서 OIDC 게시를 자동 실행합니다. 일반 브랜치 push·PR은 게시하지 않습니다. `workflow_dispatch`도 지원하며 수동 실행의 `dry_run` 기본값은 `true`입니다.
 
 | 입력 | 값 |
 |---|---|
@@ -17,7 +17,7 @@ GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준
 
 준비 작업은 Node.js 24에서 잠긴 의존성을 lifecycle script 없이 설치하고 타입·빌드·무료 시험·fixture MCP smoke·공개 파일 검사를 수행합니다. 이후 `npm pack --ignore-scripts`로 archive를 만들고 SHA-256과 소스 commit·태그·패키지 정보를 기록합니다. 이 작업에는 OIDC 발급 권한이 없습니다.
 
-`dry_run: false`인 실행만 `npm` environment의 publish 작업으로 이어집니다. 해당 작업에만 `id-token: write`를 부여하고, 준비 작업의 정확한 source SHA를 checkout합니다. 같은 실행이 생성한 artifact ID로 archive를 내려받아 commit·태그·메타데이터·SHA-256을 다시 검사한 뒤 그 archive만 게시합니다. 안정 버전은 `latest`, 프리릴리즈는 `next` dist-tag를 사용합니다. 오류나 불명 결과를 새 실행으로 무조건 재시도하지 마십시오.
+`v*` 태그 push 또는 수동 실행의 `dry_run: false`인 경우에만 `npm` environment의 publish 작업으로 이어집니다. 해당 작업에만 `id-token: write`를 부여하고, 준비 작업의 정확한 source SHA를 checkout합니다. 같은 실행이 생성한 artifact ID로 archive를 내려받아 commit·태그·메타데이터·SHA-256을 다시 검사한 뒤 그 archive만 게시합니다. 안정 버전은 `latest`, 프리릴리즈는 `next` dist-tag를 사용합니다. 오류나 불명 결과를 새 실행으로 무조건 재시도하지 마십시오.
 
 게시 명령은 `--access public --provenance --ignore-scripts`와 npm registry를 명시합니다. CI 의존성 캐시와 checkout 자격 보관을 끄며 `NPM_TOKEN`·`NODE_AUTH_TOKEN` secret으로 대체 인증하지 않습니다. `setup-node`에는 `registry-url`을 주지 않고, runner 임시 경로의 npm 설정 파일에는 registry 주소만 기록합니다. 원시 npm 설정이나 자격 값을 로그로 출력하지 마십시오.
 

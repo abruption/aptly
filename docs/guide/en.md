@@ -4,19 +4,19 @@
 
 [Back to README](../../README.en.md)
 
-Korean is the canonical documentation. This guide covers the local 0.1.0 package draft. It does not indicate publication to the npm registry or model availability for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
+Korean is the canonical documentation. This guide covers Aptly 0.1.0, published on npm. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
 
 ## Installation
 
-You need Node.js 24 or later and Claude Code or Codex. Specify a reviewed archive and installation location.
+You need Node.js 24 or later and Claude Code or Codex. Specify the npm package and installation location.
 
 ```sh
 aptly_install=/absolute/aptly-local
-npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+npm install --prefix "$aptly_install" aptly@0.1.0
 "$aptly_install/node_modules/.bin/aptly" setup --client all --mode defaults
 ```
 
-In later examples, `aptly` refers to the executable in this installation. Use its full path if it is not on PATH. Do not execute TypeScript source directly from an installed `node_modules` directory.
+To install a reviewed local archive, replace `aptly@0.1.0` in the installation command with its actual file path, such as `/absolute/path/aptly-0.1.0.tgz`. In later examples, `aptly` refers to the executable in this installation. Use its full path if it is not on PATH. Do not execute TypeScript source directly from an installed `node_modules` directory.
 
 `postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
 
@@ -39,7 +39,7 @@ Missing keys and connection, authentication, or timeout errors leave the origina
 ### Skipping registration and removing it
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```

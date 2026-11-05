@@ -4,19 +4,19 @@
 
 [README로 돌아가기](../../README.md)
 
-한국어가 정본입니다. 이 안내는 0.1.0 로컬 패키지 초안을 다룹니다. npm 레지스트리 게시나 모든 계정의 모델 접근 가능성을 뜻하지 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
+한국어가 정본입니다. 이 안내는 npm에 게시된 Aptly 0.1.0을 다룹니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
 
 ## 설치
 
-Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. 검토한 아카이브와 설치 위치를 지정하십시오.
+Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. npm 패키지와 설치 위치를 지정하십시오.
 
 ```sh
 aptly_install=/absolute/aptly-local
-npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+npm install --prefix "$aptly_install" aptly@0.1.0
 "$aptly_install/node_modules/.bin/aptly" setup --client all --mode defaults
 ```
 
-이후 예제의 `aptly`는 위 설치 위치의 실행 파일을 가리킵니다. PATH에 연결하지 않았다면 전체 경로로 실행하십시오. 설치된 `node_modules`에서 TypeScript 소스를 직접 실행하지 마십시오.
+검토한 로컬 아카이브를 설치하려면 설치 명령의 `aptly@0.1.0` 대신 `/absolute/path/aptly-0.1.0.tgz` 같은 실제 파일 경로를 사용하십시오. 이후 예제의 `aptly`는 위 설치 위치의 실행 파일을 가리킵니다. PATH에 연결하지 않았다면 전체 경로로 실행하십시오. 설치된 `node_modules`에서 TypeScript 소스를 직접 실행하지 마십시오.
 
 `postinstall`은 현재 사용자의 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. `CODEX_HOME`·`CLAUDE_CONFIG_DIR`을 사용한다면 설치 프로세스에도 같은 환경을 전달하십시오. 아직 없는 호스트 디렉터리는 자동 등록에서 건너뛰고, 명시적인 `setup`으로 만들 수 있습니다. 필요한 호스트만 등록하려면 `--client codex` 또는 `--client claude`를 사용하십시오.
 
@@ -39,7 +39,7 @@ npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
 ### 건너뛰기·제거
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" /absolute/path/aptly-0.1.0.tgz
+APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```

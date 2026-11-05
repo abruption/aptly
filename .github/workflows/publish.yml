@@ -1,6 +1,8 @@
 name: npm OIDC publish
 
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       release_tag:
@@ -17,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: npm-publish-${{ inputs.release_tag }}
+  group: npm-publish-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -29,8 +31,8 @@ jobs:
       source_sha: ${{ steps.source.outputs.sha }}
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
     env:
-      RELEASE_TAG: ${{ inputs.release_tag }}
-      RELEASE_MODE: ${{ inputs.dry_run && 'dry-run' || 'publish' }}
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+      RELEASE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'dry-run' || 'publish' }}
       RELEASE_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
       APTLY_SKIP_SETUP: '1'
       OPENAI_API_KEY: ''
@@ -44,7 +46,7 @@ jobs:
           printf 'POC_TEST_TMP_ROOT=%s\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: refs/tags/${{ inputs.release_tag }}
+          ref: refs/tags/${{ inputs.release_tag || github.ref_name }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -86,7 +88,7 @@ jobs:
 
   publish:
     name: Publish the verified archive through npm OIDC
-    if: ${{ !inputs.dry_run }}
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -95,7 +97,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
       RELEASE_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
     steps:
       - name: Prepare runner-local paths

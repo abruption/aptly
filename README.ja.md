@@ -8,10 +8,10 @@ Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し�
 
 ## クイックスタート
 
-Node.js **24 以上**と Claude Code または Codex が必要です。現在は **MIT ライセンスの 0.1.0 ローカルパッケージ案**で、npm registry にはまだ公開していません。確認済みのアーカイブの実際のパスに置き換えてインストールしてください。
+Node.js **24 以上**と Claude Code または Codex が必要です。**MIT ライセンスの Aptly 0.1.0** を npm registry からインストールしてください。
 
 ```sh
-npm install --prefix ./aptly-local /absolute/path/aptly-0.1.0.tgz
+npm install --prefix ./aptly-local aptly@0.1.0
 ./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
 ```
 
@@ -32,7 +32,7 @@ npm install --prefix ./aptly-local /absolute/path/aptly-0.1.0.tgz
 ## ドキュメント
 
 - [使用ガイド](docs/guide/ja.md): インストール・削除、キー、Hook、直接推薦、エラー復旧
-- [インストール・削除](docs/guide/ja.md#インストール): ローカルアーカイブ、ホスト登録、再起動と信頼の承認
+- [インストール・削除](docs/guide/ja.md#インストール): npm・ローカルアーカイブのインストール、ホスト登録、再起動と信頼の承認
 - [モデルと環境変数](docs/guide/ja.md#モデルと環境変数): 6 つのデフォルトプロファイルと候補の設定
 - [コンテキストの提供](docs/guide/ja.md#コンテキストの提供): 暗号化されたメッセージとリポジトリ URL の制約
 - [費用実測](docs/guide/ja.md#費用実測): README 翻訳レビューのトークン・換算費用と測定範囲

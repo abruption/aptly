@@ -8,10 +8,10 @@ Aptly classifies a minimal task summary with the OpenAI Decisions API and recomm
 
 ## Quick start
 
-Use Node.js **24 or later** and Claude Code or Codex. This is an **MIT-licensed local 0.1.0 package draft**, not a release published to the npm registry. Replace the archive path below with the actual reviewed archive.
+Use Node.js **24 or later** and Claude Code or Codex. Install **MIT-licensed Aptly 0.1.0** from the npm registry.
 
 ```sh
-npm install --prefix ./aptly-local /absolute/path/aptly-0.1.0.tgz
+npm install --prefix ./aptly-local aptly@0.1.0
 ./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
 ```
 
@@ -32,7 +32,7 @@ Automatic selection targets Codex calls with `fork_turns: "none"` and Claude Cod
 ## Documentation
 
 - [User guide](docs/guide/en.md): installation and removal, keys, Hooks, direct recommendations, and error recovery
-- [Installation and removal](docs/guide/en.md#installation): local archives, host registration, restarting, and trust review
+- [Installation and removal](docs/guide/en.md#installation): npm and local archive installation, host registration, restarting, and trust review
 - [Models and environment variables](docs/guide/en.md#models-and-environment-variables): six default profiles and candidate configuration
 - [Providing context](docs/guide/en.md#providing-context): encrypted messages and repository URL limitations
 - [Cost benchmark](docs/guide/en.md#cost-benchmark): tokens, converted costs, and measurement scope for a README translation review
