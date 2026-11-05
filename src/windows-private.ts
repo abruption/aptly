@@ -61,6 +61,10 @@ try {
  $sections = [Security.AccessControl.AccessControlSections]::Access
  $sourceAcl = [IO.File]::GetAccessControl($source, $sections)
  $expected = $sourceAcl.GetSecurityDescriptorSddlForm($sections)
+ $initial = [IO.File]::GetAccessControl($target, $sections).GetSecurityDescriptorSddlForm($sections)
+ # A sibling stage normally inherits the same ACL. Avoid reapplying inherited
+ # ACEs when the full DACL descriptor (including protection) already matches.
+ if ($expected -ceq $initial) { [Console]::Out.Write('private'); exit 0 }
  $acl = [Security.AccessControl.FileSecurity]::new()
  $acl.SetSecurityDescriptorSddlForm($expected, $sections)
  [IO.File]::SetAccessControl($target, $acl)

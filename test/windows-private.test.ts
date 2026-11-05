@@ -88,6 +88,9 @@ test('existing Windows file DACL is copied to stage with its protected inheritan
  assert.match(script,/\[IO.File\]::GetAccessControl\(\$source, \$sections\)/);
  assert.match(script,/\[IO.File\]::SetAccessControl\(\$target, \$acl\)/);
  assert.match(script,/GetSecurityDescriptorSddlForm\(\$sections\)/);
+ assert.match(script,/\$expected -ceq \$initial/);
+ assert.ok(script.indexOf('$expected -ceq $initial') < script.indexOf('[IO.File]::SetAccessControl'));
+ assert.match(script,/if \(\$expected -ceq \$initial\) \{ \[Console\]::Out.Write\('private'\); exit 0 \}/);
  assert.match(script,/\$expected -cne \$actual/);
  assert.match(script,/GetDirectoryName/);
  for(const execute of [()=> 'rejected',()=>{throw new Error('raw-acl-private-source');}])
