@@ -42,7 +42,7 @@ aptly setup --client all --mode defaults
 ## 文档
 
 - [使用指南](docs/guide/zh-CN.md)：安装与移除、密钥、Hook、直接推荐、错误恢复
-- [安装与移除](docs/guide/zh-CN.md#安装)：npm 与本地归档安装、宿主注册、重启与信任批准
+- [安装与移除](docs/guide/zh-CN.md#安装)：npm 全局安装、宿主注册、重启与信任批准
 - [模型与环境变量](docs/guide/zh-CN.md#模型与环境变量)：六个默认配置与候选设置
 - [提供上下文](docs/guide/zh-CN.md#提供上下文)：加密消息与仓库 URL 的限制
 - [成本实测](docs/guide/zh-CN.md#成本实测)：README 翻译审阅的 token、换算成本与测量范围

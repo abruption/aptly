@@ -8,7 +8,7 @@ Korean is the canonical documentation. This guide covers Aptly 0.1.0, published 
 
 ## Installation
 
-You need Node.js 24 or later and Claude Code or Codex. Specify the npm package and installation location.
+Install globally with Node.js 24 or later and Claude Code or Codex:
 
 ```sh
 npm install -g aptly@0.1.0
@@ -16,14 +16,7 @@ aptly setup --client all --mode defaults
 aptly --version
 ```
 
-The default example installs globally. Confirm that `aptly --version` prints `0.1.0`. Global installation applies to the current Node.js environment; switching Node versions with a version manager may require reinstalling. If permissions prevent installation, use the local alternative below instead of blindly adding administrator privileges.
-
-```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
-```
-
-For a local installation, use the executable at the path above. To install a local archive, replace `aptly@0.1.0` with `/absolute/path/aptly-0.1.0.tgz`. Do not run TypeScript source directly from an installed `node_modules` directory.
+`aptly --version` should print `0.1.0`. Switching Node.js environments may require reinstalling.
 
 `postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
 
@@ -31,21 +24,11 @@ New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy,
 
 ### Keys and restarting
 
-`OPENAI_API_KEY` is the classification key. It is separate from the existing login or subscription authentication used to run subagent models. **Inject it into the MCP process's environment** through your credential store or a secure execution environment. Do not put keys in command arguments, tool arguments, request JSON, MCP configuration JSON, source files, logs, or temporary files. No particular credential store is required.
-
-Start a new host process or restart the MCP server to load registration and environment changes. Changing environment variables in another terminal does not update an already-running GUI or MCP process. **Codex requires you to review and trust the exact new Hook definition through `/hooks`.** The installer does not bypass trust review.
-
-Missing keys and connection, authentication, or timeout errors leave the original call unchanged. Direct Decisions calls require the following environment.
-
-| Environment variable | Purpose |
-|---|---|
-| `OPENAI_API_KEY` | Classification key injected through a secure execution environment |
-| `ROUTER_PROVIDER=decisions` | Uses the actual classification API |
-| `ROUTER_LEDGER_PATH` | Absolute ledger path inside a user-owned private directory with mode 700 |
+Pass the classification key, `OPENAI_API_KEY`, through a secure environment or credential launcher to the MCP process. It is separate from host subscription login. Never write key values into command arguments, requests, configuration files, source, logs, or temporary files.
 
 ### MCP environment setup, step by step
 
-Install Aptly and run `setup` first, then edit the registered `aptly` entry. The examples below show **partial settings to merge into the existing entry**. Do not overwrite the entire configuration file or remove existing `command`, `args`, `ROUTER_LEDGER_PATH`, or `APTLY_HOOK_POLICY_PATH` values. Automatic registration prepares the ledger and policy paths and their private directories.
+Run `setup`, then merge the examples below into the existing `aptly` registration. Preserve `command`, `args`, credential launchers, `ROUTER_LEDGER_PATH`, and `APTLY_HOOK_POLICY_PATH`. Setup creates the private ledger/policy directories; a manual ledger path must be absolute and inside a user-owned directory with mode 700.
 
 #### Configuration file locations
 
@@ -54,11 +37,11 @@ Install Aptly and run `setup` first, then edit the registered `aptly` entry. The
 | Codex | `$CODEX_HOME/config.toml`; `~/.codex/config.toml` when `CODEX_HOME` is unset |
 | Claude Code | `mcpServers.aptly` in `~/.claude.json`; `.claude.json` inside `CLAUDE_CONFIG_DIR` when that directory is configured |
 
-Claude Code's `~/.claude/settings.json` stores Hooks, not user-scoped MCP registrations. If project `.mcp.json` or managed settings already define the server, check the active entry in `/mcp` instead of adding a duplicate. In apps that use account-specific configuration directories, editing the default home path may not affect the current account.
+Claude Code stores Hooks in `~/.claude/settings.json`, separately from MCP registration. If project `.mcp.json`, managed settings, or account-specific directories are in use, check the active entry in `/mcp` before editing or adding a registration.
 
 #### Passing the API key
 
-`OPENAI_API_KEY` is an OpenAI API key, separate from Codex or Claude Code subscription login and npm authentication. For a standard direct launch, provide it in the environment of the process that starts the host. The following example runs **in Bash**, reads the key without displaying it or placing its value in command history, and starts Codex from the same shell. If you use zsh, run `bash` first.
+For a direct launch, enter the key in **Bash** without displaying or saving its value, then start the host from that shell. In zsh, run `bash` first:
 
 ```sh
 read -rsp 'OpenAI API key: ' OPENAI_API_KEY
@@ -67,11 +50,11 @@ export OPENAI_API_KEY
 codex
 ```
 
-For Claude Code, replace the final `codex` command with `claude`. The key is passed only to this shell and its child processes; it is not saved permanently. An already-running GUI app does not inherit `export` changes from another terminal. For a GUI launch, use the app's secure environment-passing mechanism or a launcher that reads a credential store. Preserve any existing credential-injection launcher. Do not write the key value directly into configuration JSON, TOML, or shared files.
+Replace `codex` with `claude` for Claude Code. This does not save the key permanently. A running GUI does not inherit another terminal’s environment; use its secure environment mechanism or preserve the existing credential launcher.
 
 #### Codex example
 
-Add `OPENAI_API_KEY` to the existing `env_vars` list under `[mcp_servers.aptly]`. Preserve existing entries such as `SSH_AUTH_SOCK`. `env_vars` lists **variable names to forward from the Codex process environment**; the `.env` table supplies **fixed values** to the MCP server. This is a partial entry, not a complete server registration.
+Edit the existing `[mcp_servers.aptly]` tables; do not append duplicate tables. Add `OPENAI_API_KEY` to `env_vars` without removing existing entries. `env_vars` forwards named host variables; `.env` supplies fixed MCP values.
 
 ```toml
 [mcp_servers.aptly]
@@ -83,11 +66,9 @@ APTLY_CLAUDE_MODELS = '["haiku","sonnet","opus"]'
 APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ```
 
-Edit the existing tables: appending the same TOML table again can cause an error. Keep the launch command and ledger/Hook policy paths omitted from this example.
-
 #### Claude Code example
 
-Merge these values into the existing `mcpServers.aptly.env` object. This JSON shows only the contents of `env`. Preserve the existing key-reading launcher and ledger/Hook policy paths.
+Merge these values into the existing `mcpServers.aptly.env` object:
 
 ```json
 {
@@ -97,7 +78,7 @@ Merge these values into the existing `mcpServers.aptly.env` object. This JSON sh
 }
 ```
 
-For a standard direct-launch registration, you can explicitly connect the key using Claude Code's environment-variable reference syntax. The key must first exist in the environment that starts Claude Code. This example does not store the actual key in the file.
+For direct launches, this optional reference forwards a key already present in the Claude Code environment. Do not add it to a credential-launcher setup. If the variable is missing, the key will not be supplied and the reference may remain unexpanded:
 
 ```json
 {
@@ -105,21 +86,9 @@ For a standard direct-launch registration, you can explicitly connect the key us
 }
 ```
 
-This last entry is optional for a standard direct-launch registration. Do not add it indiscriminately to an entry that uses a separate credential launcher. If the referenced variable is missing, the correct key will not be passed and the reference text itself may remain unexpanded.
+Model candidates are **JSON strings**: leave them unset for defaults or use `[]` to disable that host’s recommendations. Aptly reads the MCP startup environment and does not load project `.env` files.
 
-#### Which values should you change?
-
-| Setting | Action for normal use |
-|---|---|
-| `OPENAI_API_KEY` | Provide it in the host environment for a standard direct launch. Preserve the existing method when using a credential launcher |
-| `ROUTER_PROVIDER` | `decisions` for actual classification; `fixture` for free synthetic tests |
-| `ROUTER_LEDGER_PATH`, `APTLY_HOOK_POLICY_PATH` | Keep the values created by `setup` |
-| `APTLY_CLAUDE_MODELS`, `APTLY_CODEX_MODELS` | Leave unset to use defaults. Set them only to restrict candidates |
-| `APTLY_MODEL_INFO_PATH` | Set only when explicitly refreshing and using the official model-information cache |
-
-Candidate arrays are always **JSON strings**. Escaped quotes in JSON configuration and single-quoted TOML strings pass the same value. `[]` disables recommendations for that host. Creating a project `.env` file alone does not apply these settings. Aptly does not automatically load `.env`; it reads the environment supplied when the MCP server starts.
-
-After saving, restart the host or MCP server. Check the `aptly` connection in `/mcp`, then use `get_routing_capabilities` to inspect `provider: decisions`, the candidate list, and `automatic_hook.mode`. This free status query does not validate the API key. An actual `recommend_agent` request may incur a classification charge. For `unavailable`/`unauthorized`, check key forwarding; for `needs_context`, check the task summary. Do not print keys or the full configuration to logs.
+Restart the host or MCP server after changes. **In Codex, review and trust the new Hook through `/hooks`.** Check `/mcp` and `get_routing_capabilities` for `provider`, candidates, and `automatic_hook.mode`. This free query does not authenticate the key; `recommend_agent` may incur a charge. For `unauthorized`, check key forwarding; for `needs_context`, check the task summary.
 
 See the official [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) and [Claude Code MCP guide](https://code.claude.com/docs/en/mcp) for configuration locations and environment forwarding.
 
@@ -131,7 +100,7 @@ aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
 
-A `CI` environment or npm `--ignore-scripts` also skips automatic registration. You can register explicitly with `setup`. The `advisory` mode passes recommendations without changing arguments. To change policy, remove the existing registration, then register again with the desired `--mode`. For a `partial` result, check the error codes for each client. Removal only targets entries that match Aptly's ownership records; it preserves user changes and reports conflicts.
+`CI` or npm `--ignore-scripts` also skips registration. Use `setup` to register later. To change mode, remove the registration and run setup with the desired `--mode`; `advisory` only supplies advice. For `partial`, check each host’s error codes. Removal preserves user-modified entries and reports conflicts.
 
 ## Automatic Hook
 

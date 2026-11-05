@@ -42,7 +42,7 @@ aptly setup --client all --mode defaults
 ## 문서
 
 - [사용 가이드](docs/guide/ko.md): 설치·제거, 키, Hook, 직접 추천, 오류 복구
-- [설치·제거](docs/guide/ko.md#설치): npm·로컬 아카이브 설치, 호스트 등록, 재시작과 신뢰 승인
+- [설치·제거](docs/guide/ko.md#설치): npm 전역 설치, 호스트 등록, 재시작과 신뢰 승인
 - [모델과 환경변수](docs/guide/ko.md#모델과-환경변수): 여섯 기본 프로필과 후보 설정
 - [맥락 전달](docs/guide/ko.md#맥락-전달): 암호화된 메시지와 저장소 URL의 한계
 - [비용 실측](docs/guide/ko.md#비용-실측): README 번역 검토의 토큰·환산 비용과 측정 범위
