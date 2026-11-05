@@ -1,5 +1,7 @@
 # Aptly
 
+> Model and reasoning recommendations for subagents.
+
 [한국어](README.md) · [English](README.en.md) · **简体中文** · [日本語](README.ja.md)
 
 **用于为 Claude Code 和 Codex 子代理选择合适模型与推理强度（effort）的本地 MCP 服务器。**

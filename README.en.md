@@ -1,5 +1,7 @@
 # Aptly
 
+> Model and reasoning recommendations for subagents.
+
 [한국어](README.md) · **English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 **A local MCP server that selects Claude Code and Codex subagent models and reasoning effort to suit the task.**

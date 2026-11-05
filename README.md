@@ -1,5 +1,7 @@
 # Aptly
 
+> Model and reasoning recommendations for subagents.
+
 **한국어** · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 **작업에 맞는 Claude Code·Codex 서브에이전트 모델과 effort를 선택하는 로컬 MCP입니다.**
