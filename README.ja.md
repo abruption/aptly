@@ -20,19 +20,19 @@ Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し�
 
 ## クイックスタート
 
-Node.js **24 以上**と Claude Code または Codex が必要です。[aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) をグローバルインストールしてください。[ソースタグ v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
+Node.js **24 以上**と Claude Code または Codex が必要です。以下のコマンドは **0.1.1 が npm で公開された後**に使用してください。
 
 ```sh
-npm install -g aptly@0.1.0
+npm install -g aptly@0.1.1
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-バージョン確認コマンドの出力が `0.1.0` であることを確認してください。
+バージョン確認コマンドの出力が `0.1.1` であることを確認してください。
 
 インストール時の `postinstall` は、既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。自動登録をスキップした場合や、ホストに設定ディレクトリがまだない場合も、`setup` を明示的に実行して登録できます。他の既存設定・Hook と、既存の Aptly の実行コマンド・環境は保持します。
 
-分類用の `OPENAI_API_KEY` は、安全な実行環境から MCP プロセスに渡してください。キーをコマンドライン・リクエスト・設定 JSON・リポジトリに記載しないでください。ホストまたは MCP を再起動した後、**Codex では `/hooks` で新しい Hook を確認し、信頼を承認**してください。[インストール・キー・登録の詳細](docs/guide/ja.md#インストール)を確認してください。
+分類用の `OPENAI_API_KEY` は、`aptly set env OPENAI_API_KEY` の非表示入力で OS の資格情報ストアに保存するか、安全な実行環境から MCP プロセスに渡してください。キーをコマンドライン・リクエスト・設定 JSON・リポジトリに記載しないでください。ホストまたは MCP を再起動した後、**Codex では `/hooks` で新しい Hook を確認し、信頼を承認**してください。[インストール・キー・登録の詳細](docs/guide/ja.md#インストール)を確認してください。
 
 ## 使用方法
 
@@ -46,7 +46,7 @@ aptly --version
 
 ## ドキュメント
 
-- [次のリリースの CLI 設定](docs/guide/ja.md#cli-による設定--次のリリース向け)
+- [CLI 設定](docs/guide/ja.md#cli-による設定)
 - [使用ガイド](docs/guide/ja.md): インストール・削除、キー、Hook、直接推薦、エラー復旧
 - [インストール・削除](docs/guide/ja.md#インストール): npm のグローバルインストール、ホスト登録、再起動と信頼の承認
 - [モデルと環境変数](docs/guide/ja.md#モデルと環境変数): 6 つのデフォルトプロファイルと候補の設定

@@ -1,5 +1,13 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.1 준비와 Issue #18
+
+현재 소스는 0.1.1 릴리즈 준비 상태입니다. 설치 시험을 릴리즈 패키징과 분리한 job 경계를 유지합니다. 준비 PR 병합과 해당 main의 CI 확인 후 `v0.1.1` 태그를 push하면 실제 OIDC 게시가 시작됩니다. 준비 과정에서는 태그를 push하지 않습니다. 새 태그 push 자체가 게시를 시작하므로 먼저 push한 뒤 dry run으로 확인하는 순서로 진행하지 마십시오.
+
+[Issue #18](https://github.com/abruption/aptly/issues/18)은 실제 게시 후 검증할 항목입니다. 준비 PR·무료 시험·dry run 성공만으로 닫지 않습니다. 아래 절차는 게시된 버전의 provenance를 확인하는 방법이며, 현재 Aptly 0.1.1의 검증이 완료됐다는 기록이 아닙니다.
+
+2026-11-05 사용자 승인에 따라 GitHub `npm` environment의 배포 대상을 **태그 `v*`만** 허용하도록 설정하고 조회로 확인했습니다. 별도 required reviewer가 있다는 뜻은 아닙니다. 실제 게시 전 npm Trusted Publisher가 `abruption/aptly`·`publish.yml`·environment `npm`·직접 게시 허용에 연결됐는지 다시 확인합니다. `npm trust list aptly`가 추가 인증을 요구하면 인증을 완료하고, 자격·신뢰 설정 ID는 공개 증거에 복사하지 않습니다.
+
 GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준비했습니다. 수동 실행의 기본값은 검증과 archive 생성만 수행하는 dry run이며, `v*` 태그 push는 OIDC 게시를 자동 실행합니다. 실제 원격 저장소 생성·push·npm 게시·계정 설정은 이 문서 준비와 별개입니다.
 
 공개 소스 저장소는 [abruption/aptly](https://github.com/abruption/aptly)이며, `package.json`의 `repository.url`에도 같은 주소를 기록했습니다. `aptly` 0.1.0은 `private: false`와 공개 npm registry·provenance·`latest` 게시 설정을 명시합니다. CI는 메타데이터를 임시로 바꾸지 않으며 기본 dry run에서는 게시하지 않습니다.
@@ -84,6 +92,47 @@ npm trust github aptly --file publish.yml --repo abruption/aptly --env npm --all
 4. `npm` environment의 보호 절차를 거쳐 게시합니다. 실패·시간 초과 뒤에는 해당 실행과 registry 결과를 먼저 확인하고 새 버전이나 새 실행으로 무작정 재게시하지 마십시오.
 
 실제 GitHub 원격 실행과 npm OIDC 교환은 로컬 검증만으로 확인할 수 없습니다. 최신 원격 CI 상태는 [GitHub Actions](https://github.com/abruption/aptly/actions)에서 확인하십시오. 소스 공개, CI 성공, npm 게시 성공은 각각 별도로 확인해야 합니다.
+
+## 게시 후 provenance 검증
+
+직접 암호 검증기를 만들지 않고 [npm 서명 검증](https://docs.npmjs.com/cli/v11/commands/npm-audit/)과 [GitHub CLI attestation 검증](https://cli.github.com/manual/gh_attestation_verify)을 사용합니다. 아래 명령은 확인한 npm 11.19.1·GitHub CLI 2.103.3 기준입니다. npm의 정확한 옵션은 `--include-attestations`입니다. 도구를 바꾸면 옵션·출력 스키마도 확인하십시오.
+
+1. 게시 실행의 source SHA, workflow run ID·attempt, 태그와 결과를 기록하고, 그 실행의 `npm-release-RUN_ID-ATTEMPT` artifact를 내려받습니다. `release-manifest.json`의 source SHA·태그·버전·archive SHA-256과 실제 파일을 대조합니다. 실행 번호는 예시 그대로 쓰지 말고 실제 게시 실행으로 바꿉니다.
+
+   ```sh
+   gh run view RUN_ID --repo abruption/aptly --json databaseId,attempt,headSha,workflowName,url
+   gh run download RUN_ID --repo abruption/aptly --name npm-release-RUN_ID-ATTEMPT --dir /absolute/private/release-evidence/artifact
+   npm view aptly@0.1.1 dist --json --registry=https://registry.npmjs.org/
+   ```
+
+2. registry의 tarball을 별도 파일로 받아 SHA-256이 준비 artifact와 같은지, SHA-512가 registry의 `dist.integrity`와 같은지 확인합니다. 내려받은 metadata의 URL이나 `gitHead`만으로 provenance 검증 성공을 선언하지 않습니다.
+
+3. 별도의 비공개 검증 디렉터리에 정확한 버전을 lifecycle script 없이 설치하고 npm의 서명 검증을 실행합니다. 검증 디렉터리와 증거 디렉터리는 실제 절대 경로로 지정하고 로컬 임시 경로 규칙을 따릅니다. 이 설치는 전역 설치나 사용자 호스트 설정을 바꾸지 않습니다.
+
+   ```sh
+   APTLY_SKIP_SETUP=1 npm install --prefix /absolute/private/release-evidence/verify --save-exact --ignore-scripts --no-audit --no-fund aptly@0.1.1
+   npm --prefix /absolute/private/release-evidence/verify audit signatures --json --include-attestations > /absolute/private/release-evidence/npm-signatures.json
+   ```
+
+   종료 코드와 `invalid`·`missing`을 확인하고, `verified` 배열에 **정확한 `aptly@0.1.1`의 SLSA provenance가 하나** 있는지 확인합니다. 오류 배열이 비어 있거나 종료 코드가 0인 것만으로 해당 패키지의 attestation 존재를 증명하지 않습니다. `verified`의 해당 항목에서 `attestationBundles` 중 `predicateType`이 `https://slsa.dev/provenance/v1`인 항목의 `bundle`을 별도 JSON 파일로 저장합니다. npm 검증은 서명과 registry의 패키지 subject·SHA-512 결합을 확인합니다.
+
+4. 그 bundle과 registry에서 받은 tarball을 GitHub CLI로 검증하여 인증서에 연결된 저장소·source SHA·태그·workflow identity를 제한합니다. `SOURCE_SHA`는 artifact와 게시 실행에서 확인한 실제 immutable SHA로 바꿉니다.
+
+   ```sh
+   gh attestation verify /absolute/private/release-evidence/aptly-0.1.1.tgz \
+     --bundle /absolute/private/release-evidence/provenance-bundle.json \
+     --digest-alg sha512 --repo abruption/aptly \
+     --source-digest SOURCE_SHA --source-ref refs/tags/v0.1.1 \
+     --cert-identity https://github.com/abruption/aptly/.github/workflows/publish.yml@refs/tags/v0.1.1 \
+     --deny-self-hosted-runners --format json \
+     > /absolute/private/release-evidence/gh-provenance.json
+   ```
+
+   `--cert-identity`와 `--signer-workflow`는 함께 사용하지 않습니다. 검증 출력의 `verificationResult.signature.certificate`에 있는 `sourceRepositoryDigest`, `sourceRepositoryURI`, `sourceRepositoryRef`, `buildSignerURI`와 `runInvocationURI`도 기대값과 대조합니다. `issuer`는 `https://token.actions.githubusercontent.com`, `runnerEnvironment`는 `github-hosted`여야 합니다. `runInvocationURI`는 `https://github.com/abruption/aptly/actions/runs/RUN_ID/attempts/ATTEMPT`와 일치해야 합니다. 디코딩한 predicate의 실행 번호만 확인하는 것으로 대체하지 않습니다.
+
+5. 사용한 도구 버전, source SHA, run·attempt, artifact/registry digest·integrity, npm 검증과 인증서 identity 대조 결과를 공개 가능한 요약으로 기록합니다. registry 게시 성공과 provenance 검증 성공을 별도 상태로 남기고 둘 다 확인한 뒤 Issue #18의 완료 근거로 제출합니다. 키·토큰·npm 인증 설정·신뢰 설정 ID·개인 경로는 제외합니다.
+
+검증 실패·누락·시간 초과는 새 버전 재게시로 해결하지 않습니다. 먼저 기존 Actions 실행과 registry의 버전·integrity·attestation 상태를 확인하여 이미 게시됐는지 판단하고, 동일 버전의 검증만 다시 진행하십시오. 일반 공개 패키지로 도구 호환성을 확인한 결과는 Aptly의 실제 릴리즈 검증을 대신하지 않습니다.
 
 ## 로컬 검증과 공개 파일
 

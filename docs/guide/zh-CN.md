@@ -4,32 +4,32 @@
 
 [返回 README](../../README.zh-CN.md)
 
-韩语文档是正本。本指南介绍已发布到 npm 的 Aptly 0.1.0。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
+韩语文档是正本。本指南以 Aptly 0.1.1 为准。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
 
 ## 安装
 
-使用 Node.js 24 或更高版本，以及 Claude Code 或 Codex，进行全局安装：
+需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。如果 0.1.1 已发布到 npm，请使用以下全局安装命令：
 
 ```sh
-npm install -g aptly@0.1.0
+npm install -g aptly@0.1.1
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-确认 `aptly --version` 输出 `0.1.0`。切换 Node.js 环境后可能需要重新安装。
+确认 `aptly --version` 输出 `0.1.1`。切换 Node.js 环境后可能需要重新安装。
 
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
 
 新注册项会指定 `ROUTER_PROVIDER=decisions`、Hook 的 `defaults` 策略，以及各宿主独立的私有账本。其他现有配置与 Hook，以及 Aptly 原有的命令、环境、分类方式和账本路径都会保留。现有 fixture 配置不会自动切换为付费模式。
 
-### 使用 CLI 设置 — 计划用于下一版本
+### 使用 CLI 设置
 
-**以下 `set` 命令是尚未发布的开发功能，npm `0.1.0` 不支持。** 当前安装版本请继续使用 `setup` 和手动配置步骤。在源码检出目录中，可按下面方式测试；下一版本发布后，将 `node bin/aptly.ts` 换成 `aptly`。源码测试也要求 MCP 服务器运行相同的开发构建。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
+`set` 命令需要 0.1.1 或更高版本。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
 
 ```sh
-node bin/aptly.ts set default
-node bin/aptly.ts set env APTLY_CODEX_MODELS
-node bin/aptly.ts set env OPENAI_API_KEY
+aptly set default
+aptly set env APTLY_CODEX_MODELS
+aptly set env OPENAI_API_KEY
 ```
 
 第一条命令注册 Claude Code 和 Codex，并补充缺失的默认环境设置，不覆盖现有启动命令、环境变量白名单、分类方式、自定义候选或 advisory 策略。第二条命令以隐藏输入方式询问值，仅修改指定变量。第三条命令把 API 密钥存入操作系统凭据存储，并在所选宿主启动时读取。请勿把值作为命令参数传入。
@@ -37,18 +37,18 @@ node bin/aptly.ts set env OPENAI_API_KEY
 默认选择两个宿主。可用 `--client codex`、`--client claude` 或 `--client all` 指定目标。例如，Claude 候选值可输入 `["haiku","sonnet","opus"]` 这样的 JSON 字符串。
 
 ```sh
-node bin/aptly.ts set env APTLY_CLAUDE_MODELS --client claude
+aptly set env APTLY_CLAUDE_MODELS --client claude
 ```
 
 自动化时请显式使用 `--stdin`。下面是公开变量的示例；不要把真实密钥放入 `printf` 命令或 shell 历史。
 
 ```sh
-printf '%s\n' '["gpt-6.1-terra"]' | node bin/aptly.ts set env APTLY_CODEX_MODELS --stdin
+printf '%s\n' '["gpt-6.1-terra"]' | aptly set env APTLY_CODEX_MODELS --stdin
 ```
 
 允许设置的公开键为 `ROUTER_PROVIDER`（`fixture` 或 `decisions`）、`APTLY_CLAUDE_MODELS`、`APTLY_CODEX_MODELS`、`CLAUDE_MODELS`、`CODEX_MODELS` 和 `APTLY_MODEL_INFO_PATH`。候选必须是受支持模型的 JSON 数组字符串；无效值、重复值及主名称与别名冲突会被拒绝。`[]` 关闭对应宿主的推荐；模型缓存必须使用私有目录内的绝对路径。账本及 Hook 策略路径等受管理项不能通过此命令更改。
 
-API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows Credential Manager 保存。Windows 后端使用 PowerShell 和当前用户范围的 Win32 Generic 凭据，UTF-8 数据上限为 2,560 字节。后端已实现不等于完整的 Windows 宿主设置流程已通过实机验证；后者目前尚未完成。凭据存储不可用时会返回错误，不回退到明文文件。密钥按宿主账户分开，MCP 文件只保存 `APTLY_SECRET_BACKEND=os` 和 `APTLY_SECRET_CLIENT` 引用。明确选择系统存储后，缺少密钥或读取失败时，不会静默改用其他环境变量密钥。`set default` 保留现有包装程序或环境认证；只有执行 `set env OPENAI_API_KEY` 才明确选择系统存储认证。
+API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows Credential Manager 保存。Windows 后端使用 PowerShell 和当前用户范围的 Win32 Generic 凭据，UTF-8 数据上限为 2,560 字节。Windows CI 已验证合成密钥的保存、读取、更新和删除，以及 Unicode 路径、隔离的宿主设置、密钥引用和 ACL 保留；并未运行 Windows 上真实的 Claude Code 或 Codex 会话。凭据存储不可用时会返回错误，不回退到明文文件。密钥按宿主账户分开，MCP 文件只保存 `APTLY_SECRET_BACKEND=os` 和 `APTLY_SECRET_CLIENT` 引用。明确选择系统存储后，缺少密钥或读取失败时，不会静默改用其他环境变量密钥。`set default` 保留现有包装程序或环境认证；只有执行 `set env OPENAI_API_KEY` 才明确选择系统存储认证。
 
 命令只返回宿主状态和固定错误代码，不返回密钥值。结果为 `partial` 时，请逐个检查宿主。`credential_store_failed` 表示应检查存储访问或支持情况；`credential_rollback_failed` 表示需确认旧密钥是否恢复。失败宿主会在可能时恢复旧密钥，不能把其他宿主的成功视为所有宿主的原子成功。
 
@@ -129,7 +129,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### 跳过与移除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.0
+APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```

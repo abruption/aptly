@@ -20,19 +20,19 @@ Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허�
 
 ## 빠른 시작
 
-Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)을 전역 설치하십시오. [소스 태그 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
+Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. 아래 명령은 **0.1.1이 npm에 게시된 후** 사용하십시오.
 
 ```sh
-npm install -g aptly@0.1.0
+npm install -g aptly@0.1.1
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-버전 확인 명령의 출력은 `0.1.0`입니다.
+버전 확인 명령의 출력은 `0.1.1`입니다.
 
 설치 시 `postinstall`은 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. 명시적인 `setup`은 자동 등록을 건너뛰었거나 아직 설정 디렉터리가 없는 호스트에도 사용할 수 있습니다. 기존 다른 설정·Hook과 기존 Aptly 실행 명령·환경은 보존합니다.
 
-분류용 `OPENAI_API_KEY`는 안전한 실행 환경에서 MCP 프로세스에 전달하십시오. 키를 명령행·요청·설정 JSON·저장소에 기록하지 마십시오. 호스트 또는 MCP를 재시작한 뒤, **Codex에서는 `/hooks`에서 새 Hook을 검토하고 신뢰를 승인하십시오.** [설치·키·등록 상세](docs/guide/ko.md#설치)를 참고하십시오.
+분류용 `OPENAI_API_KEY`는 `aptly set env OPENAI_API_KEY`의 숨김 입력으로 OS 자격 저장소에 보관하거나 안전한 실행 환경에서 MCP 프로세스에 전달하십시오. 키를 명령행·요청·설정 JSON·저장소에 기록하지 마십시오. 호스트 또는 MCP를 재시작한 뒤, **Codex에서는 `/hooks`에서 새 Hook을 검토하고 신뢰를 승인하십시오.** [설치·키·등록 상세](docs/guide/ko.md#설치)를 참고하십시오.
 
 ## 사용 방식
 
@@ -46,7 +46,7 @@ aptly --version
 
 ## 문서
 
-- [다음 버전 CLI 설정](docs/guide/ko.md#cli로-설정하기--다음-버전-예정)
+- [CLI 설정](docs/guide/ko.md#cli로-설정하기)
 - [사용 가이드](docs/guide/ko.md): 설치·제거, 키, Hook, 직접 추천, 오류 복구
 - [설치·제거](docs/guide/ko.md#설치): npm 전역 설치, 호스트 등록, 재시작과 신뢰 승인
 - [모델과 환경변수](docs/guide/ko.md#모델과-환경변수): 여섯 기본 프로필과 후보 설정
