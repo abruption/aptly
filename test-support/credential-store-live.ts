@@ -42,7 +42,8 @@ try{
  if(loadSecret(options)!==value+'-updated')throw Error('native_credential_update_failed');
  deleteSecret(options);
  if(loadSecret(options)!==null)throw Error('native_credential_delete_failed');
- if(setDefaults({home,env:{}}).status!=='complete')throw Error('native_windows_defaults_failed');
+ const defaults=setDefaults({home,env:{}});
+ if(defaults.status!=='complete'){console.log(JSON.stringify(defaults));throw Error('native_windows_defaults_failed');}
  const configPath=join(home,'.codex','config.toml');
  const originalAcl=fileAcl(configPath,true);
  if(setEnvironment('ROUTER_PROVIDER','decisions',{home,env:{},clients:['codex']}).status!=='complete')throw Error('native_windows_environment_failed');
