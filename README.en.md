@@ -1,10 +1,18 @@
+<div align="center">
+
 # Aptly
 
-> Model and reasoning recommendations for subagents.
+[![npm version](https://img.shields.io/npm/v/aptly)](https://www.npmjs.com/package/aptly)
+[![npm downloads](https://img.shields.io/npm/dm/aptly)](https://www.npmjs.com/package/aptly)
+[![MIT license](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/abruption/aptly/blob/main/LICENSE)
+
+**Model and reasoning recommendations for subagents.**
 
 [한국어](README.md) · **English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 **A local MCP server that selects Claude Code and Codex subagent models and reasoning effort to suit the task.**
+
+</div>
 
 Aptly classifies a minimal task summary with the OpenAI Decisions API and recommends an allowlisted execution profile. Its installed Hook can automatically select defaults for fresh, general-purpose subagents without explicit choices. The host retains control of execution and permissions.
 
