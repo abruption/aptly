@@ -2,7 +2,9 @@
 
 GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준비했습니다. 기본 실행은 검증과 archive 생성만 수행하는 dry run입니다. 실제 원격 저장소 생성·push·npm 게시·계정 설정은 이 문서 준비와 별개입니다.
 
-공개 소스 저장소는 [abruption/aptly](https://github.com/abruption/aptly)이며, `package.json`의 `repository.url`에도 같은 주소를 기록했습니다. 패키지는 `aptly` 0.1.0이고 `private: true`를 유지합니다. 현재 메타데이터는 dry run 대상으로 유지하며, 실제 npm 게시는 선행 조건 검사에서 중단됩니다. CI가 `private`를 자동 해제하거나 저장소 정보를 임의로 바꾸지는 않습니다.
+공개 소스 저장소는 [abruption/aptly](https://github.com/abruption/aptly)이며, `package.json`의 `repository.url`에도 같은 주소를 기록했습니다. `aptly` 0.1.0 게시 후보는 `private: false`와 공개 npm registry·provenance·`latest` 게시 설정을 명시합니다. 이는 게시 가능한 메타데이터를 준비한 상태이며 실제 npm 게시나 패키지 소유권 확보를 뜻하지 않습니다. CI는 메타데이터를 임시로 바꾸지 않으며 기본 dry run에서는 게시하지 않습니다.
+
+준비 시점의 로컬 npm 계정 확인은 `401 Unauthorized`로 완료되지 않았습니다. 게시에 사용할 npm 계정 로그인, 패키지명·소유권과 게시 권한, 아래 Trusted Publisher의 실제 연결을 확인해야 합니다. GitHub dry run 성공은 이 계정 설정을 대신 검증하지 않습니다.
 
 ## 워크플로 동작
 
@@ -21,12 +23,13 @@ GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준
 
 ## npm과 GitHub에 연결할 항목
 
-[공식 npm Trusted Publishing 안내](https://docs.npmjs.com/trusted-publishers/)를 기준으로 다음 값을 패키지 Settings의 Trusted Publisher에 등록하십시오. 저장소는 실제 공개 대상이 정해진 뒤 입력해야 합니다.
+[공식 npm Trusted Publishing 안내](https://docs.npmjs.com/trusted-publishers/)를 기준으로 다음 값을 패키지 Settings의 Trusted Publisher에 등록하십시오. 아래 값은 현재 공개 저장소와 워크플로의 정확한 연결 정보입니다.
 
 | npm 설정 | 이 워크플로와 맞출 값 |
 |---|---|
 | Publisher | GitHub Actions |
-| Organization or user / Repository | 실제 `${{ github.repository }}`의 소유자 / 저장소 이름 |
+| Organization or user | `abruption` |
+| Repository | `aptly` |
 | Workflow filename | `publish.yml` — 전체 경로가 아닌 파일 이름 |
 | Environment | `npm` |
 | Allowed action | 직접 게시에 필요한 **Allow npm publish** 활성화 |
@@ -38,7 +41,7 @@ GitHub의 `npm` environment에는 필요한 검토자와 배포 가능한 태그
 [npm CLI의 trust 명령](https://docs.npmjs.com/cli/v11/commands/npm-trust/)으로 설정할 수도 있습니다. 아래 명령은 계정 설정을 변경하는 예시이며 CI에서 실행하지 않습니다.
 
 ```sh
-npm trust github aptly --file publish.yml --repo OWNER/REPOSITORY --env npm --allow-publish
+npm trust github aptly --file publish.yml --repo abruption/aptly --env npm --allow-publish
 ```
 
 신규 패키지의 소유권 확보·최초 게시 절차가 필요한 경우 CI와 별도로 결정하십시오. 이 준비는 최초 패키지 등록을 수행하거나 OIDC만으로 최초 등록이 가능함을 보장하지 않습니다. npm 패키지 Settings에서 연결할 수 있는 상태와 게시 권한을 먼저 확인하십시오.
@@ -46,19 +49,25 @@ npm trust github aptly --file publish.yml --repo OWNER/REPOSITORY --env npm --al
 ## 실제 게시 전 확정할 사항
 
 - 공개 저장소와 npm 패키지의 소유권·이름·접근 범위를 확정하십시오. [provenance를 사용할 공개 저장소·공개 패키지 조건](https://docs.npmjs.com/generating-provenance-statements/)과 실제 저장소에 일치하는 `repository.url`을 확인하십시오.
-- 게시를 승인한 release commit에서 `private`를 해제하고 저장소 메타데이터를 확정하십시오. CI 내부에서 임시로 값을 바꾸지 마십시오.
+- 게시 후보의 `private: false`, 실제 저장소 정보와 `publishConfig`를 검토하십시오. 실제 게시는 별도로 결정하며 CI 내부에서 임시로 값을 바꾸지 마십시오.
 - Node.js 24와 npm 11.5.1 이상이 필요합니다. workflow는 최소 버전을 검사하며, [setup-node의 OIDC 안내](https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#publishing-to-npm-with-trusted-publisher-oidc)에 따라 캐시를 사용하지 않습니다.
 - 프로젝트 `.npmrc`나 token 환경변수가 게시 인증에 섞이지 않도록 확인하십시오. 필요한 OIDC 권한은 publish 작업에서만 부여합니다.
 - release tag는 패키지 버전과 일치해야 하며 그 commit에 workflow와 검증 helper가 포함돼 있어야 합니다. 태그·commit·archive가 달라지면 검증을 다시 수행하십시오.
 
-승인한 release commit의 저장소 메타데이터는 다음 형식을 사용하십시오. `OWNER/REPOSITORY`는 실제 GitHub 저장소의 대소문자까지 맞춰야 합니다. 아래 예시는 현재 패키지 설정을 변경하거나 게시하지 않습니다.
+게시 후보의 공개 설정은 다음과 같습니다. 실제 GitHub 저장소의 대소문자까지 일치해야 합니다. 아래 설정만으로 npm에 게시되지는 않습니다.
 
 ```json
 {
   "private": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/REPOSITORY.git"
+    "url": "git+https://github.com/abruption/aptly.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true,
+    "tag": "latest"
   }
 }
 ```

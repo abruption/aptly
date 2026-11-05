@@ -1,7 +1,7 @@
 {
   "name": "aptly",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -65,5 +65,11 @@
   "homepage": "https://github.com/abruption/aptly#readme",
   "bugs": {
     "url": "https://github.com/abruption/aptly/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true,
+    "tag": "latest"
   }
 }
