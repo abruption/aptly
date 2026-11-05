@@ -26,7 +26,10 @@ npm run typecheck
 npm run build
 npm test
 npm run check:release
+node scripts/package-smoke.ts
 ```
+
+The package smoke check packs the built artifact and installs it into an isolated temporary prefix with setup disabled. It requires npm registry access for runtime dependencies, but no API key or host configuration. It verifies the installed CLI, compiled exports, and fixture MCP, then removes its temporary files.
 
 The default tests use synthetic inputs, deterministic providers, and local stdio MCP subprocesses. They require no OpenAI key or CLI subscription. Do not add live API calls or real host-agent runs to the default test suite or CI.
 

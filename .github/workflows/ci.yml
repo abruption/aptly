@@ -47,3 +47,5 @@ jobs:
         env:
           POC_TEST_TMP_ROOT: ${{ runner.temp }}
         run: npm run poc
+      - name: Install and smoke-test the packed artifact in a clean prefix
+        run: node scripts/package-smoke.ts
