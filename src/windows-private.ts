@@ -58,8 +58,10 @@ try {
   if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'invalid' }
  }
  $sections = [Security.AccessControl.AccessControlSections]::Access
- $acl = [IO.File]::GetAccessControl($source, $sections)
- $expected = $acl.GetSecurityDescriptorSddlForm($sections)
+ $sourceAcl = [IO.File]::GetAccessControl($source, $sections)
+ $expected = $sourceAcl.GetSecurityDescriptorSddlForm($sections)
+ $acl = [Security.AccessControl.FileSecurity]::new()
+ $acl.SetSecurityDescriptorSddlForm($expected, $sections)
  [IO.File]::SetAccessControl($target, $acl)
  $actual = [IO.File]::GetAccessControl($target, $sections).GetSecurityDescriptorSddlForm($sections)
  if ($expected -cne $actual) { throw 'invalid' }

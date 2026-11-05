@@ -80,6 +80,8 @@ test('existing Windows file DACL is copied to stage with its protected inheritan
  assert.deepEqual(request,{source,target});
  assert.equal(script.includes(source),false);
  assert.match(script,/AccessControlSections\]::Access/);
+ assert.match(script,/FileSecurity\]::new\(\)/);
+ assert.match(script,/SetSecurityDescriptorSddlForm\(\$expected, \$sections\)/);
  assert.match(script,/\[IO.File\]::GetAccessControl\(\$source, \$sections\)/);
  assert.match(script,/\[IO.File\]::SetAccessControl\(\$target, \$acl\)/);
  assert.match(script,/GetSecurityDescriptorSddlForm\(\$sections\)/);
