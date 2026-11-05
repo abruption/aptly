@@ -22,6 +22,38 @@ npm install --prefix "$aptly_install" aptly@0.1.0
 
 新注册项会指定 `ROUTER_PROVIDER=decisions`、Hook 的 `defaults` 策略，以及各宿主独立的私有账本。其他现有配置与 Hook，以及 Aptly 原有的命令、环境、分类方式和账本路径都会保留。现有 fixture 配置不会自动切换为付费模式。
 
+### 使用 CLI 设置 — 计划用于下一版本
+
+**以下 `set` 命令是尚未发布的开发功能，npm `0.1.0` 不支持。** 当前安装版本请继续使用 `setup` 和手动配置步骤。在源码检出目录中，可按下面方式测试；下一版本发布后，将 `node bin/aptly.ts` 换成 `aptly`。源码测试也要求 MCP 服务器运行相同的开发构建。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
+
+```sh
+node bin/aptly.ts set default
+node bin/aptly.ts set env APTLY_CODEX_MODELS
+node bin/aptly.ts set env OPENAI_API_KEY
+```
+
+第一条命令注册 Claude Code 和 Codex，并补充缺失的默认环境设置，不覆盖现有启动命令、环境变量白名单、分类方式、自定义候选或 advisory 策略。第二条命令以隐藏输入方式询问值，仅修改指定变量。第三条命令把 API 密钥存入操作系统凭据存储，并在所选宿主启动时读取。请勿把值作为命令参数传入。
+
+默认选择两个宿主。可用 `--client codex`、`--client claude` 或 `--client all` 指定目标。例如，Claude 候选值可输入 `["haiku","sonnet","opus"]` 这样的 JSON 字符串。
+
+```sh
+node bin/aptly.ts set env APTLY_CLAUDE_MODELS --client claude
+```
+
+自动化时请显式使用 `--stdin`。下面是公开变量的示例；不要把真实密钥放入 `printf` 命令或 shell 历史。
+
+```sh
+printf '%s\n' '["gpt-6.1-terra"]' | node bin/aptly.ts set env APTLY_CODEX_MODELS --stdin
+```
+
+允许设置的公开键为 `ROUTER_PROVIDER`（`fixture` 或 `decisions`）、`APTLY_CLAUDE_MODELS`、`APTLY_CODEX_MODELS`、`CLAUDE_MODELS`、`CODEX_MODELS` 和 `APTLY_MODEL_INFO_PATH`。候选必须是受支持模型的 JSON 数组字符串；无效值、重复值及主名称与别名冲突会被拒绝。`[]` 关闭对应宿主的推荐；模型缓存必须使用私有目录内的绝对路径。账本及 Hook 策略路径等受管理项不能通过此命令更改。
+
+API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows Credential Manager 保存。Windows 后端使用 PowerShell 和当前用户范围的 Win32 Generic 凭据，UTF-8 数据上限为 2,560 字节。后端已实现不等于完整的 Windows 宿主设置流程已通过实机验证；后者目前尚未完成。凭据存储不可用时会返回错误，不回退到明文文件。密钥按宿主账户分开，MCP 文件只保存 `APTLY_SECRET_BACKEND=os` 和 `APTLY_SECRET_CLIENT` 引用。明确选择系统存储后，缺少密钥或读取失败时，不会静默改用其他环境变量密钥。`set default` 保留现有包装程序或环境认证；只有执行 `set env OPENAI_API_KEY` 才明确选择系统存储认证。
+
+命令只返回宿主状态和固定错误代码，不返回密钥值。结果为 `partial` 时，请逐个检查宿主。`credential_store_failed` 表示应检查存储访问或支持情况；`credential_rollback_failed` 表示需确认旧密钥是否恢复。失败宿主会在可能时恢复旧密钥，不能把其他宿主的成功视为所有宿主的原子成功。
+
+修改后请重启 MCP，并通过 `get_routing_capabilities` 查看 `provider`、候选和 `credential_status`。`os_store` 仅表示读到了密钥，不代表 API 已通过认证。默认设置和公开变量设置仍会保留自定义包装程序。API 密钥设置不会修改未经确认的启动路径所对应的宿主设置；如果已尝试保存，则会在可能时恢复该宿主的旧密钥。不要假定新密钥会通过现有包装程序自动生效。命令不会绕过 Codex 的 `/hooks` 信任批准或宿主权限。
+
 ### 密钥与重启
 
 `OPENAI_API_KEY` 仅用于分类，与运行子代理所用的现有登录或订阅认证是两回事。请通过用户的凭据存储或安全运行环境，**将其注入 MCP 进程的环境变量**。不要将密钥放入命令行、工具参数、请求 JSON、MCP 配置 JSON、源码、日志或临时文件。无需使用特定的凭据存储服务。

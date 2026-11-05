@@ -12,6 +12,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  windows-credential-store:
+    name: Windows credential backend
+    runs-on: windows-latest
+    timeout-minutes: 5
+    env:
+      APTLY_SKIP_SETUP: '1'
+      APTLY_TEST_CREDENTIAL_STORE: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install and build without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund && npm run build
+      - name: Verify an isolated synthetic Windows credential
+        run: node test-support/credential-store-live.ts
   mock-tests:
     name: Node ${{ matrix.node }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

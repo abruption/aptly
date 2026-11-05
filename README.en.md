@@ -41,6 +41,7 @@ Automatic selection targets Codex calls with `fork_turns: "none"` and Claude Cod
 
 ## Documentation
 
+- [Next-release CLI configuration](docs/guide/en.md#configure-with-the-cli--planned-for-the-next-release)
 - [User guide](docs/guide/en.md): installation and removal, keys, Hooks, direct recommendations, and error recovery
 - [Installation and removal](docs/guide/en.md#installation): npm and local archive installation, host registration, restarting, and trust review
 - [Models and environment variables](docs/guide/en.md#models-and-environment-variables): six default profiles and candidate configuration

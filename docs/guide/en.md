@@ -22,6 +22,38 @@ To install a reviewed local archive, replace `aptly@0.1.0` in the installation c
 
 New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy, and a private ledger for each host. Other settings and Hooks, and existing Aptly commands, environments, providers, and ledger paths, are preserved. Existing fixture settings are not automatically switched to paid mode.
 
+### Configure with the CLI — planned for the next release
+
+**The following `set` commands are unreleased development features and are not available in npm `0.1.0`.** Use the existing `setup` and manual configuration steps with the installed release. Test them from a source checkout as shown below. After the next release, replace `node bin/aptly.ts` with `aptly`. Source testing also requires the MCP server to run the same development build. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package's standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
+
+```sh
+node bin/aptly.ts set default
+node bin/aptly.ts set env APTLY_CODEX_MODELS
+node bin/aptly.ts set env OPENAI_API_KEY
+```
+
+The first command registers Claude Code and Codex and adds missing default environment settings. It preserves existing launch commands, environment whitelists, providers, custom candidates, and advisory policies. The second prompts for a value with hidden input and changes only the named variable. The third stores the API key in the OS credential store and connects it to the selected host at startup. Do not pass values as command arguments.
+
+Both hosts are selected by default. Use `--client codex`, `--client claude`, or `--client all` to select targets. For example, enter a JSON string such as `["haiku","sonnet","opus"]` for Claude candidates.
+
+```sh
+node bin/aptly.ts set env APTLY_CLAUDE_MODELS --client claude
+```
+
+Use explicit `--stdin` for automation. This is a public-variable example; never put a real key in a `printf` command or shell history.
+
+```sh
+printf '%s\n' '["gpt-6.1-terra"]' | node bin/aptly.ts set env APTLY_CODEX_MODELS --stdin
+```
+
+Allowed public keys are `ROUTER_PROVIDER` (`fixture` or `decisions`), `APTLY_CLAUDE_MODELS`, `APTLY_CODEX_MODELS`, `CLAUDE_MODELS`, `CODEX_MODELS`, and `APTLY_MODEL_INFO_PATH`. Candidates must be JSON array strings of supported models. Invalid values, duplicates, and primary-name/alias conflicts are rejected. `[]` disables that host; a model-cache path must be absolute and inside a private directory. Managed ledger and Hook-policy paths cannot be changed through this command.
+
+API keys are stored through macOS Keychain, an installed Linux `secret-tool`, or Windows Credential Manager. The Windows backend uses PowerShell and Win32 Generic credentials in the current-user scope, with a limit of 2,560 UTF-8 bytes. Its implementation is separate from verification of the complete Windows host-configuration flow; that live verification is not yet complete. Unavailable credential stores return an error; there is no plaintext-file fallback. Keys use separate host accounts, while MCP files contain only `APTLY_SECRET_BACKEND=os` and `APTLY_SECRET_CLIENT` references. Once the OS source is selected, a missing or unreadable key does not silently fall back to another environment key. `set default` preserves existing wrapper/environment authentication; running `set env OPENAI_API_KEY` explicitly selects OS-store authentication.
+
+Results contain host statuses and fixed error codes, never key values. Inspect each host when the result is `partial`. `credential_store_failed` requires checking store access/support; `credential_rollback_failed` requires checking whether the previous key was restored. A failed host restores its old key where possible. Do not interpret success on another host as an atomic success across all hosts.
+
+Restart MCP, then inspect `provider`, candidates, and `credential_status` with `get_routing_capabilities`. `os_store` means a key was loaded, not that the API authenticated it. Default and public-variable setup continue to preserve custom wrappers. API-key setup does not change host settings for an unverified launch path and restores that host's previous key where possible if storage was already attempted. Do not assume a new key automatically takes effect through an existing wrapper. These commands do not bypass Codex `/hooks` trust or host permissions.
+
 ### Keys and restarting
 
 `OPENAI_API_KEY` is the classification key. It is separate from the existing login or subscription authentication used to run subagent models. **Inject it into the MCP process's environment** through your credential store or a secure execution environment. Do not put keys in command arguments, tool arguments, request JSON, MCP configuration JSON, source files, logs, or temporary files. No particular credential store is required.

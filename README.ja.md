@@ -41,6 +41,7 @@ npm install --prefix ./aptly-local aptly@0.1.0
 
 ## ドキュメント
 
+- [次のリリースの CLI 設定](docs/guide/ja.md#cli-による設定--次のリリース向け)
 - [使用ガイド](docs/guide/ja.md): インストール・削除、キー、Hook、直接推薦、エラー復旧
 - [インストール・削除](docs/guide/ja.md#インストール): npm・ローカルアーカイブのインストール、ホスト登録、再起動と信頼の承認
 - [モデルと環境変数](docs/guide/ja.md#モデルと環境変数): 6 つのデフォルトプロファイルと候補の設定

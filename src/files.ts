@@ -1,6 +1,7 @@
 import { lstatSync,readlinkSync,openSync,fstatSync,readSync,closeSync,constants } from 'node:fs';
 import { dirname,isAbsolute,resolve } from 'node:path';
 import { errorCode } from './types.ts';
+import { assertWindowsPrivatePath } from './windows-private.ts';
 
 // macOS root-owned compatibility aliases are part of the OS filesystem layout,
 // not operator/config redirects. Arbitrary user-owned symlinks stay forbidden.
@@ -21,10 +22,12 @@ export function assertPrivateStatePath(path: unknown): asserts path is string {
  if(typeof path!=='string'||!isAbsolute(path))throw new Error('private_state_path_required');
  assertNoRedirectedAncestors(dirname(path));
  const parent=lstatSync(dirname(path));
- if(!parent.isDirectory()||(parent.mode&0o077)||(process.getuid&&parent.uid!==process.getuid()))throw new Error('private_state_directory_required');
+ if(!parent.isDirectory()||(process.platform!=='win32'&&((parent.mode&0o077)||(process.getuid&&parent.uid!==process.getuid()))))throw new Error('private_state_directory_required');
+ if(process.platform==='win32')assertWindowsPrivatePath(dirname(path));
  try{
   const file=lstatSync(path);
-  if(!file.isFile()||file.isSymbolicLink()||(process.getuid&&file.uid!==process.getuid()))throw new Error('private_state_file_required');
+  if(!file.isFile()||file.isSymbolicLink()||(process.platform!=='win32'&&process.getuid&&file.uid!==process.getuid()))throw new Error('private_state_file_required');
+  if(process.platform==='win32')assertWindowsPrivatePath(path);
  }catch(error){if(errorCode(error)!=='ENOENT')throw error;}
 }
 
@@ -38,7 +41,8 @@ export function readRegularFile(path: unknown,{privateFile=false,maxBytes=65536}
   fd=openSync(path,constants.O_RDONLY|(constants.O_NOFOLLOW??0)|(constants.O_NONBLOCK??0));
   const stat=fstatSync(fd);
   if(!stat.isFile()||stat.dev!==before.dev||stat.ino!==before.ino||stat.size>maxBytes||
-   (privateFile&&((stat.mode&0o077)||(process.getuid&&stat.uid!==process.getuid()))))throw new Error('unsafe_file');
+   (privateFile&&process.platform!=='win32'&&((stat.mode&0o077)||(process.getuid&&stat.uid!==process.getuid()))))throw new Error('unsafe_file');
+  if(privateFile&&process.platform==='win32')assertWindowsPrivatePath(path);
   const buffer=Buffer.alloc(maxBytes+1);let size=0;
   while(size<buffer.length){const count=readSync(fd,buffer,size,buffer.length-size,null);if(!count)break;size+=count;}
   if(size>maxBytes)throw new Error('unsafe_file');
