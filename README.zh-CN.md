@@ -18,12 +18,15 @@ Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐�
 
 ## 快速开始
 
-需要 Node.js **24 或更高版本**，以及 Claude Code 或 Codex。请从 npm registry 安装**采用 MIT 许可证的 Aptly 0.1.0**。
+需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请全局安装 [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)。[源码标签 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
 npm install -g aptly@0.1.0
 aptly setup --client all --mode defaults
+aptly --version
 ```
+
+版本检查命令应输出 `0.1.0`。
 
 安装时的 `postinstall` 会在现有宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果跳过了自动注册，或宿主尚无配置目录，也可以显式运行 `setup`。其他现有配置与 Hook，以及 Aptly 原有的启动命令和环境均会保留。
 
