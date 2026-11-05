@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-05",
+  "package_version": "0.1.0-preview.0",
+  "product_server": "src/server.ts",
+  "provider": "decisions",
+  "classification_model": "gpt-6-luna",
+  "corpus_file": "test-support/advisory-evaluation-cases.json",
+  "corpus_sha256": "2de2c238e7f8c4dd0de52858e225a81e8c182d791fb2d2ea5ba196e1c3fa97c8",
+  "requests": 11,
+  "smoke_cases": 3,
+  "evaluation_cases": 8,
+  "evaluation_matches": 8,
+  "cache_reuse_verified": true,
+  "restart_cache_reuse_verified": true,
+  "ledger_calls": 11,
+  "ledger_unknown": 0,
+  "usage": {
+    "input_tokens": 2959,
+    "output_tokens": 0,
+    "total_tokens": 2959
+  },
+  "latency_ms": {
+    "min": 213.492,
+    "median": 300.746,
+    "max": 1801.502
+  },
+  "uncached_input_cost_estimate_usd": 0.0002959,
+  "pricing_source": "https://developers.openai.com/api/docs/guides/decisions",
+  "actual_billing_observed": false,
+  "native_agents_spawned": 0,
+  "limitations": [
+    "Small synthetic non-secret corpus with predeclared categories; not a statistical quality benchmark.",
+    "No child model execution, baseline execution quality or end-to-end cost comparison.",
+    "Actual host model access and automatic Hook application not tested."
+  ],
+  "results": [
+    {
+      "id": "smoke-sort",
+      "client": "codex",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-routine",
+      "confidence": 0.93,
+      "usage": {
+        "input_tokens": 263,
+        "output_tokens": 0,
+        "total_tokens": 263
+      },
+      "latency_ms": 1801.502,
+      "cached": false,
+      "expected": [
+        "codex-routine"
+      ],
+      "matched": true
+    },
+    {
+      "id": "smoke-race",
+      "client": "codex",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-deep",
+      "confidence": 0.87,
+      "usage": {
+        "input_tokens": 272,
+        "output_tokens": 0,
+        "total_tokens": 272
+      },
+      "latency_ms": 485.586,
+      "cached": false,
+      "expected": [
+        "codex-deep"
+      ],
+      "matched": true
+    },
+    {
+      "id": "smoke-extract",
+      "client": "claude",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-routine",
+      "confidence": 0.76,
+      "usage": {
+        "input_tokens": 264,
+        "output_tokens": 0,
+        "total_tokens": 264
+      },
+      "latency_ms": 576.488,
+      "cached": false,
+      "expected": [
+        "claude-routine"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-rename",
+      "client": "codex",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-routine",
+      "confidence": 0.96,
+      "usage": {
+        "input_tokens": 270,
+        "output_tokens": 0,
+        "total_tokens": 270
+      },
+      "latency_ms": 261.53,
+      "cached": false,
+      "expected": [
+        "codex-routine"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-table",
+      "client": "claude",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-routine",
+      "confidence": 0.84,
+      "usage": {
+        "input_tokens": 277,
+        "output_tokens": 0,
+        "total_tokens": 277
+      },
+      "latency_ms": 217.121,
+      "cached": false,
+      "expected": [
+        "claude-routine"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-lock",
+      "client": "codex",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-deep",
+      "confidence": 0.93,
+      "usage": {
+        "input_tokens": 277,
+        "output_tokens": 0,
+        "total_tokens": 277
+      },
+      "latency_ms": 218.799,
+      "cached": false,
+      "expected": [
+        "codex-deep"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-auth",
+      "client": "claude",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-deep",
+      "confidence": 0.97,
+      "usage": {
+        "input_tokens": 273,
+        "output_tokens": 0,
+        "total_tokens": 273
+      },
+      "latency_ms": 323.253,
+      "cached": false,
+      "expected": [
+        "claude-deep"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-architecture",
+      "client": "codex",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-deep",
+      "confidence": 0.71,
+      "usage": {
+        "input_tokens": 267,
+        "output_tokens": 0,
+        "total_tokens": 267
+      },
+      "latency_ms": 300.746,
+      "cached": false,
+      "expected": [
+        "codex-deep"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-count",
+      "client": "claude",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-routine",
+      "confidence": 0.91,
+      "usage": {
+        "input_tokens": 265,
+        "output_tokens": 0,
+        "total_tokens": 265
+      },
+      "latency_ms": 299.985,
+      "cached": false,
+      "expected": [
+        "claude-routine"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-missing",
+      "client": "codex",
+      "status": "needs_context",
+      "reason": "provider_needs_context",
+      "profile_id": null,
+      "confidence": 0.6,
+      "usage": {
+        "input_tokens": 261,
+        "output_tokens": 0,
+        "total_tokens": 261
+      },
+      "latency_ms": 213.492,
+      "cached": false,
+      "expected": [
+        "needs_context",
+        "keep_current"
+      ],
+      "matched": true
+    },
+    {
+      "id": "eval-ambiguous",
+      "client": "claude",
+      "status": "needs_context",
+      "reason": "provider_needs_context",
+      "profile_id": null,
+      "confidence": 0.29,
+      "usage": {
+        "input_tokens": 270,
+        "output_tokens": 0,
+        "total_tokens": 270
+      },
+      "latency_ms": 311.601,
+      "cached": false,
+      "expected": [
+        "needs_context",
+        "keep_current"
+      ],
+      "matched": true
+    }
+  ],
+  "corpus_hash_encoding": "SHA-256(JSON.stringify(parsed corpus))"
+}

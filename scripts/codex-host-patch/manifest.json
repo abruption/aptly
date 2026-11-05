@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/openai/codex",
+  "base_commit": "6ff1e1ca3b30fc8b914720681fcf5fe62e95f856",
+  "tag": "rust-v0.166.0",
+  "scope": "internal_observation_only",
+  "patch": "provenance-capture.patch",
+  "patch_sha256": "253c9924437424fec8d2dca43257cc5918a770c52d96e6302375902069b1b965",
+  "files": [
+    "codex-rs/Cargo.lock",
+    "codex-rs/core/Cargo.toml",
+    "codex-rs/core/src/agent/mod.rs",
+    "codex-rs/core/src/agent/child_config.rs",
+    "codex-rs/core/src/agent/role.rs",
+    "codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+    "codex-rs/core/src/agent/spawn_provenance.rs"
+  ],
+  "upstream_license": "Apache-2.0",
+  "product_connected": false,
+  "lockfile_normalization": "workspace package versions aligned with release Cargo.toml; no registry/git dependency entries changed"
+}

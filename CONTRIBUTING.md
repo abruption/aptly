@@ -1,0 +1,40 @@
+# Contributing
+
+This project is an early implementation of advisory subagent routing for Claude Code and Codex. Changes must preserve explicit user settings, roles, conversation inheritance, permissions, and the original spawn when routing is unavailable or uncertain.
+
+## Local development
+
+Use Node.js 24 or 26 and the committed lockfile:
+
+```sh
+npm ci --ignore-scripts --no-audit --no-fund
+npm run typecheck
+npm run build
+npm test
+npm run check:release
+```
+
+The default tests use synthetic inputs, deterministic providers, and local stdio MCP subprocesses. They require no OpenAI key or CLI subscription. Do not add live API calls or real host-agent runs to the default test suite or CI.
+
+Tests create owner-only `codex-*` directories and remove only directories they created. Their temporary root follows the workspace volume when developing on a configured external volume; other environments use the operating system temporary directory. `POC_TEST_TMP_ROOT` can select an absolute temporary root. It must remain under the same volume's temporary root when the workspace is on a configured external volume. Persistent-state tests run without optional skips.
+
+## Changes and evidence
+
+- Keep classification and host execution separate. Provider responses may select only trusted catalog profiles.
+- Treat task text and MCP arguments as untrusted data. They cannot establish configuration provenance or change routing policy.
+- Preserve model and effort pins, fixed roles, fork semantics, and security Hook decisions. Unknown configuration sources must keep the original call.
+- Test behavior at the relevant boundary. Mock tests establish policy behavior; actual host metadata establishes model application. Report those evidence levels separately.
+- Keep examples synthetic. Never commit real prompts, credentials, transcript paths, vault identifiers, private hostnames, or local reports.
+- Update user-facing behavior and compatibility documentation when contracts change. Do not claim quality or cost savings from connectivity tests.
+
+Before opening a change, run the default tests and release-content check. Explain the problem, resulting behavior, validation, and any remaining uncertainty. Keep unrelated cleanup out of the change.
+
+## Releases
+
+Publishing a repository, creating a release, and publishing an npm package are separate actions. Contributors should prepare reviewable changes without publishing or changing users' global MCP and Hook settings. Release checks must inspect the actual packaged file list as well as source files; Git ignore rules alone do not define the public package.
+
+Code contributions are made under the project's MIT license. See the repository license file for its terms.
+
+## Diagnostic attachments
+
+For a bug report, run `node bin/aptly.ts report --format both --output-dir reports`. Review the generated files, attach the JSON through the bug form, and include its report_id. Markdown from the same run is optional. Never attach raw configuration, credentials, or transcripts. See [reporting instructions](docs/REPORTING.md).

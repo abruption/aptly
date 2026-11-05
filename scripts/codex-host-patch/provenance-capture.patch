@@ -1,0 +1,2447 @@
+diff --git a/codex-rs/Cargo.lock b/codex-rs/Cargo.lock
+index 1d27abb..5163f1f 100644
+--- a/codex-rs/Cargo.lock
++++ b/codex-rs/Cargo.lock
+@@ -287,7 +287,7 @@ checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
+ 
+ [[package]]
+ name = "app_test_support"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -1888,7 +1888,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-core",
+@@ -1900,7 +1900,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-graph-store"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+  "codex-state",
+@@ -1915,7 +1915,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-identity"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -1935,7 +1935,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-message-board-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -1958,7 +1958,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-message-board-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-extension-api",
+  "codex-message-board",
+@@ -1972,7 +1972,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-roles"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-config",
+  "codex-file-system",
+@@ -1985,7 +1985,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-analytics"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-app-server-protocol",
+  "codex-git-utils",
+@@ -2008,7 +2008,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-ansi-escape"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "ansi-to-tui",
+  "pretty_assertions",
+@@ -2019,7 +2019,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-api"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "assert_matches",
+@@ -2057,7 +2057,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "app_test_support",
+@@ -2174,7 +2174,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-app-server",
+  "codex-app-server-protocol",
+@@ -2202,7 +2202,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-daemon"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "blake3",
+@@ -2232,7 +2232,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-protocol"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-app-server-protocol-noop-macros",
+@@ -2266,11 +2266,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-protocol-noop-macros"
+-version = "0.0.0"
++version = "0.166.0"
+ 
+ [[package]]
+ name = "codex-app-server-test-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -2292,7 +2292,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-transport"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "axum",
+  "base64 0.22.1",
+@@ -2335,7 +2335,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-apply-patch"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "assert_cmd",
+@@ -2355,7 +2355,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-arg0"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-apply-patch",
+@@ -2378,7 +2378,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-async-utils"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+  "rand 0.9.3",
+@@ -2388,7 +2388,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-attachment-store"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+  "serde",
+@@ -2398,7 +2398,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-aws-auth"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "aws-config",
+  "aws-credential-types",
+@@ -2424,7 +2424,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-backend-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-api",
+@@ -2444,7 +2444,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-backend-openapi-models"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "serde",
+  "serde_json",
+@@ -2453,7 +2453,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-build-info"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-install-context",
+  "pretty_assertions",
+@@ -2466,7 +2466,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-bwrap"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "cc",
+  "libc",
+@@ -2475,7 +2475,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-chatgpt"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -2497,7 +2497,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cli"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "app_test_support",
+@@ -2601,7 +2601,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-http-client",
+  "eventsource-stream",
+@@ -2615,7 +2615,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "async-stream",
+@@ -2639,7 +2639,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-config"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "chrono",
+@@ -2667,7 +2667,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-tasks"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -2700,7 +2700,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-tasks-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -2715,7 +2715,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-tasks-mock-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "chrono",
+  "codex-cloud-tasks-client",
+@@ -2724,7 +2724,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-code-mode-protocol",
+  "codex-http-client",
+@@ -2748,7 +2748,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode-host"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -2779,7 +2779,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode-protocol"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+  "glob",
+@@ -2797,7 +2797,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode-runtime"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-code-mode-protocol",
+@@ -2816,11 +2816,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-collaboration-mode-templates"
+-version = "0.0.0"
++version = "0.166.0"
+ 
+ [[package]]
+ name = "codex-config"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -2874,7 +2874,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-config-schema"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -2883,7 +2883,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-connectors"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -2905,7 +2905,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-connectors-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-connectors",
+  "codex-core-plugins",
+@@ -2919,7 +2919,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-context-fragments"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+  "codex-protocol-test-support",
+@@ -2930,7 +2930,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -3051,6 +3051,7 @@ dependencies = [
+  "serde_json",
+  "serial_test",
+  "sha1 0.10.6",
++ "sha2 0.10.9",
+  "shlex",
+  "similar",
+  "tempfile",
+@@ -3080,7 +3081,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core-api"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-analytics",
+  "codex-app-server-protocol",
+@@ -3103,7 +3104,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core-plugin-common"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "semver",
+@@ -3114,7 +3115,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core-plugins"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -3171,7 +3172,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-diagnostics"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "libc",
+  "pretty_assertions",
+@@ -3179,7 +3180,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-direct-tool-timing"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-utils-critical-path",
+  "pretty_assertions",
+@@ -3190,7 +3191,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "assert_cmd",
+@@ -3243,7 +3244,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec-server"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -3316,7 +3317,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec-server-cli"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "assert_matches",
+@@ -3356,7 +3357,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec-server-protocol"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-file-system",
+@@ -3374,7 +3375,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec-server-test-support"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-exec-server",
+@@ -3389,7 +3390,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-execpolicy"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -3407,7 +3408,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-experimental-api-macros"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "proc-macro2",
+  "quote",
+@@ -3416,7 +3417,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-extension-api"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-api",
+  "codex-config",
+@@ -3439,7 +3440,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-extension-items"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "pretty_assertions",
+@@ -3451,7 +3452,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-external-agent-migration"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "chrono",
+  "codex-analytics",
+@@ -3482,7 +3483,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-features"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-network-proxy",
+  "codex-protocol",
+@@ -3496,7 +3497,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-feedback"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "bytes",
+@@ -3524,7 +3525,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-file-search"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -3540,7 +3541,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-file-system"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "bytes",
+  "codex-protocol",
+@@ -3554,7 +3555,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-file-watcher"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "notify",
+  "pretty_assertions",
+@@ -3565,7 +3566,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-git-attribution"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-backend-client",
+  "codex-extension-api",
+@@ -3578,7 +3579,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-git-utils"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -3606,7 +3607,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-goal-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -3631,7 +3632,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-guardian-context"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-context-fragments",
+  "codex-history",
+@@ -3645,7 +3646,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-guardian-reviewer"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-analytics",
+@@ -3681,7 +3682,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-guardian-v2"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-analytics",
+@@ -3720,7 +3721,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-guardian-v3"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-message-board",
+  "codex-protocol",
+@@ -3729,7 +3730,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-history"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-protocol",
+@@ -3741,7 +3742,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-history-notes-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-analytics",
+  "codex-client",
+@@ -3767,7 +3768,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-home"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-extension-api",
+  "codex-utils-absolute-path",
+@@ -3779,7 +3780,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-hooks"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "async-channel",
+@@ -3808,7 +3809,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-http-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "bytes",
+  "codex-utils-cargo-bin",
+@@ -3848,7 +3849,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-image-generation-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-api",
+@@ -3880,7 +3881,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-install-context"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "codex-utils-home-dir",
+@@ -3893,7 +3894,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-keyring-store"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "keyring",
+  "pretty_assertions",
+@@ -3904,7 +3905,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-linux-sandbox"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "clap",
+  "codex-core",
+@@ -3933,7 +3934,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-lmstudio"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-core",
+  "codex-http-client",
+@@ -3947,7 +3948,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-login"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -3993,7 +3994,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mcp"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -4037,7 +4038,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mcp-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -4070,7 +4071,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-memories-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-core",
+  "codex-extension-api",
+@@ -4092,7 +4093,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-memories-read"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+  "codex-shell-command",
+@@ -4102,7 +4103,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-memories-write"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -4139,7 +4140,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mermaid"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "insta",
+  "pretty_assertions",
+@@ -4148,7 +4149,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-message-board"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "caseless",
+@@ -4171,7 +4172,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-message-history"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-config",
+  "memchr",
+@@ -4185,7 +4186,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-model-provider"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "chrono",
+@@ -4224,7 +4225,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-model-provider-info"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-client",
+  "codex-http-client",
+@@ -4242,7 +4243,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-models-manager"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "chrono",
+  "codex-http-client",
+@@ -4261,7 +4262,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-multi-env-copy-file"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-config",
+@@ -4287,7 +4288,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mxc-sandbox"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-network-proxy",
+@@ -4308,7 +4309,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-network-proxy"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "aws-credential-types",
+@@ -4359,7 +4360,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-ollama"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "assert_matches",
+  "async-stream",
+@@ -4379,7 +4380,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-otel"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "bytes",
+  "chrono",
+@@ -4418,7 +4419,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-otel-trace-websocket"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -4429,7 +4430,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-plugin"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-config",
+  "codex-core-plugin-common",
+@@ -4444,7 +4445,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-plugin-host"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-utils-cargo-bin",
+  "codex-utils-process",
+@@ -4461,7 +4462,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-process-hardening"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "libc",
+  "pretty_assertions",
+@@ -4469,7 +4470,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-prompts"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-collaboration-mode-templates",
+@@ -4487,7 +4488,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-protocol"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chardetng",
+@@ -4533,14 +4534,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-protocol-test-support"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+ ]
+ 
+ [[package]]
+ name = "codex-queue-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-core",
+@@ -4561,7 +4562,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-realtime-webrtc"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-build-info",
+@@ -4580,7 +4581,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-response-debug-context"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-api",
+@@ -4591,7 +4592,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-responses-api-proxy"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "bytes",
+@@ -4615,7 +4616,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-rmcp-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -4666,7 +4667,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-rollout"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -4699,7 +4700,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-rollout-trace"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-code-mode",
+@@ -4716,7 +4717,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-runtime-agent-instance"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-agent-identity",
+@@ -4742,7 +4743,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-sandboxing"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-mxc-sandbox",
+@@ -4770,7 +4771,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-secrets"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "age",
+  "anyhow",
+@@ -4791,7 +4792,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-shell-command"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -4814,7 +4815,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-skills"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+  "codex-shell-command",
+@@ -4831,7 +4832,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-skills-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "assert_matches",
+  "blake3",
+@@ -4871,7 +4872,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-state"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -4900,7 +4901,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-stdio-to-uds"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-uds",
+@@ -4912,7 +4913,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-tcp-tunnel"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "bytes",
+@@ -4933,7 +4934,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-terminal-detection"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+  "tracing",
+@@ -4941,7 +4942,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-test-binary-support"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-arg0",
+  "tempfile",
+@@ -4949,7 +4950,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-thread-manager-sample"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -4960,7 +4961,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-thread-store"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "chrono",
+  "codex-app-server-protocol",
+@@ -4991,7 +4992,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-tools"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "bitflags 2.13.1",
+  "codex-attachment-store",
+@@ -5017,7 +5018,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-tui"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "app_test_support",
+@@ -5145,7 +5146,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-uds"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "async-io",
+  "libc",
+@@ -5159,7 +5160,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-user-verification"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "block2",
+@@ -5180,7 +5181,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-absolute-path"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "dirs",
+  "dunce",
+@@ -5194,14 +5195,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-approval-presets"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-audio"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-protocol",
+@@ -5215,7 +5216,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-cache"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "lru",
+  "sha1 0.10.6",
+@@ -5224,7 +5225,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-cargo-bin"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "assert_cmd",
+  "runfiles",
+@@ -5233,7 +5234,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-cli"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "clap",
+  "codex-protocol",
+@@ -5245,22 +5246,22 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-critical-path"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-elapsed"
+-version = "0.0.0"
++version = "0.166.0"
+ 
+ [[package]]
+ name = "codex-utils-fuzzy-match"
+-version = "0.0.0"
++version = "0.166.0"
+ 
+ [[package]]
+ name = "codex-utils-git-discovery"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-git-utils",
+  "codex-utils-absolute-path",
+@@ -5273,14 +5274,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-head-tail-buffer"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-home-dir"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "dirs",
+@@ -5290,7 +5291,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-image"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-utils-cache",
+@@ -5304,7 +5305,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-json-to-toml"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+  "serde_json",
+@@ -5313,7 +5314,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-oss"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-core",
+  "codex-lmstudio",
+@@ -5323,7 +5324,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-output-truncation"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+  "codex-utils-string",
+@@ -5333,7 +5334,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-path"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "dunce",
+@@ -5344,7 +5345,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-path-uri"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-utils-absolute-path",
+@@ -5360,7 +5361,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-plugins"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-exec-server",
+  "codex-exec-server-protocol",
+@@ -5374,7 +5375,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-process"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+  "tokio",
+@@ -5382,7 +5383,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-pty"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-utils-cargo-bin",
+@@ -5401,7 +5402,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-readiness"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "assert_matches",
+  "thiserror 2.0.18",
+@@ -5411,7 +5412,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-redacted-string"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "schemars 0.8.22",
+  "serde",
+@@ -5419,14 +5420,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-rustls-provider"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "rustls",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-sandbox-summary"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-protocol",
+  "codex-utils-absolute-path",
+@@ -5436,7 +5437,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-sleep-inhibitor"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "core-foundation 0.9.4",
+  "libc",
+@@ -5446,14 +5447,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-stream-parser"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-string"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+  "regex-lite",
+@@ -5463,14 +5464,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-template"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+ ]
+ 
+ [[package]]
+ name = "codex-v8-poc"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "pretty_assertions",
+  "v8",
+@@ -5478,7 +5479,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-voice-host"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-install-context",
+@@ -5505,7 +5506,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-web-search-extension"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-api",
+  "codex-core",
+@@ -5527,7 +5528,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-websocket-auth"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -5546,7 +5547,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-websocket-client"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-http-client",
+  "codex-utils-rustls-provider",
+@@ -5562,7 +5563,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-windows-sandbox"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -5592,7 +5593,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-windows-sandbox-service"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-cloud-config",
+@@ -5610,14 +5611,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-windows-sandbox-test-support"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "dirs",
+ ]
+ 
+ [[package]]
+ name = "codex-workload-identity"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "codex-http-client",
+  "pretty_assertions",
+@@ -5632,7 +5633,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-worktree"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "codex-git-utils",
+@@ -5885,7 +5886,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "core_test_support"
+-version = "0.0.0"
++version = "0.166.0"
+ dependencies = [
+  "anyhow",
+  "assert_cmd",
+diff --git a/codex-rs/core/Cargo.toml b/codex-rs/core/Cargo.toml
+index 542abf9..5ffc5cf 100644
+--- a/codex-rs/core/Cargo.toml
++++ b/codex-rs/core/Cargo.toml
+@@ -114,6 +114,7 @@ rmcp = { workspace = true, default-features = false, features = [
+ serde = { workspace = true, features = ["derive"] }
+ serde_json = { workspace = true }
+ sha1 = { workspace = true }
++sha2 = { workspace = true }
+ shlex = { workspace = true }
+ similar = { workspace = true }
+ tempfile = { workspace = true }
+diff --git a/codex-rs/core/src/agent/child_config.rs b/codex-rs/core/src/agent/child_config.rs
+index 3d56d7e..aebe876 100644
+--- a/codex-rs/core/src/agent/child_config.rs
++++ b/codex-rs/core/src/agent/child_config.rs
+@@ -4,10 +4,14 @@
+ //! inheritance, and validation messages remain the same for each multi-agent version.
+ 
+ use crate::agent::role::DEFAULT_ROLE_NAME;
+-use crate::agent::role::apply_role_to_config;
++use crate::agent::role::apply_role_to_config_with_provenance;
++use crate::agent::spawn_provenance::RoleProvenance;
++use crate::agent::spawn_provenance::SettingSource;
++use crate::agent::spawn_provenance::SpawnProvenance;
+ use crate::config::Config;
+ use crate::session::session::Session;
+ use crate::session::step_context::StepContext;
++use crate::session::step_settings::ResolvedStepSettings;
+ use crate::session::turn_context::TurnContext;
+ use codex_features::Feature;
+ use codex_models_manager::manager::RefreshStrategy;
+@@ -17,6 +21,7 @@ use codex_protocol::openai_models::ModelPreset;
+ use codex_protocol::openai_models::ReasoningEffort;
+ use codex_protocol::openai_models::ReasoningEffortPreset;
+ use codex_protocol::protocol::MultiAgentVersion;
++use std::sync::Arc;
+ 
+ pub(crate) const MAX_SPAWN_AGENT_MODEL_OVERRIDES: usize = 5;
+ 
+@@ -46,6 +51,9 @@ pub(crate) struct SpawnConfigOptions<'a> {
+ pub(crate) struct PreparedSpawnConfig {
+     pub(crate) config: Config,
+     pub(crate) role_name: Option<String>,
++    // Observation only: not complete effective-source evidence or routing authority.
++    pub(crate) provenance: SpawnProvenance,
++    pub(crate) captured_step_settings: Arc<ResolvedStepSettings>,
+ }
+ 
+ /// Resolves child settings before starting the thread, retaining the invoking tool's precedence.
+@@ -55,6 +63,8 @@ pub(crate) async fn prepare_agent_spawn_config(
+     options: SpawnConfigOptions<'_>,
+ ) -> Result<PreparedSpawnConfig, String> {
+     let turn = step_context.turn.as_ref();
++    let mut provenance = SpawnProvenance::captured();
++    let captured_step_settings = Arc::clone(&step_context.settings);
+     let mut config =
+         build_agent_spawn_config(&session.get_base_instructions().await, step_context)?;
+     if options.version == SpawnConfigVersion::V1 && options.full_history_fork {
+@@ -66,12 +76,14 @@ pub(crate) async fn prepare_agent_spawn_config(
+         &mut config,
+         options.model,
+         options.reasoning_effort,
++        &mut provenance,
+     )
+     .await?;
+     if !options.full_history_fork
+         || (options.version == SpawnConfigVersion::V2 && options.role_name.is_some())
+     {
+-        apply_spawn_agent_role(session, &mut config, options.role_name).await?;
++        let role = apply_spawn_agent_role(session, &mut config, options.role_name).await?;
++        provenance.apply_role(role);
+         if options.version == SpawnConfigVersion::V2
+             && options.full_history_fork
+             && config.developer_instructions.is_none()
+@@ -97,7 +109,12 @@ pub(crate) async fn prepare_agent_spawn_config(
+             .then_some(DEFAULT_ROLE_NAME)
+         })
+         .map(str::to_owned);
+-    Ok(PreparedSpawnConfig { config, role_name })
++    Ok(PreparedSpawnConfig {
++        config,
++        role_name,
++        provenance,
++        captured_step_settings,
++    })
+ }
+ 
+ /// Builds the base config snapshot for a newly spawned sub-agent.
+@@ -207,8 +224,25 @@ async fn apply_requested_spawn_agent_model_overrides(
+     config: &mut Config,
+     requested_model: Option<&str>,
+     requested_reasoning_effort: Option<ReasoningEffort>,
++    provenance: &mut SpawnProvenance,
+ ) -> Result<(), String> {
+     let turn = step_context.turn.as_ref();
++    let model_source = if requested_model.is_some() {
++        SettingSource::ExplicitSpawn
++    } else {
++        SettingSource::SubagentDefault
++    };
++    let effort_source = if requested_reasoning_effort.is_some() {
++        SettingSource::ExplicitSpawn
++    } else if turn
++        .config
++        .agent_default_subagent_reasoning_effort
++        .is_some()
++    {
++        SettingSource::SubagentDefault
++    } else {
++        SettingSource::ModelDefault
++    };
+     let requested_model = requested_model.or(turn.config.agent_default_subagent_model.as_deref());
+     let requested_reasoning_effort = requested_reasoning_effort
+         .or_else(|| turn.config.agent_default_subagent_reasoning_effort.clone());
+@@ -245,6 +279,8 @@ async fn apply_requested_spawn_agent_model_overrides(
+             config.model_reasoning_effort = selected_model_info.default_reasoning_level;
+         }
+ 
++        provenance.model = model_source;
++        provenance.effort = effort_source;
+         return Ok(());
+     }
+ 
+@@ -255,6 +291,7 @@ async fn apply_requested_spawn_agent_model_overrides(
+             &reasoning_effort,
+         )?;
+         config.model_reasoning_effort = Some(reasoning_effort);
++        provenance.effort = effort_source;
+     }
+ 
+     Ok(())
+@@ -292,17 +329,17 @@ async fn apply_spawn_agent_role(
+     session: &Session,
+     config: &mut Config,
+     role_name: Option<&str>,
+-) -> Result<(), String> {
++) -> Result<Option<RoleProvenance>, String> {
+     let previous_model = config.model.clone();
+     let previous_reasoning_effort = config.model_reasoning_effort.clone();
+-    apply_role_to_config(config, role_name).await?;
++    let provenance = apply_role_to_config_with_provenance(config, role_name).await?;
+     if config.model == previous_model && config.model_reasoning_effort == previous_reasoning_effort
+     {
+-        return Ok(());
++        return Ok(provenance);
+     }
+ 
+     let Some(reasoning_effort) = config.model_reasoning_effort.clone() else {
+-        return Ok(());
++        return Ok(provenance);
+     };
+     let model = config.model.clone().ok_or_else(|| {
+         "spawn_agent could not resolve the child model for reasoning effort validation".to_string()
+@@ -313,14 +350,15 @@ async fn apply_spawn_agent_role(
+         .get_model_info(&model, &config.to_models_manager_config())
+         .await;
+     if model_info.used_fallback_model_metadata {
+-        return Ok(());
++        return Ok(provenance);
+     }
+ 
+     validate_spawn_agent_reasoning_effort(
+         &model,
+         &model_info.supported_reasoning_levels,
+         &reasoning_effort,
+-    )
++    )?;
++    Ok(provenance)
+ }
+ 
+ fn find_spawn_agent_model_name(
+diff --git a/codex-rs/core/src/agent/mod.rs b/codex-rs/core/src/agent/mod.rs
+index dd54f56..ba22283 100644
+--- a/codex-rs/core/src/agent/mod.rs
++++ b/codex-rs/core/src/agent/mod.rs
+@@ -6,6 +6,7 @@ mod history;
+ pub(crate) mod host;
+ mod registry;
+ pub(crate) mod role;
++pub(crate) mod spawn_provenance;
+ pub(crate) mod status;
+ pub(crate) mod types;
+ 
+diff --git a/codex-rs/core/src/agent/role.rs b/codex-rs/core/src/agent/role.rs
+index b1642fe..8e5fbc6 100644
+--- a/codex-rs/core/src/agent/role.rs
++++ b/codex-rs/core/src/agent/role.rs
+@@ -3,6 +3,8 @@
+ //! Roles may customize the child or reduce its capabilities, but never replace the parent
+ //! session's authority. A projected layer keeps existing layer-based consumers in sync.
+ 
++use crate::agent::spawn_provenance::RoleProvenance;
++use crate::agent::spawn_provenance::RoleSource;
+ use crate::config::AgentRoleConfig;
+ use crate::config::Config;
+ use crate::config::deserialize_config_toml_with_base;
+@@ -23,6 +25,8 @@ use codex_protocol::config_types::Verbosity;
+ use codex_protocol::models::BaseInstructionsProvenance;
+ use codex_protocol::openai_models::ReasoningEffort;
+ use serde::Serialize;
++use sha2::Digest;
++use sha2::Sha256;
+ use std::collections::BTreeMap;
+ use std::collections::BTreeSet;
+ use std::path::Path;
+@@ -52,6 +56,16 @@ pub(crate) async fn apply_role_to_config(
+     config: &mut Config,
+     role_name: Option<&str>,
+ ) -> Result<(), String> {
++    apply_role_to_config_with_provenance(config, role_name)
++        .await
++        .map(|_| ())
++}
++
++/// Applies the same role once while retaining bounded observations from that read.
++pub(crate) async fn apply_role_to_config_with_provenance(
++    config: &mut Config,
++    role_name: Option<&str>,
++) -> Result<Option<RoleProvenance>, String> {
+     let role_name = role_name.unwrap_or(DEFAULT_ROLE_NAME);
+ 
+     let role = resolve_role_config(config, role_name)
+@@ -70,12 +84,13 @@ async fn apply_role_to_config_inner(
+     config: &mut Config,
+     role_name: &str,
+     role: &AgentRoleConfig,
+-) -> anyhow::Result<()> {
++) -> anyhow::Result<Option<RoleProvenance>> {
+     let is_built_in = !config.agent_roles.contains_key(role_name);
+     let Some(config_file) = role.config_file.as_ref() else {
+-        return Ok(());
++        return Ok(None);
+     };
+-    let role_layer_toml = load_role_layer_toml(config, config_file, is_built_in, role_name).await?;
++    let (role_layer_toml, sha256) =
++        load_role_layer_toml(config, config_file, is_built_in, role_name).await?;
+     let role_config = deserialize_config_toml_with_base(role_layer_toml, &config.codex_home)?;
+     let mut overrides = AgentRoleOverrides {
+         developer_instructions: role_config.developer_instructions,
+@@ -88,6 +103,17 @@ async fn apply_role_to_config_inner(
+         ..Default::default()
+     };
+ 
++    let provenance = RoleProvenance {
++        source: if is_built_in {
++            RoleSource::BuiltIn
++        } else {
++            RoleSource::ConfiguredFile
++        },
++        sha256,
++        model_present: overrides.model.is_some(),
++        effort_present: overrides.model_reasoning_effort.is_some(),
++    };
++
+     if let Some(features) = role_config.features {
+         for (key, enabled) in features.entries() {
+             if !enabled
+@@ -121,10 +147,10 @@ async fn apply_role_to_config_inner(
+         .as_table()
+         .is_some_and(toml::map::Map::is_empty)
+     {
+-        return Ok(());
++        return Ok(Some(provenance));
+     }
+     *config = role_overrides::build_next_config(config, role_layer_toml, &overrides)?;
+-    Ok(())
++    Ok(Some(provenance))
+ }
+ 
+ async fn load_role_layer_toml(
+@@ -132,13 +158,14 @@ async fn load_role_layer_toml(
+     config_file: &Path,
+     is_built_in: bool,
+     role_name: &str,
+-) -> anyhow::Result<TomlValue> {
+-    let (role_config_toml, role_config_base) = if is_built_in {
++) -> anyhow::Result<(TomlValue, String)> {
++    let (role_config_toml, role_config_base, sha256) = if is_built_in {
+         let role_config_contents = built_in::config_file_contents(config_file)
+             .map(str::to_owned)
+             .ok_or(anyhow!("No corresponding config content"))?;
+         let role_config_toml: TomlValue = toml::from_str(&role_config_contents)?;
+-        (role_config_toml, config.codex_home.as_path())
++        let sha256 = format!("{:x}", Sha256::digest(role_config_contents.as_bytes()));
++        (role_config_toml, config.codex_home.as_path(), sha256)
+     } else {
+         let role_config_contents = read_sensitive_file_to_string(config_file).await?;
+         let role_config_base = config_file
+@@ -151,14 +178,15 @@ async fn load_role_layer_toml(
+             Some(role_name),
+         )?
+         .config;
+-        (role_config_toml, role_config_base)
++        let sha256 = format!("{:x}", Sha256::digest(role_config_contents.as_bytes()));
++        (role_config_toml, role_config_base, sha256)
+     };
+ 
+     deserialize_config_toml_with_base(role_config_toml.clone(), role_config_base)?;
+-    Ok(resolve_relative_paths_in_config_toml(
+-        role_config_toml,
+-        role_config_base,
+-    )?)
++    Ok((
++        resolve_relative_paths_in_config_toml(role_config_toml, role_config_base)?,
++        sha256,
++    ))
+ }
+ 
+ pub(crate) fn resolve_role_config<'a>(
+@@ -423,3 +451,137 @@ Rules:
+ #[cfg(test)]
+ #[path = "role_tests.rs"]
+ mod tests;
++
++#[cfg(test)]
++mod provenance_tests {
++    use super::*;
++    use crate::config::ConfigBuilder;
++    use tempfile::TempDir;
++
++    async fn fixture() -> (TempDir, Config) {
++        let home = TempDir::new().expect("create role provenance fixture");
++        let config = ConfigBuilder::default()
++            .codex_home(home.path().to_path_buf())
++            .fallback_cwd(Some(home.path().to_path_buf()))
++            .build()
++            .await
++            .expect("load role provenance fixture");
++        (home, config)
++    }
++
++    async fn configured_role(home: &TempDir, config: &mut Config, contents: &str) {
++        let path = home.path().join("capture-role.toml");
++        tokio::fs::write(&path, contents)
++            .await
++            .expect("write role fixture");
++        config.agent_roles.insert(
++            "capture".into(),
++            AgentRoleConfig {
++                description: None,
++                config_file: Some(path),
++                nickname_candidates: None,
++            },
++        );
++    }
++
++    #[tokio::test]
++    async fn default_role_without_file_has_no_digest_or_overrides() {
++        let (_home, mut config) = fixture().await;
++        let before = config.clone();
++        let trace = apply_role_to_config_with_provenance(&mut config, None)
++            .await
++            .expect("apply default role");
++        assert!(trace.is_none());
++        assert!(config == before);
++    }
++
++    #[tokio::test]
++    async fn configured_role_records_present_fields_even_when_effective_values_are_equal() {
++        let (home, mut config) = fixture().await;
++        let contents = "model = \"fixture-model\"\nmodel_reasoning_effort = \"high\"\n";
++        configured_role(&home, &mut config, contents).await;
++        config.model = Some("fixture-model".into());
++        config.model_reasoning_effort = Some(ReasoningEffort::High);
++        let mut legacy = config.clone();
++        let trace = apply_role_to_config_with_provenance(&mut config, Some("capture"))
++            .await
++            .expect("apply observed role")
++            .expect("role read trace");
++        apply_role_to_config(&mut legacy, Some("capture"))
++            .await
++            .expect("apply wrapper");
++        assert!(config == legacy);
++        assert_eq!(trace.source, RoleSource::ConfiguredFile);
++        assert!(trace.model_present);
++        assert!(trace.effort_present);
++        assert!(trace.sha256 == format!("{:x}", Sha256::digest(contents.as_bytes())));
++    }
++
++    #[tokio::test]
++    async fn empty_file_retains_digest_without_adding_a_projected_layer() {
++        let (home, mut config) = fixture().await;
++        configured_role(&home, &mut config, "# fixture-only comment\n").await;
++        let before = config.clone();
++        let trace = apply_role_to_config_with_provenance(&mut config, Some("capture"))
++            .await
++            .expect("apply empty role")
++            .expect("empty role still read");
++        assert!(config == before);
++        assert!(!trace.model_present && !trace.effort_present);
++        assert!(trace.sha256 == format!("{:x}", Sha256::digest(b"# fixture-only comment\n")));
++    }
++
++    #[tokio::test]
++    async fn comment_only_changes_have_distinct_byte_digests_without_changing_config() {
++        let (home, mut config) = fixture().await;
++        configured_role(&home, &mut config, "# first\n").await;
++        let before = config.clone();
++        let first = apply_role_to_config_with_provenance(&mut config, Some("capture"))
++            .await
++            .expect("first read")
++            .expect("first trace");
++        configured_role(&home, &mut config, "# second\n").await;
++        let second = apply_role_to_config_with_provenance(&mut config, Some("capture"))
++            .await
++            .expect("second read")
++            .expect("second trace");
++        assert!(first.sha256 != second.sha256);
++        assert!(config == before);
++    }
++
++    #[tokio::test]
++    async fn builtin_trace_hashes_the_embedded_role_source() {
++        let (_home, mut config) = fixture().await;
++        let contents =
++            built_in::config_file_contents(Path::new("explorer.toml")).expect("builtin source");
++        let mut legacy = config.clone();
++        let trace = apply_role_to_config_with_provenance(&mut config, Some("explorer"))
++            .await
++            .expect("apply builtin role")
++            .expect("builtin trace");
++        apply_role_to_config(&mut legacy, Some("explorer"))
++            .await
++            .expect("apply wrapper");
++        assert!(config == legacy);
++        assert_eq!(trace.source, RoleSource::BuiltIn);
++        assert!(trace.sha256 == format!("{:x}", Sha256::digest(contents.as_bytes())));
++    }
++
++    #[tokio::test]
++    async fn observed_role_retains_existing_unknown_and_parse_error_results() {
++        let (home, mut config) = fixture().await;
++        let missing = apply_role_to_config_with_provenance(&mut config, Some("unknown"))
++            .await
++            .err()
++            .expect("unknown role error");
++        assert_eq!(missing, "unknown agent_type 'unknown'");
++        configured_role(&home, &mut config, "not valid = [").await;
++        let before = config.clone();
++        let error = apply_role_to_config_with_provenance(&mut config, Some("capture"))
++            .await
++            .err()
++            .expect("parse error");
++        assert_eq!(error, AGENT_TYPE_UNAVAILABLE_ERROR);
++        assert!(config == before);
++    }
++}
+diff --git a/codex-rs/core/src/tools/handlers/multi_agents_tests.rs b/codex-rs/core/src/tools/handlers/multi_agents_tests.rs
+index d5a8dcc..c22c5d7 100644
+--- a/codex-rs/core/src/tools/handlers/multi_agents_tests.rs
++++ b/codex-rs/core/src/tools/handlers/multi_agents_tests.rs
+@@ -1,9 +1,14 @@
+ use super::*;
+ use crate::StartThreadOptions;
+ use crate::ThreadManager;
++use crate::agent::child_config::SpawnConfigOptions;
++use crate::agent::child_config::SpawnConfigVersion;
+ use crate::agent::child_config::apply_spawn_agent_service_tier;
+ use crate::agent::child_config::build_agent_resume_config;
+ use crate::agent::child_config::build_agent_spawn_config;
++use crate::agent::child_config::prepare_agent_spawn_config;
++use crate::agent::spawn_provenance::RoleSource;
++use crate::agent::spawn_provenance::SettingSource;
+ use crate::config::AgentRoleConfig;
+ use crate::config::DEFAULT_AGENT_MAX_DEPTH;
+ use crate::config::PermissionProfileSnapshot;
+@@ -4731,3 +4736,337 @@ async fn build_agent_resume_config_clears_base_instructions() {
+         .expect("approval policy set");
+     assert_eq!(config, expected);
+ }
++
++#[tokio::test]
++async fn spawn_provenance_retains_captured_step_without_changing_native_config() {
++    let (session, mut turn) = make_session_and_context().await;
++    update_turn_settings_for_test(&mut turn, |settings| {
++        Arc::make_mut(&mut settings.model_info).slug = "later-turn-model".to_string();
++    });
++    let config = Arc::make_mut(&mut turn.config);
++    config.agent_default_subagent_model = None;
++    config.agent_default_subagent_reasoning_effort = None;
++    let mut step = StepContext::for_test(Arc::new(turn));
++    let captured = Arc::make_mut(
++        &mut Arc::get_mut(&mut step)
++            .expect("unique fixture step")
++            .settings,
++    );
++    update_selected_settings_for_test(captured, |selected| {
++        selected.collaboration_mode.settings.reasoning_effort = None;
++    });
++    let model_info = Arc::make_mut(&mut captured.model_info);
++    model_info.slug = "captured-step-model".to_string();
++    model_info.default_reasoning_level = Some(ReasoningEffort::High);
++    let mut expected =
++        build_agent_spawn_config(&session.get_base_instructions().await, step.as_ref())
++            .expect("native base config");
++    expected.service_tier = None;
++
++    let prepared = prepare_agent_spawn_config(
++        &session,
++        step.as_ref(),
++        SpawnConfigOptions {
++            version: SpawnConfigVersion::V1,
++            full_history_fork: true,
++            role_name: None,
++            model: None,
++            reasoning_effort: None,
++        },
++    )
++    .await
++    .expect("prepare inherited child config");
++
++    assert_eq!(prepared.config, expected);
++    assert_eq!(
++        prepared.config.model.as_deref(),
++        Some("captured-step-model")
++    );
++    assert_eq!(
++        prepared.config.model_reasoning_effort,
++        Some(ReasoningEffort::High)
++    );
++    assert!(Arc::ptr_eq(
++        &prepared.captured_step_settings,
++        &step.settings
++    ));
++    assert!(matches!(
++        prepared.provenance.model,
++        SettingSource::CapturedStep
++    ));
++    assert!(matches!(
++        prepared.provenance.effort,
++        SettingSource::CapturedStep
++    ));
++    assert!(prepared.provenance.role.is_none());
++    assert!(prepared.role_name.is_none());
++}
++
++#[tokio::test]
++async fn spawn_provenance_distinguishes_explicit_defaults_and_model_metadata_effort() {
++    for (requested_model, requested_effort, default_effort, explicit) in [
++        (
++            Some("test-model-without-fast"),
++            Some(ReasoningEffort::Low),
++            Some(ReasoningEffort::High),
++            true,
++        ),
++        (None, None, Some(ReasoningEffort::High), false),
++        (Some("test-model-without-fast"), None, None, true),
++    ] {
++        let (mut session, mut turn) = make_session_and_context().await;
++        let catalog = service_tier_test_catalog();
++        let metadata_effort = catalog
++            .models
++            .iter()
++            .find(|model| model.slug == "test-model-without-fast")
++            .expect("fixture model")
++            .default_reasoning_level
++            .clone();
++        session.services.models_manager = Arc::new(StaticModelsManager::new(
++            None,
++            catalog,
++            codex_models_manager::ModelOrigin::ExplicitConfig,
++        ));
++        let config = Arc::make_mut(&mut turn.config);
++        config.agent_default_subagent_model = Some("gpt-5.5".to_string());
++        config.agent_default_subagent_reasoning_effort = default_effort.clone();
++        let step = StepContext::for_test(Arc::new(turn));
++        let prepared = prepare_agent_spawn_config(
++            &session,
++            step.as_ref(),
++            SpawnConfigOptions {
++                version: SpawnConfigVersion::V1,
++                full_history_fork: true,
++                role_name: None,
++                model: requested_model,
++                reasoning_effort: requested_effort.clone(),
++            },
++        )
++        .await
++        .expect("prepare fixture model override");
++        assert_eq!(
++            prepared.config.model.as_deref(),
++            Some(if explicit {
++                "test-model-without-fast"
++            } else {
++                "gpt-5.5"
++            })
++        );
++        let metadata_default = requested_effort.is_none() && default_effort.is_none();
++        let expected_effort = requested_effort.or(default_effort).or(metadata_effort);
++        assert_eq!(prepared.config.model_reasoning_effort, expected_effort);
++        assert!(Arc::ptr_eq(
++            &prepared.captured_step_settings,
++            &step.settings
++        ));
++        if explicit {
++            assert!(matches!(
++                prepared.provenance.model,
++                SettingSource::ExplicitSpawn
++            ));
++        } else {
++            assert!(matches!(
++                prepared.provenance.model,
++                SettingSource::SubagentDefault
++            ));
++        }
++        if metadata_default {
++            assert!(matches!(
++                prepared.provenance.effort,
++                SettingSource::ModelDefault
++            ));
++        } else if explicit {
++            assert!(matches!(
++                prepared.provenance.effort,
++                SettingSource::ExplicitSpawn
++            ));
++        } else {
++            assert!(matches!(
++                prepared.provenance.effort,
++                SettingSource::SubagentDefault
++            ));
++        }
++    }
++}
++
++#[tokio::test]
++async fn spawn_provenance_records_same_value_role_and_exact_read_digest_without_authority_change() {
++    use sha2::Digest;
++    let (session, mut turn) = make_session_and_context().await;
++    let role_bytes = br#"model = "captured-step-model"
++model_reasoning_effort = "high"
++"#;
++    tokio::fs::create_dir_all(&turn.config.codex_home)
++        .await
++        .expect("fixture home");
++    let path = turn
++        .config
++        .codex_home
++        .as_path()
++        .join("same-value-role.toml");
++    tokio::fs::write(&path, role_bytes)
++        .await
++        .expect("fixture role");
++    Arc::make_mut(&mut turn.config).agent_roles.insert(
++        "same-value-role".to_string(),
++        AgentRoleConfig {
++            description: None,
++            config_file: Some(path.clone()),
++            nickname_candidates: None,
++        },
++    );
++    Arc::make_mut(&mut turn.config).agent_roles.insert(
++        "default".to_string(),
++        AgentRoleConfig {
++            description: None,
++            config_file: Some(path),
++            nickname_candidates: None,
++        },
++    );
++    let mut step = StepContext::for_test(Arc::new(turn));
++    let captured = Arc::make_mut(
++        &mut Arc::get_mut(&mut step)
++            .expect("unique fixture step")
++            .settings,
++    );
++    update_selected_settings_for_test(captured, |selected| {
++        selected.collaboration_mode.settings.reasoning_effort = Some(ReasoningEffort::High);
++    });
++    Arc::make_mut(&mut captured.model_info).slug = "captured-step-model".to_string();
++    let expected_sandbox = step.turn.config.legacy_sandbox_policy();
++    let expected_approval = step.turn.approval_policy();
++    let prepared = prepare_agent_spawn_config(
++        &session,
++        step.as_ref(),
++        SpawnConfigOptions {
++            version: SpawnConfigVersion::V2,
++            full_history_fork: false,
++            role_name: Some("same-value-role"),
++            model: None,
++            reasoning_effort: None,
++        },
++    )
++    .await
++    .expect("prepare equal-value role");
++    assert_eq!(
++        prepared.config.model.as_deref(),
++        Some("captured-step-model")
++    );
++    assert_eq!(
++        prepared.config.model_reasoning_effort,
++        Some(ReasoningEffort::High)
++    );
++    assert_eq!(prepared.config.legacy_sandbox_policy(), expected_sandbox);
++    assert_eq!(
++        prepared.config.permissions.approval_policy.value(),
++        expected_approval
++    );
++    #[allow(deprecated)]
++    {
++        assert_eq!(prepared.config.cwd, step.turn.cwd);
++    }
++    assert!(Arc::ptr_eq(
++        &prepared.captured_step_settings,
++        &step.settings
++    ));
++    assert!(matches!(prepared.provenance.model, SettingSource::Role));
++    assert!(matches!(prepared.provenance.effort, SettingSource::Role));
++    let role = prepared.provenance.role.expect("role read observation");
++    assert!(matches!(role.source, RoleSource::ConfiguredFile));
++    assert!(role.model_present && role.effort_present);
++    assert_eq!(
++        role.sha256,
++        format!("{:x}", sha2::Sha256::digest(role_bytes))
++    );
++    let default_role = prepare_agent_spawn_config(
++        &session,
++        step.as_ref(),
++        SpawnConfigOptions {
++            version: SpawnConfigVersion::V2,
++            full_history_fork: false,
++            role_name: None,
++            model: None,
++            reasoning_effort: None,
++        },
++    )
++    .await
++    .expect("V2 fresh spawn observes configured default role");
++    assert_eq!(default_role.role_name.as_deref(), Some("default"));
++    assert!(matches!(default_role.provenance.model, SettingSource::Role));
++    assert!(matches!(
++        default_role.provenance.effort,
++        SettingSource::Role
++    ));
++    assert_eq!(
++        default_role
++            .provenance
++            .role
++            .expect("default role observation")
++            .sha256,
++        role.sha256
++    );
++}
++
++#[tokio::test]
++async fn spawn_provenance_preserves_v1_and_v2_full_fork_role_rules() {
++    let (mut session, mut turn) = make_session_and_context().await;
++    session.services.models_manager = Arc::new(StaticModelsManager::new(
++        None,
++        service_tier_test_catalog(),
++        codex_models_manager::ModelOrigin::ExplicitConfig,
++    ));
++    let role_name = install_role_with_model_override(&mut turn).await;
++    let step = StepContext::for_test(Arc::new(turn));
++    let rejected = prepare_agent_spawn_config(
++        &session,
++        step.as_ref(),
++        SpawnConfigOptions {
++            version: SpawnConfigVersion::V1,
++            full_history_fork: true,
++            role_name: Some(&role_name),
++            model: None,
++            reasoning_effort: None,
++        },
++    )
++    .await;
++    assert!(rejected.is_err());
++    let inherited = prepare_agent_spawn_config(
++        &session,
++        step.as_ref(),
++        SpawnConfigOptions {
++            version: SpawnConfigVersion::V1,
++            full_history_fork: true,
++            role_name: None,
++            model: None,
++            reasoning_effort: None,
++        },
++    )
++    .await
++    .expect("V1 inherits without role");
++    assert!(inherited.provenance.role.is_none());
++    let v2 = prepare_agent_spawn_config(
++        &session,
++        step.as_ref(),
++        SpawnConfigOptions {
++            version: SpawnConfigVersion::V2,
++            full_history_fork: true,
++            role_name: Some(&role_name),
++            model: None,
++            reasoning_effort: None,
++        },
++    )
++    .await
++    .expect("V2 allows explicit role on full fork");
++    assert_eq!(v2.config.model.as_deref(), Some("gpt-5-role-override"));
++    assert_eq!(
++        v2.config.model_reasoning_effort,
++        Some(ReasoningEffort::Minimal)
++    );
++    assert_eq!(
++        v2.config.legacy_sandbox_policy(),
++        inherited.config.legacy_sandbox_policy()
++    );
++    assert!(matches!(v2.provenance.model, SettingSource::Role));
++    assert!(matches!(v2.provenance.effort, SettingSource::Role));
++}
+diff --git a/codex-rs/core/src/agent/spawn_provenance.rs b/codex-rs/core/src/agent/spawn_provenance.rs
+new file mode 100644
+index 0000000..abb53dc
+--- /dev/null
++++ b/codex-rs/core/src/agent/spawn_provenance.rs
+@@ -0,0 +1,118 @@
++//! Bounded observations of child configuration merge stages.
++//!
++//! These labels are not complete host evidence or an authorization decision.
++//! Captured-step labels deliberately do not infer the underlying settings layers.
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(crate) enum SettingSource {
++    CapturedStep,
++    ExplicitSpawn,
++    SubagentDefault,
++    ModelDefault,
++    Role,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(crate) enum RoleSource {
++    BuiltIn,
++    ConfiguredFile,
++}
++
++// No Debug/Serialize implementation: the digest stays in the host's internal trace.
++#[derive(Clone, PartialEq, Eq)]
++pub(crate) struct RoleProvenance {
++    pub(crate) source: RoleSource,
++    pub(crate) sha256: String,
++    pub(crate) model_present: bool,
++    pub(crate) effort_present: bool,
++}
++
++#[derive(Clone, PartialEq, Eq)]
++pub(crate) struct SpawnProvenance {
++    pub(crate) model: SettingSource,
++    pub(crate) effort: SettingSource,
++    pub(crate) role: Option<RoleProvenance>,
++}
++
++impl SpawnProvenance {
++    pub(crate) fn captured() -> Self {
++        Self {
++            model: SettingSource::CapturedStep,
++            effort: SettingSource::CapturedStep,
++            role: None,
++        }
++    }
++
++    pub(crate) fn apply_role(&mut self, role: Option<RoleProvenance>) {
++        if let Some(role) = role.as_ref() {
++            // Presence matters even when a role writes the same effective value.
++            if role.model_present {
++                self.model = SettingSource::Role;
++            }
++            if role.effort_present {
++                self.effort = SettingSource::Role;
++            }
++        }
++        self.role = role;
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn captured_labels_do_not_infer_underlying_layers() {
++        let trace = SpawnProvenance::captured();
++        assert_eq!(trace.model, SettingSource::CapturedStep);
++        assert_eq!(trace.effort, SettingSource::CapturedStep);
++        assert!(trace.role.is_none());
++    }
++
++    #[test]
++    fn role_presence_overrides_each_field_independently() {
++        for (model_present, effort_present) in
++            [(false, false), (true, false), (false, true), (true, true)]
++        {
++            let mut trace = SpawnProvenance::captured();
++            trace.model = SettingSource::ExplicitSpawn;
++            trace.effort = SettingSource::ModelDefault;
++            trace.apply_role(Some(RoleProvenance {
++                source: RoleSource::ConfiguredFile,
++                sha256: "fixture-digest".into(),
++                model_present,
++                effort_present,
++            }));
++            assert_eq!(
++                trace.model,
++                if model_present {
++                    SettingSource::Role
++                } else {
++                    SettingSource::ExplicitSpawn
++                }
++            );
++            assert_eq!(
++                trace.effort,
++                if effort_present {
++                    SettingSource::Role
++                } else {
++                    SettingSource::ModelDefault
++                }
++            );
++            assert_eq!(
++                trace.role.as_ref().map(|role| role.model_present),
++                Some(model_present)
++            );
++        }
++    }
++
++    #[test]
++    fn role_without_a_file_leaves_merge_origins_unchanged() {
++        let mut trace = SpawnProvenance::captured();
++        trace.effort = SettingSource::SubagentDefault;
++        trace.apply_role(None);
++        assert_eq!(trace.model, SettingSource::CapturedStep);
++        assert_eq!(trace.effort, SettingSource::SubagentDefault);
++        assert!(trace.role.is_none());
++    }
++}

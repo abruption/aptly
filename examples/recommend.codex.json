@@ -1,0 +1,9 @@
+{
+  "request_id": "demo-codex-sort-001",
+  "client": "codex",
+  "task": {
+    "summary": "Sort the supplied numbers [3, 1, 2] into ascending order. No files or network are needed.",
+    "operation": "analysis",
+    "context_sufficient": true
+  }
+}

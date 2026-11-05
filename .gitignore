@@ -1,0 +1,49 @@
+# Dependencies and the documented local package installation.
+node_modules/
+/aptly-local/
+.npm/
+
+# Build and test output. Keep package-lock.json tracked.
+dist/
+*.tsbuildinfo
+/coverage/
+.nyc_output/
+
+# Local development, experiments, release archives, and diagnostic attachments.
+.worktree/
+.local/
+.poc/
+.release/
+/reports/
+*.tgz
+*.log
+*.sqlite*
+
+# Credentials and local environment settings. Track only the public template.
+.env
+.env.*
+!.env.example
+.npmrc
+auth.json
+.claude/settings.local.json
+*credentials*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local agent instructions are not part of the public repository.
+AGENTS.md
+
+# OS metadata and editor-local files; shared editor settings remain trackable.
+.DS_Store
+._*
+.AppleDouble/
+.LSOverride
+Thumbs.db
+Desktop.ini
+.idea/
+*.iml
+*.swp
+*.swo
+*~

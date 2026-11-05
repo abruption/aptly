@@ -1,0 +1,9 @@
+[mcp_servers.aptly]
+command = "aptly"
+args = ["serve"]
+env_vars = ["OPENAI_API_KEY", "ROUTER_PROVIDER", "ROUTER_LEDGER_PATH", "ROUTER_CONFIG_PATH", "APTLY_MODEL_INFO_PATH"]
+
+[mcp_servers.aptly.env]
+ROUTER_PROVIDER = "fixture"
+APTLY_CLAUDE_MODELS = '["haiku","sonnet","opus"]'
+APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'

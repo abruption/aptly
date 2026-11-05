@@ -1,0 +1,37 @@
+# Changelog
+
+## 0.1.0 — local package draft
+
+- 기본 후보를 Claude Haiku/Sonnet/Opus와 Codex Luna(max)/Terra(high)/Sol(medium)의 세 단계로 구성했어요.
+- 제공사별 JSON 문자열 환경변수로 후보를 선택하거나 비활성화하고, 모델명·effort·공식 특성을 Decisions 설명에 포함해요.
+- 고정 공식 Markdown의 명시적 catalog refresh와 시작 시 읽는 7일 캐시, 동봉 설명 fallback을 추가해요.
+- 추천과 Hook의 보존 경계·unknown 유료 요청 재호출 방지는 유지해요. 호스트 내부 패치는 계속 보류예요.
+- 로컬 archive 초안이며 private:true를 유지해요. 레지스트리 게시·전역 설치·운영 설정 변경은 포함하지 않아요.
+- 이전 preview 검증 기록은 아래에 보존하며 새 카탈로그의 성공 근거로 재표시하지 않아요.
+
+## 0.1.0-preview.0 — unreleased
+
+- 추천 전용 advise 경로를 Hook 증거 조건과 분리하고 최소 요청·예제·사용 안내를 추가했어요. 기존 Hook gate·원장 unknown 재호출 방지는 유지해요.
+- 최신 제품 MCP의 실제 Decisions smoke3회·초기 추천 평가8회를 기록하고, 사용 안내를 npm archive에 동봉했어요.
+
+- Codex 고정 릴리스용 내부 provenance capture Rust 패치와 native 회귀를 추가했어요. 설정 결과를 유지하며 제품 자동 적용 경로에는 연결하지 않아요.
+
+- 새 호스트 resolver·원자적 dispatch 계약과 fixture reference model을 추가했어요. 현재 Codex RPC나 제품 자동 적용 경로는 아니에요.
+
+- 개발용 Codex 설정 관측 prototype과 무유료 회귀를 추가했어요. 파일/CLI 출처를 관측하지만 전체 native 세션의 증거는 인증하지 않아요.
+
+- 표시명을 Aptly, 패키지·CLI·MCP 식별자를 aptly로 통일했어요. 새 진입점은 bin/aptly.ts예요.
+- 새 진단은 aptly로 생성하고 이전 이름의 보고서는 원래 식별자를 보존해 읽어요.
+- 이전 CLI 빌드 파일이 패키지에 섞이면 릴리스 검사를 실패시켜요.
+
+- 소스·테스트·도구를 TypeScript로 전환하고 strict 검사·JavaScript/타입 선언 배포를 구성했어요.
+- AGENTS.md를 로컬 지침으로 유지하고 Git·공개 소스에서 제외했어요.
+
+- 로컬 진단 결과를 동일 report_id의 Markdown·JSON으로 내보내는 report와 GitHub 첨부 양식을 추가했어요.
+- 공통 로컬 stdio MCP·명시적 advisory CLI·fixture smoke를 준비했어요.
+- 일반 작업의 설정 우선순위·고정 선택·미확인 출처 진단을 추가했어요.
+- host evidence를 session/cwd/call/input digest/version/time에 결합하고 source 변경 시 보수적으로 거부해요.
+- 제품 코드와 합성 PoC·개인 실행 자료를 분리했어요.
+- MIT·이식 가능한 회귀·무유료 CI·npm 파일 allowlist·공개 준비 검사를 추가했어요.
+
+일반 업무의 품질·총비용 평가나 모든 호스트의 자동 적용 지원을 의미하지 않아요.

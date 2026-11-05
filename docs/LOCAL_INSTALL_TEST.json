@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-05",
+  "package_version": "0.1.0",
+  "archive_sha256": "29590876bd31ab534169375d024159d59b91cb1bcc993207a72ffaf03c27ec82",
+  "installed_from_local_archive": true,
+  "global_settings_changed": false,
+  "host_configuration_changed": false,
+  "free_tests": [
+    {
+      "code": "version_and_executable",
+      "passed": true
+    },
+    {
+      "code": "six_defaults_and_efforts",
+      "passed": true
+    },
+    {
+      "code": "installed_and_source_request_examples",
+      "passed": true
+    },
+    {
+      "code": "primary_candidate_filter",
+      "passed": true
+    },
+    {
+      "code": "legacy_candidate_aliases",
+      "passed": true
+    },
+    {
+      "code": "disabled_clients_and_empty_catalog",
+      "passed": true
+    },
+    {
+      "code": "configuration_errors_are_safe",
+      "passed": true
+    },
+    {
+      "code": "declared_pins_preserved",
+      "passed": true
+    },
+    {
+      "code": "insufficient_context",
+      "passed": true
+    },
+    {
+      "code": "compiled_config_paths",
+      "passed": true
+    },
+    {
+      "code": "report_formats_and_privacy",
+      "passed": true
+    },
+    {
+      "code": "installed_mcp_tools_cache_and_hook_guard",
+      "passed": true
+    },
+    {
+      "code": "real_public_official_refresh",
+      "passed": true
+    },
+    {
+      "code": "fresh_official_cache_loaded",
+      "passed": true
+    },
+    {
+      "code": "stale_cache_falls_back",
+      "passed": true
+    },
+    {
+      "code": "invalid_cache_falls_back",
+      "passed": true
+    }
+  ],
+  "free_check_groups_passed": 16,
+  "live_classification_requests": 6,
+  "live_functional_success": true,
+  "expectation_matches": 5,
+  "input_tokens": 3034,
+  "output_tokens": 0,
+  "cache_reuse_verified": true,
+  "restart_cache_reuse_verified": true,
+  "unknown_records": 0,
+  "native_spawns": 0,
+  "actual_billing_observed": false,
+  "cases_sha256": "5ea84ef7173c54c2b458a040c4d3b4b381375dd1588b43b85e8b342f00aee1d5",
+  "cases": [
+    {
+      "id": "codex-simple",
+      "client": "codex",
+      "summary": "Sort the supplied numbers [3,1,2] ascending. Return [1,2,3]. No files, network or judgment required.",
+      "operation": "analysis",
+      "expected": "codex-simple"
+    },
+    {
+      "id": "codex-routine",
+      "client": "codex",
+      "summary": "Compare an English CLI README and its Korean translation, each about130lines. Improve natural Korean wording while preserving technical context, version caveats, command literals and links. Propose justified paragraph edits rather than literal replacements. Do not modify code or execute commands.",
+      "operation": "review",
+      "expected": "codex-routine"
+    },
+    {
+      "id": "codex-deep",
+      "client": "codex",
+      "summary": "Diagnose intermittent cross-component deadlocks involving database transactions, cancellation handlers and per-project mutexes. Analyze supplied traces and lock orders, prove a fix preserves retry safety under crashes, and compare architectural tradeoffs.",
+      "operation": "analysis",
+      "expected": "codex-deep"
+    },
+    {
+      "id": "claude-simple",
+      "client": "claude",
+      "summary": "Extract the two names Alice and Bob from the supplied rows Alice:2 and Bob:5. Return only those strings, no inference or external lookup.",
+      "operation": "read_only",
+      "expected": "claude-simple"
+    },
+    {
+      "id": "claude-routine",
+      "client": "claude",
+      "summary": "Improve a Korean translation of a short English developer README. Compare paragraph meanings, make the Korean natural, preserve command examples and update/publication caveats, and justify suggested wording from the original. No code changes or external research.",
+      "operation": "review",
+      "expected": "claude-routine"
+    },
+    {
+      "id": "claude-deep",
+      "client": "claude",
+      "summary": "Review a multi-tenant OAuth account-linking architecture for replay, tenant isolation, attacker-controlled redirects and token binding. Construct exploit paths, compare mitigation tradeoffs, and reason about concurrent failure and recovery guarantees.",
+      "operation": "review",
+      "expected": "claude-deep"
+    }
+  ],
+  "results": [
+    {
+      "case": "codex-simple",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile": {
+        "id": "codex-simple",
+        "client": "codex",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "max"
+      },
+      "confidence": 0.94,
+      "usage": {
+        "input_tokens": 516,
+        "output_tokens": 0,
+        "total_tokens": 516
+      },
+      "latency_ms": 2576.517,
+      "cached": false,
+      "expected": "codex-simple",
+      "matches_expected": true
+    },
+    {
+      "case": "codex-routine",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile": {
+        "id": "codex-simple",
+        "client": "codex",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "max"
+      },
+      "confidence": 0.16,
+      "usage": {
+        "input_tokens": 538,
+        "output_tokens": 0,
+        "total_tokens": 538
+      },
+      "latency_ms": 339.235,
+      "cached": false,
+      "expected": "codex-routine",
+      "matches_expected": false
+    },
+    {
+      "case": "codex-deep",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile": {
+        "id": "codex-deep",
+        "client": "codex",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "confidence": 0.94,
+      "usage": {
+        "input_tokens": 528,
+        "output_tokens": 0,
+        "total_tokens": 528
+      },
+      "latency_ms": 264.557,
+      "cached": false,
+      "expected": "codex-deep",
+      "matches_expected": true
+    },
+    {
+      "case": "claude-simple",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile": {
+        "id": "claude-simple",
+        "client": "claude",
+        "model": "haiku"
+      },
+      "confidence": 0.99,
+      "usage": {
+        "input_tokens": 476,
+        "output_tokens": 0,
+        "total_tokens": 476
+      },
+      "latency_ms": 208.347,
+      "cached": false,
+      "expected": "claude-simple",
+      "matches_expected": true
+    },
+    {
+      "case": "claude-routine",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile": {
+        "id": "claude-routine",
+        "client": "claude",
+        "model": "sonnet"
+      },
+      "confidence": 0.76,
+      "usage": {
+        "input_tokens": 490,
+        "output_tokens": 0,
+        "total_tokens": 490
+      },
+      "latency_ms": 339.528,
+      "cached": false,
+      "expected": "claude-routine",
+      "matches_expected": true
+    },
+    {
+      "case": "claude-deep",
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile": {
+        "id": "claude-deep",
+        "client": "claude",
+        "model": "opus"
+      },
+      "confidence": 0.99,
+      "usage": {
+        "input_tokens": 486,
+        "output_tokens": 0,
+        "total_tokens": 486
+      },
+      "latency_ms": 310.106,
+      "cached": false,
+      "expected": "claude-deep",
+      "matches_expected": true
+    }
+  ],
+  "finding": "Context-aware Codex translation review selected Luna/max with confidence0.16 instead of the predeclared Terra/high expectation. No policy tuning or automatic retries were performed to force a match."
+}

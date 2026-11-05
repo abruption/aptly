@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.png binary
+# Stored upstream diffs retain whitespace-only context lines.
+scripts/codex-host-patch/*.patch -whitespace

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "aptly": {
+      "command": "aptly",
+      "args": [
+        "serve"
+      ],
+      "env": {
+        "ROUTER_PROVIDER": "fixture",
+        "APTLY_CLAUDE_MODELS": "[\"haiku\",\"sonnet\",\"opus\"]",
+        "APTLY_CODEX_MODELS": "[\"gpt-6-luna\",\"gpt-6.1-terra\",\"gpt-6.1-sol\"]"
+      }
+    }
+  }
+}

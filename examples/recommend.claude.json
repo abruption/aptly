@@ -1,0 +1,9 @@
+{
+  "request_id": "demo-claude-count-001",
+  "client": "claude",
+  "task": {
+    "summary": "Count how many times the word apple appears in this supplied list: apple, pear, apple. No files or network are needed.",
+    "operation": "analysis",
+    "context_sufficient": true
+  }
+}

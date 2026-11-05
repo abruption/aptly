@@ -1,0 +1,69 @@
+{
+  "name": "aptly",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/mark-bin-executable.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts",
+    "mcp": "node bin/aptly.ts serve",
+    "poc": "node scripts/poc.ts",
+    "check:release": "npm run build && node scripts/release-check.ts",
+    "probe:codex": "node test-support/codex-host-probe.ts",
+    "postinstall": "node --input-type=module -e \"import {existsSync} from 'node:fs'; import {execFileSync} from 'node:child_process'; if(existsSync('dist/bin/aptly.js')) execFileSync(process.execPath,['dist/bin/aptly.js','setup','--automatic'],{stdio:'inherit'});\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "smol-toml": "1.9.1",
+    "zod": "4.6.7"
+  },
+  "description": "Conservative advisory subagent profile routing for Codex and Claude Code using OpenAI Decisions.",
+  "license": "MIT",
+  "bin": {
+    "aptly": "dist/bin/aptly.js"
+  },
+  "files": [
+    "dist/src/",
+    "dist/bin/",
+    "examples/",
+    "README.md",
+    "README.en.md",
+    "README.zh-CN.md",
+    "README.ja.md",
+    "LICENSE",
+    "docs/guide/",
+    "docs/ADVISORY_USAGE.md",
+    "docs/DRAFT_0_1_0.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/src/server.d.ts",
+      "import": "./dist/src/server.js"
+    },
+    "./provenance": {
+      "types": "./dist/src/provenance.d.ts",
+      "import": "./dist/src/provenance.js"
+    },
+    "./inspect": {
+      "types": "./dist/src/inspect.d.ts",
+      "import": "./dist/src/inspect.js"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  },
+  "types": "./dist/src/server.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abruption/aptly.git"
+  },
+  "homepage": "https://github.com/abruption/aptly#readme",
+  "bugs": {
+    "url": "https://github.com/abruption/aptly/issues"
+  }
+}

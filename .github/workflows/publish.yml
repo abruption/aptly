@@ -1,0 +1,128 @@
+name: npm OIDC publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag matching package.json (for example v0.1.0)
+        required: true
+        type: string
+      dry_run:
+        description: Validate and pack only; do not publish to npm
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate and pack release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_MODE: ${{ inputs.dry_run && 'dry-run' || 'publish' }}
+      RELEASE_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      APTLY_SKIP_SETUP: '1'
+      OPENAI_API_KEY: ''
+      ANTHROPIC_API_KEY: ''
+      ROUTER_PROVIDER: fixture
+    steps:
+      - name: Prepare runner-local paths
+        run: |
+          printf 'RELEASE_DIR=%s/aptly-release\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'NPM_CONFIG_USERCONFIG=%s/npmrc-oidc\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'POC_TEST_TMP_ROOT=%s\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Use a registry-only npm configuration
+        run: printf 'registry=https://registry.npmjs.org/\n' > "$NPM_CONFIG_USERCONFIG"
+      - name: Validate release identity and publishing prerequisites
+        run: node scripts/publish-check.ts preflight --tag "$RELEASE_TAG" --mode "$RELEASE_MODE"
+      - name: Record the immutable source commit
+        id: source
+        run: printf 'sha=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Typecheck and build
+        run: npm run typecheck && npm run build
+      - name: Run free policy and MCP tests
+        run: npm test && npm run poc
+      - name: Audit public package contents
+        run: npm run check:release
+      - name: Pack the checked release and record its identity
+        run: |
+          mkdir -p "$RELEASE_DIR"
+          npm pack --ignore-scripts --json --pack-destination "$RELEASE_DIR" > "$RELEASE_DIR/pack.json"
+          node scripts/publish-check.ts manifest --archive-dir "$RELEASE_DIR" --tag "$RELEASE_TAG" --mode "$RELEASE_MODE"
+      - name: Retain the exact checked archive
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/aptly-release/*.tgz
+            ${{ runner.temp }}/aptly-release/pack.json
+            ${{ runner.temp }}/aptly-release/release-manifest.json
+            ${{ runner.temp }}/aptly-release/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish the verified archive through npm OIDC
+    if: ${{ !inputs.dry_run }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+    steps:
+      - name: Prepare runner-local paths
+        run: |
+          printf 'RELEASE_DIR=%s/aptly-release\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'NPM_CONFIG_USERCONFIG=%s/npmrc-oidc\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Use a registry-only npm configuration
+        run: printf 'registry=https://registry.npmjs.org/\n' > "$NPM_CONFIG_USERCONFIG"
+      - name: Download this run's checked artifact by ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          path: ${{ runner.temp }}/aptly-release
+          merge-multiple: true
+      - name: Revalidate source, package metadata, tag and archive SHA-256
+        run: node scripts/publish-check.ts verify --archive-dir "$RELEASE_DIR" --tag "$RELEASE_TAG" --mode publish
+      - name: Publish only the verified archive
+        run: |
+          archive=$(node -p 'JSON.parse(require("node:fs").readFileSync(process.env.RELEASE_DIR+"/release-manifest.json","utf8")).filename')
+          dist_tag=$(node -p 'JSON.parse(require("node:fs").readFileSync(process.env.RELEASE_DIR+"/release-manifest.json","utf8")).dist_tag')
+          npm publish "$RELEASE_DIR/$archive" --tag "$dist_tag" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org

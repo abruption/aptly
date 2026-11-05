@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { createServer } from '../src/server.ts';
+import { setupHosts } from '../src/setup.ts';
+import { createTestTemp } from '../test-support/temp.ts';
+
+test('product MCP consumes installed policy, ignores caller policy and preserves fixture defaults', async t => {
+ const home=createTestTemp(t,'codex-automatic-server-');
+ assert.equal(setupHosts({home,env:{},clients:['codex'],mode:'advisory'}).status,'complete');
+ const policyPath=join(home,'.codex','aptly','auto-policy.json');
+ const env={ROUTER_PROVIDER:'fixture',APTLY_HOOK_POLICY_PATH:policyPath};
+ const server=createServer({env}),client=new Client({name:'automatic-server-test',version:'1'});
+ const [left,right]=InMemoryTransport.createLinkedPair();
+ await server.connect(right);await client.connect(left);t.after(async()=>{await client.close();await server.close();});
+ const call=async(name,args={})=>{const r=await client.callTool({name,arguments:args});return r.structuredContent??JSON.parse(r.content[0].text);};
+ const capabilities=await call('get_routing_capabilities');
+ assert.equal(capabilities.automatic_hook.mode,'advisory');assert.equal(capabilities.automatic_hook.host_settings_verified,false);
+ assert.equal(capabilities.automatic_hook.last_result,null);
+ const event={hook_event_name:'PreToolUse',session_id:'test-session',tool_use_id:'advisory-call',tool_name:'spawn_agent',tool_input:{task_name:'Sort values',message:'Sort the supplied numbers [3, 1, 2] in ascending order.',fork_turns:'none'}};
+ const reply=await call('route_spawn_hook',{client:'codex',event,mode:'defaults'});
+ assert.match(reply.hookSpecificOutput.additionalContext,/Aptly suggests/);
+ assert.equal(Object.hasOwn(reply.hookSpecificOutput,'updatedInput'),false);
+ writeFileSync(policyPath,JSON.stringify({schema_version:1,kind:'aptly-auto-hook',mode:'defaults',issuer:'operator_installation',enabled:true,state_directory:join(home,'.codex','aptly','state')}));
+ assert.deepEqual(await call('route_spawn_hook',{client:'codex',event:{...event,tool_use_id:'fixture-defaults-call'}}),{});
+ const last=(await call('get_routing_capabilities')).automatic_hook.last_result;
+ assert.deepEqual(last,{status:'preserved',reason:'synthetic_provider'});
+ writeFileSync(policyPath,'{}');
+ assert.deepEqual(await call('route_spawn_hook',{client:'codex',event}),{});
+});
