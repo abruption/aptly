@@ -10,6 +10,10 @@ GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준
 
 `npm OIDC publish`는 `v*` 태그 push에서 OIDC 게시를 자동 실행합니다. 일반 브랜치 push·PR은 게시하지 않습니다. `workflow_dispatch`도 지원하며 수동 실행의 `dry_run` 기본값은 `true`입니다.
 
+설치된 패키지 시험은 전용 일회성 job에서 실행합니다. 이 시험은 npm 의존성의 lifecycle script를 실행할 수 있으므로 릴리즈 archive를 만드는 job과 runner를 공유하지 않습니다. 시험 job에는 OIDC 권한·게시 environment·artifact 업로드·출력·캐시를 제공하지 않습니다.
+
+시험이 성공하면 준비 job이 새 runner에서 같은 태그를 checkout하고 `npm ci --ignore-scripts`로 잠긴 의존성을 새로 설치하여 타입 검사·빌드·검증·pack을 수행합니다. 설치 시험의 파일·캐시·archive를 전달받지 않습니다. publish job은 준비 job이 만든 artifact ID와 source SHA만 받아 검증·게시합니다. 시험의 성공 상태만 선행 조건으로 사용하며 시험 환경을 릴리즈 산출물의 출처로 사용하지 않습니다.
+
 | 입력 | 값 |
 |---|---|
 | `release_tag` | `package.json` 버전과 일치하는 기존 태그. 예: `v0.1.0` |
