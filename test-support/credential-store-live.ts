@@ -52,7 +52,8 @@ try{
  if(setEnvironment('ROUTER_PROVIDER','decisions',{home,env:{},clients:['codex']}).status!=='complete')throw Error('native_windows_environment_failed');
  if(fileAcl(configPath)!==originalAcl)throw Error('native_windows_file_acl_changed');
  const syntheticKey='sk-synthetic-'+randomUUID();
- if(setApiKey(syntheticKey,{home,env:{}},backend).status!=='complete')throw Error('native_windows_key_setup_failed');
+ const configuredKey=setApiKey(syntheticKey,{home,env:{}},backend);
+ if(configuredKey.status!=='complete'){console.log(JSON.stringify(configuredKey));throw Error('native_windows_key_setup_failed');}
  const config=parse(readFileSync(join(home,'.codex','config.toml'),'utf8')) as any;
  const env=config.mcp_servers.aptly.env;
  if(JSON.stringify(config).includes(syntheticKey))throw Error('native_windows_plaintext_key');
