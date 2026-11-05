@@ -13,7 +13,10 @@ test('Windows ACL inspection uses a fixed system script and stdin-only literal p
  assert.equal(call.args.includes(path),false);
  assert.deepEqual(JSON.parse(call.input),{path,action:'assert-private'});
  assert.equal(script.includes(path),false);
- assert.match(script,/Get-Acl -LiteralPath \$path/);
+ assert.match(script,/\[IO.Directory\]::GetAccessControl\(\$path\)/);
+ assert.match(script,/\[IO.File\]::GetAccessControl\(\$path\)/);
+ assert.match(script,/\[IO.File\]::GetAttributes\(\$path\)/);
+ assert.doesNotMatch(script,/Get-Acl|Set-Acl|Get-Item/);
  assert.match(script,/GetAccessRules\(\$true, \$true, \$sidType\)/);
  assert.match(script,/GetOwner\(\$sidType\)/);
  assert.match(script,/WindowsIdentity\]::GetCurrent\(\)\.User/);
@@ -43,8 +46,8 @@ test('new private directory protection removes inherited rules and grants only t
  assert.match(protectScript,/foreach \(\$sid in \$allowed\)/);
  assert.match(protectScript,/ContainerInherit/);
  assert.match(protectScript,/ObjectInherit/);
- assert.match(protectScript,/Set-Acl -LiteralPath \$path -AclObject \$acl/);
- assert.ok(protectScript.indexOf('Set-Acl') < protectScript.indexOf('Get-Acl'));
+ assert.match(protectScript,/\[IO.Directory\]::SetAccessControl\(\$path, \$acl\)/);
+ assert.ok(protectScript.indexOf('SetAccessControl') < protectScript.indexOf('GetAccessControl'));
  assert.throws(() => protectNewWindowsPrivateDirectory('C:\\new-directory',{execute:() => 'rejected'}), /windows_private_permissions/);
 });
 

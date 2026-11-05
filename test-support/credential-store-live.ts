@@ -31,20 +31,14 @@ function fileAcl(path:string,restrict=false):string{
   $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
   $acl.SetOwner($sid);$acl.SetAccessRuleProtection($true,$false)
   $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))
-  Set-Acl -LiteralPath $r.path -AclObject $acl
+  [IO.File]::SetAccessControl([string]$r.path,$acl)
  }
- [Console]::Out.Write((Get-Acl -LiteralPath $r.path).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access))`;
+ [Console]::Out.Write([IO.File]::GetAccessControl([string]$r.path).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access))`;
  return execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify({path,restrict}),encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});
 }
 try{
  const aclProbe=join(home,'acl-probe');mkdirSync(aclProbe);
- protectNewWindowsPrivateDirectory(aclProbe,{execute(executable,args,input){
-  const diagnosticArgs=[...args];
-  const script=Buffer.from(diagnosticArgs.at(-1)!,'base64').toString('utf16le').replace("[Console]::Out.Write('rejected'); exit 1","[Console]::Out.Write('rejected '+$_.Exception.GetType().Name+' line '+$_.InvocationInfo.ScriptLineNumber); exit 1");
-  diagnosticArgs[diagnosticArgs.length-1]=Buffer.from(script,'utf16le').toString('base64');
-  try{return execFileSync(executable,diagnosticArgs,{input,encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});}
-  catch(error){const match=String((error as any).stdout??'').match(/^rejected [A-Za-z]+ line [0-9]+$/);console.log(match?.[0]??'native_acl_probe_failed');throw Error('native_acl_probe_failed');}
- }});
+ protectNewWindowsPrivateDirectory(aclProbe);
  storeSecret(value,options);
  if(loadSecret(options)!==value)throw Error('native_credential_roundtrip_failed');
  storeSecret(value+'-updated',options);

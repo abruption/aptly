@@ -5,18 +5,19 @@ import { join } from 'node:path';
 // Windows PowerShell's .NET Framework ACL APIs keep inherited ACEs visible.
 const script = String.raw`
 $ErrorActionPreference = 'Stop'
-[Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
 try {
  $request = [Console]::In.ReadToEnd() | ConvertFrom-Json
  $path = [string]$request.path
  if ([string]::IsNullOrWhiteSpace($path) -or ![IO.Path]::IsPathRooted($path)) { throw 'invalid' }
- $item = Get-Item -LiteralPath $path -Force
- if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'invalid' }
+ $attributes = [IO.File]::GetAttributes($path)
+ if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'invalid' }
+ $isDirectory = ($attributes -band [IO.FileAttributes]::Directory) -ne 0
  $sidType = [Security.Principal.SecurityIdentifier]
  $current = [Security.Principal.WindowsIdentity]::GetCurrent().User
  $allowed = @($current.Value, 'S-1-5-18', 'S-1-5-32-544')
  if ($request.action -eq 'protect-new-directory') {
-  if (!$item.PSIsContainer) { throw 'invalid' }
+  if (!$isDirectory) { throw 'invalid' }
   $acl = [Security.AccessControl.DirectorySecurity]::new()
   $acl.SetOwner($current)
   $acl.SetAccessRuleProtection($true, $false)
@@ -25,9 +26,9 @@ try {
    $rule = [Security.AccessControl.FileSystemAccessRule]::new($identity, [Security.AccessControl.FileSystemRights]::FullControl, ([Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit), [Security.AccessControl.PropagationFlags]::None, [Security.AccessControl.AccessControlType]::Allow)
    $acl.AddAccessRule($rule)
   }
-  Set-Acl -LiteralPath $path -AclObject $acl
+  [IO.Directory]::SetAccessControl($path, $acl)
  } elseif ($request.action -ne 'assert-private') { throw 'invalid' }
- $acl = Get-Acl -LiteralPath $path
+ $acl = if ($isDirectory) { [IO.Directory]::GetAccessControl($path) } else { [IO.File]::GetAccessControl($path) }
  if ($allowed -notcontains $acl.GetOwner($sidType).Value) { throw 'invalid' }
  $descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($acl.GetSecurityDescriptorBinaryForm(), 0)
  if ($null -eq $descriptor.DiscretionaryAcl) { throw 'invalid' }
@@ -44,7 +45,7 @@ const run: Runner = (executable,args,input) => execFileSync(executable,[...args]
 });
 const copyScript = String.raw`
 $ErrorActionPreference = 'Stop'
-[Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
 try {
  $request = [Console]::In.ReadToEnd() | ConvertFrom-Json
  $source = [string]$request.source
@@ -54,8 +55,8 @@ try {
  $target = [IO.Path]::GetFullPath($target)
  if ([string]::Equals($source, $target, [StringComparison]::OrdinalIgnoreCase) -or ![string]::Equals([IO.Path]::GetDirectoryName($source), [IO.Path]::GetDirectoryName($target), [StringComparison]::OrdinalIgnoreCase)) { throw 'invalid' }
  foreach ($path in @($source, $target)) {
-  $item = Get-Item -LiteralPath $path -Force
-  if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'invalid' }
+  $attributes = [IO.File]::GetAttributes($path)
+  if (($attributes -band [IO.FileAttributes]::Directory) -ne 0 -or ($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'invalid' }
  }
  $sections = [Security.AccessControl.AccessControlSections]::Access
  $sourceAcl = [IO.File]::GetAccessControl($source, $sections)
