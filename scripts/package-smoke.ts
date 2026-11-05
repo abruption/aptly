@@ -2,16 +2,22 @@
 // but Aptly host setup explicitly disabled. No real host or paid provider is used.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, isAbsolute, join, resolve } from 'node:path';
 
-const root = mkdtempSync(join(tmpdir(), 'codex-package-smoke-'));
+// npm supplies its actual JavaScript entry point, including on Windows.
+// Do not pass .cmd shims to execFileSync or construct a shell command string.
+const npmCli = process.env.npm_execpath;
+assert.ok(npmCli && isAbsolute(npmCli) && basename(npmCli) === 'npm-cli.js',
+  'Run this check with npm run test:package');
+assert.ok(statSync(npmCli).isFile());
+const root = mkdtempSync(join(tmpdir(), 'codex-package smoke-'));
 const prefix = join(root, 'installed');
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 // Deliberately exclude inherited provider keys, host config and NODE_PATH/options.
 const networkEnv = Object.fromEntries(['HTTP_PROXY','HTTPS_PROXY','NO_PROXY','http_proxy','https_proxy','no_proxy','NODE_EXTRA_CA_CERTS'].flatMap(key => process.env[key] ? [[key, process.env[key]]] : []));
-const env = { ...networkEnv, PATH: process.env.PATH, APTLY_SKIP_SETUP: '1', CI: 'true',
+const windowsEnv = process.platform === 'win32' ? Object.fromEntries(['SystemRoot','ComSpec','TEMP','TMP'].flatMap(key => process.env[key] ? [[key, process.env[key]]] : [])) : {};
+const env = { ...networkEnv, ...windowsEnv, PATH: process.env.PATH, APTLY_SKIP_SETUP: '1', CI: 'true',
   ROUTER_PROVIDER: 'fixture', OPENAI_API_KEY: '', ANTHROPIC_API_KEY: '',
   npm_config_cache: join(root, 'cache'), npm_config_userconfig: join(root, 'npmrc'),
   npm_config_globalconfig: join(root, 'global-npmrc') };
@@ -22,12 +28,17 @@ try {
   writeFileSync(env.npm_config_userconfig, 'registry=https://registry.npmjs.org/\n');
   writeFileSync(env.npm_config_globalconfig, '');
   const metadata = JSON.parse(readFileSync('package.json', 'utf8'));
-  const packed = JSON.parse(run(npm, ['pack', '--json', '--ignore-scripts', '--pack-destination', root], process.cwd()));
+  const packed = JSON.parse(run(process.execPath, [npmCli, 'pack', '--json', '--ignore-scripts', '--pack-destination', root], process.cwd()));
   const archive = resolve(root, packed[0].filename);
   assert.equal(archive, join(root, `aptly-${metadata.version}.tgz`));
-  run(npm, ['install', '--prefix', prefix, '--no-audit', '--no-fund', '--ignore-scripts=false', archive], prefix);
+  run(process.execPath, [npmCli, 'install', '--prefix', prefix, '--no-audit', '--no-fund', '--ignore-scripts=false', archive], prefix);
   const cli = join(prefix, 'node_modules', '.bin', process.platform === 'win32' ? 'aptly.cmd' : 'aptly');
-  assert.equal(run(cli, ['--version'], prefix).trim(), metadata.version);
+  // POSIX launchers are executable; Windows .cmd wrappers require a shell.
+  // Check the generated Windows shim and run its declared JS target via Node.
+  if (process.platform === 'win32') assert.ok(statSync(cli).isFile());
+  else assert.equal(run(cli, ['--version'], prefix).trim(), metadata.version);
+  const installedMetadata = JSON.parse(readFileSync(join(prefix, 'node_modules', 'aptly', 'package.json'), 'utf8'));
+  assert.equal(installedMetadata.bin.aptly, 'dist/bin/aptly.js');
   const installedCli = join(prefix, 'node_modules', 'aptly', 'dist', 'bin', 'aptly.js');
   assert.equal(run(process.execPath, ['--no-experimental-strip-types', installedCli, '--version'], prefix).trim(), metadata.version);
   // Resolve all imports from the installed prefix, not this source tree.
