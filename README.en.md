@@ -20,7 +20,7 @@ Our own tests showed **about 52–58% lower API-equivalent costs**. See the [tes
 
 ## Quick start
 
-Requires Node.js **24 or later** and Claude Code or Codex. This documentation targets **0.1.1**. Before that version is published on npm, use the local archive installation in the [user guide](docs/guide/en.md#installation).
+Requires Node.js **24 or later** and Claude Code or Codex. Use the commands below **after 0.1.1 is published on npm**.
 
 ```sh
 npm install -g aptly@0.1.1

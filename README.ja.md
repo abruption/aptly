@@ -20,7 +20,7 @@ Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し�
 
 ## クイックスタート
 
-Node.js **24 以上**と Claude Code または Codex が必要です。この文書は **0.1.1** を対象とします。このバージョンが npm で公開される前は、[使用ガイド](docs/guide/ja.md#インストール)のローカルアーカイブからインストールしてください。
+Node.js **24 以上**と Claude Code または Codex が必要です。以下のコマンドは **0.1.1 が npm で公開された後**に使用してください。
 
 ```sh
 npm install -g aptly@0.1.1

@@ -4,7 +4,7 @@
 
 [返回 README](../../README.zh-CN.md)
 
-韩语文档是正本。本指南以 Aptly 0.1.1 为准。该版本发布到 npm 之前，请使用下文的本地归档安装方式。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
+韩语文档是正本。本指南以 Aptly 0.1.1 为准。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
 
 ## 安装
 
@@ -16,8 +16,6 @@ aptly setup --client all --mode defaults
 aptly --version
 ```
 
-发布到 npm 之前，请用 `npm install -g /absolute/path/aptly-0.1.1.tgz` 安装已检查的本地归档，然后执行相同的 `setup` 和版本检查。下文 CLI 示例以已安装 0.1.1 为前提。
-
 确认 `aptly --version` 输出 `0.1.1`。切换 Node.js 环境后可能需要重新安装。
 
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
@@ -26,7 +24,7 @@ aptly --version
 
 ### 使用 CLI 设置
 
-`set` 命令包含在 0.1.1 中，0.1.0 不支持。下文示例使用已安装 0.1.1 的 `aptly`。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
+`set` 命令需要 0.1.1 或更高版本。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
 
 ```sh
 aptly set default

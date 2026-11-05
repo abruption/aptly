@@ -20,7 +20,7 @@ Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐�
 
 ## 快速开始
 
-需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。本文档以 **0.1.1** 为准。该版本发布到 npm 之前，请按[使用指南](docs/guide/zh-CN.md#安装)中的步骤安装本地归档。
+需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请在 **0.1.1 发布到 npm 后**使用以下命令。
 
 ```sh
 npm install -g aptly@0.1.1

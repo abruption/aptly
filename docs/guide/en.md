@@ -4,7 +4,7 @@
 
 [Back to README](../../README.en.md)
 
-Korean is the canonical documentation. This guide targets Aptly 0.1.1. Before that version is published on npm, use the local archive installation below. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
+Korean is the canonical documentation. This guide targets Aptly 0.1.1. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
 
 ## Installation
 
@@ -16,8 +16,6 @@ aptly setup --client all --mode defaults
 aptly --version
 ```
 
-Before npm publication, install the reviewed local archive with `npm install -g /absolute/path/aptly-0.1.1.tgz`, then run the same `setup` and version checks. The CLI examples below assume 0.1.1 is installed.
-
 `aptly --version` should print `0.1.1`. Switching Node.js environments may require reinstalling.
 
 `postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
@@ -26,7 +24,7 @@ New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy,
 
 ### Configure with the CLI
 
-The `set` commands are included in 0.1.1 and are absent from 0.1.0. The examples below use `aptly` from the installed 0.1.1 package. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
+The `set` commands require 0.1.1 or later. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
 
 ```sh
 aptly set default

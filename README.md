@@ -20,7 +20,7 @@ Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허�
 
 ## 빠른 시작
 
-Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. 이 문서는 **0.1.1**을 기준으로 합니다. 해당 버전의 npm 게시 전에는 [사용 가이드](docs/guide/ko.md#설치)의 로컬 아카이브 설치를 사용하십시오.
+Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. 아래 명령은 **0.1.1이 npm에 게시된 후** 사용하십시오.
 
 ```sh
 npm install -g aptly@0.1.1
