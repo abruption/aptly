@@ -4,32 +4,34 @@
 
 [Back to README](../../README.en.md)
 
-Korean is the canonical documentation. This guide covers Aptly 0.1.0, published on npm. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
+Korean is the canonical documentation. This guide targets Aptly 0.1.1. Before that version is published on npm, use the local archive installation below. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
 
 ## Installation
 
-Install globally with Node.js 24 or later and Claude Code or Codex:
+Requires Node.js 24 or later and Claude Code or Codex. When 0.1.1 is available on npm, use these global installation commands:
 
 ```sh
-npm install -g aptly@0.1.0
+npm install -g aptly@0.1.1
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version` should print `0.1.0`. Switching Node.js environments may require reinstalling.
+Before npm publication, install the reviewed local archive with `npm install -g /absolute/path/aptly-0.1.1.tgz`, then run the same `setup` and version checks. The CLI examples below assume 0.1.1 is installed.
+
+`aptly --version` should print `0.1.1`. Switching Node.js environments may require reinstalling.
 
 `postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
 
 New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy, and a private ledger for each host. Other settings and Hooks, and existing Aptly commands, environments, providers, and ledger paths, are preserved. Existing fixture settings are not automatically switched to paid mode.
 
-### Configure with the CLI — planned for the next release
+### Configure with the CLI
 
-**The following `set` commands are unreleased development features and are not available in npm `0.1.0`.** Use the existing `setup` and manual configuration steps with the installed release. Test them from a source checkout as shown below. After the next release, replace `node bin/aptly.ts` with `aptly`. Source testing also requires the MCP server to run the same development build. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package's standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
+The `set` commands are included in 0.1.1 and are absent from 0.1.0. The examples below use `aptly` from the installed 0.1.1 package. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
 
 ```sh
-node bin/aptly.ts set default
-node bin/aptly.ts set env APTLY_CODEX_MODELS
-node bin/aptly.ts set env OPENAI_API_KEY
+aptly set default
+aptly set env APTLY_CODEX_MODELS
+aptly set env OPENAI_API_KEY
 ```
 
 The first command registers Claude Code and Codex and adds missing default environment settings. It preserves existing launch commands, environment whitelists, providers, custom candidates, and advisory policies. The second prompts for a value with hidden input and changes only the named variable. The third stores the API key in the OS credential store and connects it to the selected host at startup. Do not pass values as command arguments.
@@ -37,18 +39,18 @@ The first command registers Claude Code and Codex and adds missing default envir
 Both hosts are selected by default. Use `--client codex`, `--client claude`, or `--client all` to select targets. For example, enter a JSON string such as `["haiku","sonnet","opus"]` for Claude candidates.
 
 ```sh
-node bin/aptly.ts set env APTLY_CLAUDE_MODELS --client claude
+aptly set env APTLY_CLAUDE_MODELS --client claude
 ```
 
 Use explicit `--stdin` for automation. This is a public-variable example; never put a real key in a `printf` command or shell history.
 
 ```sh
-printf '%s\n' '["gpt-6.1-terra"]' | node bin/aptly.ts set env APTLY_CODEX_MODELS --stdin
+printf '%s\n' '["gpt-6.1-terra"]' | aptly set env APTLY_CODEX_MODELS --stdin
 ```
 
 Allowed public keys are `ROUTER_PROVIDER` (`fixture` or `decisions`), `APTLY_CLAUDE_MODELS`, `APTLY_CODEX_MODELS`, `CLAUDE_MODELS`, `CODEX_MODELS`, and `APTLY_MODEL_INFO_PATH`. Candidates must be JSON array strings of supported models. Invalid values, duplicates, and primary-name/alias conflicts are rejected. `[]` disables that host; a model-cache path must be absolute and inside a private directory. Managed ledger and Hook-policy paths cannot be changed through this command.
 
-API keys are stored through macOS Keychain, an installed Linux `secret-tool`, or Windows Credential Manager. The Windows backend uses PowerShell and Win32 Generic credentials in the current-user scope, with a limit of 2,560 UTF-8 bytes. Its implementation is separate from verification of the complete Windows host-configuration flow; that live verification is not yet complete. Unavailable credential stores return an error; there is no plaintext-file fallback. Keys use separate host accounts, while MCP files contain only `APTLY_SECRET_BACKEND=os` and `APTLY_SECRET_CLIENT` references. Once the OS source is selected, a missing or unreadable key does not silently fall back to another environment key. `set default` preserves existing wrapper/environment authentication; running `set env OPENAI_API_KEY` explicitly selects OS-store authentication.
+API keys are stored through macOS Keychain, an installed Linux `secret-tool`, or Windows Credential Manager. The Windows backend uses PowerShell and Win32 Generic credentials in the current-user scope, with a limit of 2,560 UTF-8 bytes. Windows CI verified synthetic key storage, lookup, update and deletion, Unicode paths, isolated host configuration, key references, and ACL preservation. It did not run actual Claude Code or Codex sessions on Windows. Unavailable credential stores return an error; there is no plaintext-file fallback. Keys use separate host accounts, while MCP files contain only `APTLY_SECRET_BACKEND=os` and `APTLY_SECRET_CLIENT` references. Once the OS source is selected, a missing or unreadable key does not silently fall back to another environment key. `set default` preserves existing wrapper/environment authentication; running `set env OPENAI_API_KEY` explicitly selects OS-store authentication.
 
 Results contain host statuses and fixed error codes, never key values. Inspect each host when the result is `partial`. `credential_store_failed` requires checking store access/support; `credential_rollback_failed` requires checking whether the previous key was restored. A failed host restores its old key where possible. Do not interpret success on another host as an atomic success across all hosts.
 
@@ -129,7 +131,7 @@ See the official [Codex configuration reference](https://learn.chatgpt.com/docs/
 ### Skipping registration and removing it
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.0
+APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
