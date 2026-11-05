@@ -26,7 +26,10 @@ npm run typecheck
 npm run build
 npm test
 npm run check:release
+npm run test:package
 ```
+
+The package smoke check packs the built artifact and installs it into an isolated temporary prefix with setup disabled. It requires npm registry access for runtime dependencies, but no API key or host configuration. Run it through npm so it can invoke npm’s JavaScript entry point with Node rather than executing a Windows `.cmd` file. It verifies the installed CLI, compiled exports, and fixture MCP, then removes its temporary files. On Windows it checks the generated command shim exists and runs the declared compiled CLI target through Node; it does not execute the `.cmd` wrapper.
 
 The default tests use synthetic inputs, deterministic providers, and local stdio MCP subprocesses. They require no OpenAI key or CLI subscription. Do not add live API calls or real host-agent runs to the default test suite or CI.
 

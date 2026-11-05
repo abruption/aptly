@@ -16,14 +16,19 @@
 
 Aptly classifies a minimal task summary with the OpenAI Decisions API and recommends an allowlisted execution profile. Its installed Hook can automatically select defaults for fresh, general-purpose subagents without explicit choices. The host retains control of execution and permissions.
 
+Our own tests showed **about 52–58% lower API-equivalent costs**. See the [test conditions and detailed results](docs/guide/en.md#cost-benchmark).
+
 ## Quick start
 
-Use Node.js **24 or later** and Claude Code or Codex. Install **MIT-licensed Aptly 0.1.0** from the npm registry.
+Requires Node.js **24 or later** and Claude Code or Codex. Install [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) globally. [Source tag v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
+
+The version command should print `0.1.0`.
 
 During installation, `postinstall` registers the MCP server and a `PreToolUse` Hook in existing host configuration directories. Run `setup` explicitly if automatic registration was skipped or a host has no configuration directory yet. Other settings and Hooks, and any existing Aptly launch command and environment, are preserved.
 
@@ -42,7 +47,7 @@ Automatic selection targets Codex calls with `fork_turns: "none"` and Claude Cod
 ## Documentation
 
 - [User guide](docs/guide/en.md): installation and removal, keys, Hooks, direct recommendations, and error recovery
-- [Installation and removal](docs/guide/en.md#installation): npm and local archive installation, host registration, restarting, and trust review
+- [Installation and removal](docs/guide/en.md#installation): global npm installation, host registration, restarting, and trust review
 - [Models and environment variables](docs/guide/en.md#models-and-environment-variables): six default profiles and candidate configuration
 - [Providing context](docs/guide/en.md#providing-context): encrypted messages and repository URL limitations
 - [Cost benchmark](docs/guide/en.md#cost-benchmark): tokens, converted costs, and measurement scope for a README translation review
