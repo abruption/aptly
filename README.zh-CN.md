@@ -1,10 +1,18 @@
+<div align="center">
+
 # Aptly
 
-> Model and reasoning recommendations for subagents.
+[![npm version](https://img.shields.io/npm/v/aptly)](https://www.npmjs.com/package/aptly)
+[![npm downloads](https://img.shields.io/npm/dm/aptly)](https://www.npmjs.com/package/aptly)
+[![MIT license](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/abruption/aptly/blob/main/LICENSE)
+
+**Model and reasoning recommendations for subagents.**
 
 [한국어](README.md) · [English](README.en.md) · **简体中文** · [日本語](README.ja.md)
 
 **用于为 Claude Code 和 Codex 子代理选择合适模型与推理强度（effort）的本地 MCP 服务器。**
+
+</div>
 
 Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐允许使用的执行配置。安装 Hook 后，可为未明确指定配置的新建通用子代理自动选择默认值。实际执行与权限决策仍由宿主（Claude Code 或 Codex）负责。
 
