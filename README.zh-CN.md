@@ -16,6 +16,8 @@
 
 Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐允许使用的执行配置。安装 Hook 后，可为未明确指定配置的新建通用子代理自动选择默认值。实际执行与权限决策仍由宿主（Claude Code 或 Codex）负责。
 
+在一项小规模 README 翻译审阅实测中（每个条件 3 次），通过显式 MCP 推荐配置以 Terra/high 执行的审阅子代理与分类，其实测 token 按 Standard API 单价换算的成本比 Sol/high **低约 52%～58%**。该比较不包括文档收集、摘要准备或主代理成本，不是自动 Hook 节省成本的实测，也不保证实际订阅账单下降。详见[测量方法与质量评价限制](docs/guide/zh-CN.md#成本实测)。
+
 ## 快速开始
 
 需要 Node.js **24 或更高版本**，以及 Claude Code 或 Codex。请从 npm registry 安装**采用 MIT 许可证的 Aptly 0.1.0**。

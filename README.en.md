@@ -16,6 +16,8 @@
 
 Aptly classifies a minimal task summary with the OpenAI Decisions API and recommends an allowlisted execution profile. Its installed Hook can automatically select defaults for fresh, general-purpose subagents without explicit choices. The host retains control of execution and permissions.
 
+In a small README translation-review benchmark (three runs per condition), Terra/high review-subagent execution plus classification through an explicit MCP recommendation cost **about 52–58% less** than Sol/high when measured tokens were converted at Standard API rates. This excludes document retrieval, context preparation, and main-agent costs; it is not an automatic-Hook savings test or a guarantee of lower subscription bills. See the [method and quality-evaluation limitations](docs/guide/en.md#cost-benchmark).
+
 ## Quick start
 
 Use Node.js **24 or later** and Claude Code or Codex. Install **MIT-licensed Aptly 0.1.0** from the npm registry.
