@@ -2,6 +2,20 @@
 
 This project is an early implementation of advisory subagent routing for Claude Code and Codex. Changes must preserve explicit user settings, roles, conversation inheritance, permissions, and the original spawn when routing is unavailable or uncertain.
 
+## Issue-first pull requests
+
+Issue and pull request titles and bodies must be written in English. Use a `type(scope): description` title, such as `fix(router): preserve explicit models`, `chore(workflow): update CI`, `feat(catalog): add a profile`, or `docs(readme): clarify installation`. The scope may be empty (`docs(): ...`). The PR policy check validates this title format and the earlier issue reference; maintainers check that descriptions are written in English.
+
+All changes, including documentation, CI, and release metadata, follow this sequence:
+
+1. Create an Issue describing the problem and intended result before opening a PR.
+2. Create a separate working branch for that Issue. Do not commit or push changes directly to `main`.
+3. Open a PR targeting `main`. Include `Closed #n` in the PR body, replacing `n` with the Issue number, for example `Closed #123`.
+4. Describe the resulting behavior and validation, and wait for all required CI checks to pass.
+5. Leave the PR open for review. Merge only when the user separately instructs you to do so.
+
+These rules also apply to repository administrators. Do not bypass branch protection, force-push to `main`, or delete `main`. A successful CI run does not authorize a merge, release tag, or npm publication. The linked Issue closes when the PR is merged; opening a PR does not complete the Issue by itself.
+
 ## Local development
 
 Use Node.js 24 or 26 and the committed lockfile:
