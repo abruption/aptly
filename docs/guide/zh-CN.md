@@ -8,15 +8,15 @@
 
 ## 安装
 
-需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。请指定 npm 软件包和安装位置。
+使用 Node.js 24 或更高版本，以及 Claude Code 或 Codex，进行全局安装：
 
 ```sh
-aptly_install=/absolute/aptly-local
-npm install --prefix "$aptly_install" aptly@0.1.0
-"$aptly_install/node_modules/.bin/aptly" setup --client all --mode defaults
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
 
-如需安装已审核的本地归档，请将安装命令中的 `aptly@0.1.0` 替换为实际文件路径，例如 `/absolute/path/aptly-0.1.0.tgz`。后续示例中的 `aptly` 指上述安装位置的可执行文件。如果尚未将它加入 PATH，请使用完整路径运行。不要直接执行已安装 `node_modules` 中的 TypeScript 源码。
+确认 `aptly --version` 输出 `0.1.0`。切换 Node.js 环境后可能需要重新安装。
 
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
 
@@ -24,27 +24,83 @@ npm install --prefix "$aptly_install" aptly@0.1.0
 
 ### 密钥与重启
 
-`OPENAI_API_KEY` 仅用于分类，与运行子代理所用的现有登录或订阅认证是两回事。请通过用户的凭据存储或安全运行环境，**将其注入 MCP 进程的环境变量**。不要将密钥放入命令行、工具参数、请求 JSON、MCP 配置 JSON、源码、日志或临时文件。无需使用特定的凭据存储服务。
+通过安全环境或凭据启动程序将分类用的 `OPENAI_API_KEY` 传递给 MCP 进程。它与宿主订阅登录无关。不要将密钥值写入命令参数、请求、配置文件、源码、日志或临时文件。
 
-请重新启动宿主或 MCP 服务器，使其读取注册项与环境。仅在另一个终端中更改环境变量，不会更新已运行的 GUI 或 MCP 环境。**Codex 要求在 `/hooks` 中审核新 Hook 的确切定义并批准信任。** 安装程序不会绕过信任批准。
+### MCP 环境变量设置步骤
 
-如果缺少密钥，或发生连接、认证、超时错误，则保留原始调用。直接调用 Decisions 需要以下环境。
+运行 `setup` 后，将以下示例合并到现有 `aptly` 注册中。保留 `command`、`args`、凭据启动程序、`ROUTER_LEDGER_PATH` 和 `APTLY_HOOK_POLICY_PATH`。Setup 会创建私有账本和策略目录。手动指定账本时，应使用用户所有、权限为 700 的目录内的绝对路径。
 
-| 环境变量 | 用途 |
+#### 配置文件位置
+
+| 宿主 | Aptly 使用的用户注册位置 |
 |---|---|
-| `OPENAI_API_KEY` | 通过安全运行环境注入的分类用密钥 |
-| `ROUTER_PROVIDER=decisions` | 使用实际分类 API |
-| `ROUTER_LEDGER_PATH` | 位于归用户所有、权限为 700 的私有目录中的账本绝对路径 |
+| Codex | `$CODEX_HOME/config.toml`；未设置 `CODEX_HOME` 时为 `~/.codex/config.toml` |
+| Claude Code | `~/.claude.json` 中的 `mcpServers.aptly`；设置 `CLAUDE_CONFIG_DIR` 时为该目录中的 `.claude.json` |
+
+Claude Code 默认将 Hook 存储在 `~/.claude/settings.json`；设置 `CLAUDE_CONFIG_DIR` 时则使用 `$CLAUDE_CONFIG_DIR/settings.json`。此文件与 MCP 注册分开。若使用项目 `.mcp.json`、托管设置或账户专用目录，请先通过 `/mcp` 确认当前注册，再编辑或添加。
+
+#### 传递 API 密钥
+
+直接启动时，在 **Bash** 中输入密钥，不回显也不记录到命令历史，然后从同一 shell 启动宿主。使用 zsh 时请先运行 `bash`：
+
+```sh
+read -rsp 'OpenAI API key: ' OPENAI_API_KEY
+printf '\n'
+export OPENAI_API_KEY
+codex
+```
+
+Claude Code 用户将 `codex` 替换为 `claude`。密钥不会永久保存。已运行的 GUI 不会继承其他终端的环境，请使用应用的安全环境传递功能或保留现有凭据启动程序。
+
+#### Codex 示例
+
+编辑现有 `[mcp_servers.aptly]` 表，不要重复添加同名表。向 `env_vars` 添加 `OPENAI_API_KEY`，保留已有条目。`env_vars` 按名称转发宿主环境变量，`.env` 向 MCP 提供固定值。
+
+```toml
+[mcp_servers.aptly]
+env_vars = ["OPENAI_API_KEY"]
+
+[mcp_servers.aptly.env]
+ROUTER_PROVIDER = "decisions"
+APTLY_CLAUDE_MODELS = '["haiku","sonnet","opus"]'
+APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
+```
+
+#### Claude Code 示例
+
+将以下值合并到现有 `mcpServers.aptly.env` 对象：
+
+```json
+{
+  "ROUTER_PROVIDER": "decisions",
+  "APTLY_CLAUDE_MODELS": "[\"haiku\",\"sonnet\",\"opus\"]",
+  "APTLY_CODEX_MODELS": "[\"gpt-6-luna\",\"gpt-6.1-terra\",\"gpt-6.1-sol\"]"
+}
+```
+
+直接启动时，可用以下可选引用传递 Claude Code 环境中已有的密钥。使用凭据启动程序时不要添加。若变量缺失，密钥不会传入，引用字符串也可能保持未展开状态：
+
+```json
+{
+  "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+}
+```
+
+模型候选使用 **JSON 字符串**。不设置则采用默认值，`[]` 禁用该宿主的推荐。Aptly 读取 MCP 启动环境，不会自动加载项目 `.env` 文件。
+
+修改后重启宿主或 MCP。**在 Codex 的 `/hooks` 中审核新 Hook 并批准信任。** 通过 `/mcp` 和 `get_routing_capabilities` 检查 `provider`、候选和 `automatic_hook.mode`。免费状态查询不验证密钥认证；`recommend_agent` 可能产生费用。`unauthorized` 时检查密钥传递，`needs_context` 时检查任务摘要。
+
+配置位置与传递方式的官方说明，请参阅 [Codex 配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)和 [Claude Code MCP 指南](https://code.claude.com/docs/en/mcp)。
 
 ### 跳过与移除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" aptly@0.1.0
+APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
 
-在 `CI` 环境中或使用 npm `--ignore-scripts` 时，也会跳过自动注册。之后可显式运行 `setup` 进行注册。`advisory` 模式只传递推荐，不修改参数。更改策略时，请先移除原有注册，再使用所需的 `--mode` 重新注册。如果结果为 `partial`，请检查各宿主对应的错误代码。移除操作仅针对与所有权记录一致的项目；用户已修改的项目会保留，并报告冲突。
+`CI` 或 npm `--ignore-scripts` 也会跳过注册，可随后运行 `setup`。更改模式时，先移除注册，再使用所需 `--mode` 重新设置；`advisory` 只提供建议。出现 `partial` 时检查各宿主错误代码。移除操作保留用户修改的条目并报告冲突。
 
 ## 自动 Hook
 
