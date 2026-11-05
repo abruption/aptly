@@ -37,7 +37,7 @@ aptly --version
 | Codex | `$CODEX_HOME/config.toml`；未设置 `CODEX_HOME` 时为 `~/.codex/config.toml` |
 | Claude Code | `~/.claude.json` 中的 `mcpServers.aptly`；设置 `CLAUDE_CONFIG_DIR` 时为该目录中的 `.claude.json` |
 
-Claude Code 的 `~/.claude/settings.json` 存储 Hook 设置，与 MCP 注册分开。若使用项目 `.mcp.json`、托管设置或账户专用目录，请先通过 `/mcp` 确认当前注册，再编辑或添加。
+Claude Code 默认将 Hook 存储在 `~/.claude/settings.json`；设置 `CLAUDE_CONFIG_DIR` 时则使用 `$CLAUDE_CONFIG_DIR/settings.json`。此文件与 MCP 注册分开。若使用项目 `.mcp.json`、托管设置或账户专用目录，请先通过 `/mcp` 确认当前注册，再编辑或添加。
 
 #### 传递 API 密钥
 

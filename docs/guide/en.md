@@ -37,7 +37,7 @@ Run `setup`, then merge the examples below into the existing `aptly` registratio
 | Codex | `$CODEX_HOME/config.toml`; `~/.codex/config.toml` when `CODEX_HOME` is unset |
 | Claude Code | `mcpServers.aptly` in `~/.claude.json`; `.claude.json` inside `CLAUDE_CONFIG_DIR` when that directory is configured |
 
-Claude Code stores Hooks in `~/.claude/settings.json`, separately from MCP registration. If project `.mcp.json`, managed settings, or account-specific directories are in use, check the active entry in `/mcp` before editing or adding a registration.
+Claude Code stores Hooks in `~/.claude/settings.json` by default, or `$CLAUDE_CONFIG_DIR/settings.json` when `CLAUDE_CONFIG_DIR` is set. This is separate from MCP registration. If project `.mcp.json`, managed settings, or account-specific directories are in use, check the active entry in `/mcp` before editing or adding a registration.
 
 #### Passing the API key
 

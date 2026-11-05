@@ -37,7 +37,7 @@ aptly --version
 | Codex | `$CODEX_HOME/config.toml`。`CODEX_HOME` 未指定の場合は `~/.codex/config.toml` |
 | Claude Code | `~/.claude.json` の `mcpServers.aptly`。`CLAUDE_CONFIG_DIR` 指定時は、そのディレクトリの `.claude.json` |
 
-Claude Code の `~/.claude/settings.json` は Hook 設定であり、MCP 登録とは別です。プロジェクトの `.mcp.json`、管理設定、アカウント別ディレクトリを使う場合は、編集・追加前に `/mcp` で有効な登録を確認してください。
+Claude Code の Hook ファイルは通常 `~/.claude/settings.json` ですが、`CLAUDE_CONFIG_DIR` を指定すると `$CLAUDE_CONFIG_DIR/settings.json` になります。MCP 登録とは別です。プロジェクトの `.mcp.json`、管理設定、アカウント別ディレクトリを使う場合は、編集・追加前に `/mcp` で有効な登録を確認してください。
 
 #### API キーの渡し方
 
