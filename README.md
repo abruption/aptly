@@ -18,12 +18,12 @@ Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허�
 
 ## 빠른 시작
 
-Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. MIT 라이선스의 [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)이 npm 레지스트리에 공개됐습니다. 아래 명령으로 설치하십시오. [소스 태그 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)도 확인할 수 있습니다.
+Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)을 전역 설치하십시오. [소스 태그 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
-./aptly-local/node_modules/.bin/aptly --version
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
 
 버전 확인 명령의 출력은 `0.1.0`입니다.
@@ -45,7 +45,7 @@ npm install --prefix ./aptly-local aptly@0.1.0
 ## 문서
 
 - [사용 가이드](docs/guide/ko.md): 설치·제거, 키, Hook, 직접 추천, 오류 복구
-- [설치·제거](docs/guide/ko.md#설치): npm·로컬 아카이브 설치, 호스트 등록, 재시작과 신뢰 승인
+- [설치·제거](docs/guide/ko.md#설치): npm 전역 설치, 호스트 등록, 재시작과 신뢰 승인
 - [모델과 환경변수](docs/guide/ko.md#모델과-환경변수): 여섯 기본 프로필과 후보 설정
 - [맥락 전달](docs/guide/ko.md#맥락-전달): 암호화된 메시지와 저장소 URL의 한계
 - [비용 실측](docs/guide/ko.md#비용-실측): README 번역 검토의 토큰·환산 비용과 측정 범위

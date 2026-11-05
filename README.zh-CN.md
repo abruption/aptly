@@ -18,12 +18,12 @@ Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐�
 
 ## 快速开始
 
-需要 Node.js **24 或更高版本**，以及 Claude Code 或 Codex。采用 MIT 许可证的 [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) 已发布到 npm registry。请使用以下命令安装，也可查看[源码标签 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)。
+需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请全局安装 [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)。[源码标签 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
-./aptly-local/node_modules/.bin/aptly --version
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
 
 版本检查命令应输出 `0.1.0`。
@@ -45,7 +45,7 @@ npm install --prefix ./aptly-local aptly@0.1.0
 ## 文档
 
 - [使用指南](docs/guide/zh-CN.md)：安装与移除、密钥、Hook、直接推荐、错误恢复
-- [安装与移除](docs/guide/zh-CN.md#安装)：npm 与本地归档安装、宿主注册、重启与信任批准
+- [安装与移除](docs/guide/zh-CN.md#安装)：npm 全局安装、宿主注册、重启与信任批准
 - [模型与环境变量](docs/guide/zh-CN.md#模型与环境变量)：六个默认配置与候选设置
 - [提供上下文](docs/guide/zh-CN.md#提供上下文)：加密消息与仓库 URL 的限制
 - [成本实测](docs/guide/zh-CN.md#成本实测)：README 翻译审阅的 token、换算成本与测量范围

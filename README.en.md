@@ -18,12 +18,12 @@ Aptly classifies a minimal task summary with the OpenAI Decisions API and recomm
 
 ## Quick start
 
-Use Node.js **24 or later** and Claude Code or Codex. **MIT-licensed [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)** is published on npm. See the [v0.1.0 source tag](https://github.com/abruption/aptly/tree/v0.1.0) for its source.
+Requires Node.js **24 or later** and Claude Code or Codex. Install [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) globally. [Source tag v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
-./aptly-local/node_modules/.bin/aptly --version
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
 
 The version command should print `0.1.0`.
@@ -45,7 +45,7 @@ Automatic selection targets Codex calls with `fork_turns: "none"` and Claude Cod
 ## Documentation
 
 - [User guide](docs/guide/en.md): installation and removal, keys, Hooks, direct recommendations, and error recovery
-- [Installation and removal](docs/guide/en.md#installation): npm and local archive installation, host registration, restarting, and trust review
+- [Installation and removal](docs/guide/en.md#installation): global npm installation, host registration, restarting, and trust review
 - [Models and environment variables](docs/guide/en.md#models-and-environment-variables): six default profiles and candidate configuration
 - [Providing context](docs/guide/en.md#providing-context): encrypted messages and repository URL limitations
 - [Cost benchmark](docs/guide/en.md#cost-benchmark): tokens, converted costs, and measurement scope for a README translation review
