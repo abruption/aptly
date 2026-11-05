@@ -171,3 +171,47 @@ test('test temporary directory permissions and cleanup apply only to the owned d
   });
   assert.equal(existsSync(owned), false);
 });
+
+test('missing credentials do not reserve budget and the same ID works after persistent restart', async t => {
+  const { decisionsProvider } = await import('../src/provider.ts');
+  const temporary = createTestTemp(t, 'codex-key-preflight-');
+  for (const method of ['recommend', 'advise']) {
+    const ledgerPath = `${temporary}/${method}.json`;
+    let httpCalls = 0;
+    const fetchImpl = async () => {
+      httpCalls++;
+      return Response.json({ answers: [{type:'choice',name:'profile',choice:'codex-routine',confidence:0.8}], usage:{input_tokens:1,output_tokens:1,total_tokens:2} });
+    };
+    for (const key of [undefined, '', ' \t\n']) {
+      const r = new Router({ledgerPath, provider:decisionsProvider({key,fetchImpl})});
+      for (let i=0;i<21;i++) assert.equal((await r[method](request(`missing-${i}`))).reason, 'unauthorized');
+      assert.equal(r.state.calls, 0); assert.equal(r.state.estimated_usd, 0);
+      assert.deepEqual(r.state.requests, {}); assert.equal(existsSync(ledgerPath), false);
+    }
+    assert.equal(httpCalls, 0);
+    const ready = new Router({ledgerPath, provider:decisionsProvider({key:'synthetic',fetchImpl})});
+    assert.equal((await ready[method](request('missing-0'))).status, 'recommended');
+    assert.equal(ready.state.calls, 1);
+    const keyless = new Router({ledgerPath, provider:decisionsProvider({fetchImpl})});
+    assert.equal((await keyless[method](request('missing-0'))).cached, true);
+    const pinned=request('pinned'); pinned.constraints.model_pinned=true;
+    assert.equal((await keyless[method](pinned)).reason, 'preserved_constraints');
+    const insufficient=request('insufficient'); insufficient.task.context_sufficient=false;
+    assert.equal((await keyless[method](insufficient)).reason, 'insufficient_context');
+    assert.equal(keyless.state.calls, 1); assert.equal(httpCalls, 1);
+  }
+});
+
+test('transport unauthorized and network failures still reserve costs and remain unknown', async () => {
+  const { decisionsProvider } = await import('../src/provider.ts');
+  for (const status of [401, 403, 'network']) {
+    let calls=0;
+    const r = new Router({provider:decisionsProvider({key:'synthetic',fetchImpl:async()=>{
+      calls++; if(status==='network')throw Error('synthetic');
+      return new Response('',{status});
+    }})});
+    assert.equal((await r.recommend(request())).reason, status==='network'?'network':'unauthorized');
+    assert.equal(r.state.calls,1); assert.equal(r.state.estimated_usd,defaultPolicy.estimated_call_usd);
+    assert.equal((await r.recommend(request())).reason,'outcome_unknown'); assert.equal(calls,1);
+  }
+});
