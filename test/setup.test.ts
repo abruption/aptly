@@ -4,7 +4,7 @@ import fs, { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, chmod
 import { syncBuiltinESMExports } from 'node:module';
 import { join } from 'node:path';
 import { parse } from 'smol-toml';
-import { setupHosts, removeSetup } from '../src/setup.ts';
+import { setupHosts, removeSetup, setDefaults, setEnvironment, setCredentialReference, configurableEnvironmentKeys } from '../src/setup.ts';
 import { createTestTemp } from '../test-support/temp.ts';
 const save = (path, value) => writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value), { mode: 0o600 });
 const load = path => JSON.parse(readFileSync(path, 'utf8'));
@@ -203,4 +203,199 @@ test('removal preserves an identical policy that already belonged to the operato
   assert.equal(setupHosts(options).status, 'complete');
   assert.equal(removeSetup(options).status, 'complete');
   assert.deepEqual(load(join(privateDir, 'auto-policy.json')), policy);
+});
+
+const servers = options => [
+  parse(readFileSync(join(options.home,'.codex/config.toml'),'utf8')).mcp_servers.aptly,
+  load(join(options.home,'.claude.json')).mcpServers.aptly,
+];
+test('set default creates both full registrations, fills public defaults and stays removable', t => {
+  const options=fixture(t);
+  assert.equal(setDefaults(options).status,'complete');
+  for(const entry of servers(options)) {
+    assert.equal(entry.env.ROUTER_PROVIDER,'decisions');
+    assert.deepEqual(JSON.parse(entry.env.APTLY_CLAUDE_MODELS),['haiku','sonnet','opus']);
+    assert.deepEqual(JSON.parse(entry.env.APTLY_CODEX_MODELS),['gpt-6-luna','gpt-6.1-terra','gpt-6.1-sol']);
+  }
+  assert.deepEqual(setDefaults(options).clients.map(c=>c.status),['unchanged','unchanged']);
+  assert.equal(removeSetup(options).status,'complete');
+});
+test('set default preserves custom candidates, provider, command, environment whitelist and aliases', t => {
+  const options=fixture(t);mkdirSync(join(options.home,'.codex'));mkdirSync(join(options.home,'.claude'));
+  save(join(options.home,'.codex/config.toml'),'# user comment\n[mcp_servers.aptly]\ncommand="custom-launcher"\nargs=[]\nenv_vars=["SSH_AUTH_SOCK"]\n[mcp_servers.aptly.env]\nROUTER_PROVIDER="fixture"\nCLAUDE_MODELS=\'["opus"]\'\nAPTLY_CODEX_MODELS=\'["gpt-6.1-sol"]\'\n');
+  save(join(options.home,'.claude.json'),{mcpServers:{aptly:{command:'custom-launcher',args:[],env:{ROUTER_PROVIDER:'fixture',CLAUDE_MODELS:'["opus"]',APTLY_CODEX_MODELS:'["gpt-6.1-sol"]'}}}});
+  assert.equal(setDefaults(options).status,'complete');
+  for(const entry of servers(options)) {assert.equal(entry.command,'custom-launcher');assert.equal(entry.env.ROUTER_PROVIDER,'fixture');assert.equal(entry.env.CLAUDE_MODELS,'["opus"]');assert.equal(entry.env.APTLY_CLAUDE_MODELS,undefined);assert.equal(entry.env.APTLY_CODEX_MODELS,'["gpt-6.1-sol"]');}
+  assert.deepEqual(servers(options)[0].env_vars,['SSH_AUTH_SOCK']);
+  assert.match(readFileSync(join(options.home,'.codex/config.toml'),'utf8'),/^# user comment/);
+  assert.equal(removeSetup(options).status,'complete');
+});
+test('set env updates an owned registration and its removal receipt without copying secrets', t => {
+  const options=fixture(t);setupHosts(options);
+  assert.equal(setEnvironment('APTLY_CODEX_MODELS','["gpt-6.1-sol"]',options).status,'complete');
+  assert.equal(setEnvironment('ROUTER_PROVIDER','fixture',options).status,'complete');
+  for(const entry of servers(options)){assert.equal(entry.env.APTLY_CODEX_MODELS,'["gpt-6.1-sol"]');assert.equal(entry.env.ROUTER_PROVIDER,'fixture');}
+  assert.deepEqual(setEnvironment('ROUTER_PROVIDER','fixture',options).clients.map(c=>c.status),['unchanged','unchanged']);
+  assert.equal(removeSetup(options).status,'complete');
+});
+test('environment edits on operator-owned MCP preserve custom values and keep new values removable', t => {
+  const options={...fixture(t),clients:['codex']};mkdirSync(join(options.home,'.codex'));
+  const file=join(options.home,'.codex/config.toml');save(file,'# keep\n[mcp_servers.aptly]\ncommand="credential-launcher"\nargs=[]\n[mcp_servers.aptly.env]\nROUTER_PROVIDER = \'fixture\' # user choice\nOPENAI_API_KEY="synthetic-secret-value"\n');
+  assert.equal(setEnvironment('ROUTER_PROVIDER','decisions',options).status,'complete');
+  assert.equal(setEnvironment('APTLY_CLAUDE_MODELS','[]',options).status,'complete');
+  const receipt=readFileSync(join(options.home,'.codex/aptly/setup-ownership.json'),'utf8');
+  assert.doesNotMatch(receipt,/synthetic-secret-value|credential-launcher/);
+  assert.equal(removeSetup(options).status,'complete');
+  const env=parse(readFileSync(file,'utf8')).mcp_servers.aptly.env;
+  assert.equal(env.ROUTER_PROVIDER,'decisions');assert.equal(env.APTLY_CLAUDE_MODELS,undefined);assert.equal(env.OPENAI_API_KEY,'synthetic-secret-value');
+});
+test('invalid, sensitive, unsupported and conflicting environment input causes no writes', t => {
+  const options=fixture(t);
+  for(const [key,value] of [['OPENAI_API_KEY','synthetic'],['NODE_OPTIONS','--import=other'],['ROUTER_PROVIDER','unexpected'],['APTLY_CODEX_MODELS','["foreign"]'],['APTLY_CODEX_MODELS','["gpt-6-luna","gpt-6-luna"]'],['APTLY_CLAUDE_MODELS','sk-abcdefghijklmno'],['APTLY_CLAUDE_MODELS',''],['APTLY_MODEL_INFO_PATH','relative']]) {
+    assert.equal(setEnvironment(key,value,options).status,'partial');assert.deepEqual(readdirSync(options.home),[]);
+  }
+  assert.equal(configurableEnvironmentKeys.includes('OPENAI_API_KEY'),false);
+  assert.equal(setDefaults(options).status,'complete');
+  const before=readFileSync(join(options.home,'.codex/config.toml'),'utf8');
+  assert.equal(setEnvironment('CLAUDE_MODELS','["sonnet"]',options).status,'partial');
+  assert.equal(readFileSync(join(options.home,'.codex/config.toml'),'utf8'),before);
+});
+test('one invalid host prevents other-host environment writes; symlinks and altered receipts remain protected', t => {
+  const options=fixture(t);setDefaults(options);
+  const codexFile=join(options.home,'.codex/config.toml'),claudeFile=join(options.home,'.claude.json');
+  const before=readFileSync(codexFile,'utf8');save(claudeFile,'invalid json');
+  assert.equal(setEnvironment('ROUTER_PROVIDER','fixture',options).status,'partial');
+  assert.equal(readFileSync(codexFile,'utf8'),before);
+  const other={...fixture(t),clients:['codex']};mkdirSync(join(other.home,'.codex'));const elsewhere=join(other.home,'elsewhere');save(elsewhere,'');symlinkSync(elsewhere,join(other.home,'.codex/config.toml'));
+  assert.equal(setDefaults(other).clients[0].codes[0],'unsafe_symlink');assert.equal(readFileSync(elsewhere,'utf8'),'');
+});
+
+test('set commands preserve an existing advisory policy instead of enabling automatic application', t => {
+ const options=fixture(t);setupHosts({...options,mode:'advisory'});
+ assert.equal(setDefaults(options).status,'complete');
+ assert.equal(setEnvironment('ROUTER_PROVIDER','fixture',options).status,'complete');
+ for(const name of ['.codex','.claude'])assert.equal(load(join(options.home,name,'aptly/auto-policy.json')).mode,'advisory');
+ assert.equal(removeSetup(options).status,'complete');
+});
+
+test('credential references use distinct host accounts, contain no key value and remain removable', t => {
+ const options=fixture(t);credentialRuntime(options.packageRoot);
+ assert.equal(setCredentialReference(options).status,'complete');
+ for(const [index,client] of ['codex','claude'].entries()){
+  const env=servers(options)[index].env;
+  assert.equal(env.APTLY_SECRET_BACKEND,'os');assert.equal(env.APTLY_SECRET_CLIENT,client);
+  assert.equal(env.OPENAI_API_KEY,undefined);
+ }
+ assert.deepEqual(setCredentialReference(options).clients.map(c=>c.status),['unchanged','unchanged']);
+ assert.equal(removeSetup(options).status,'complete');
+ assert.equal(configurableEnvironmentKeys.includes('APTLY_SECRET_BACKEND'),false);
+ assert.equal(configurableEnvironmentKeys.includes('APTLY_SECRET_CLIENT'),false);
+});
+function credentialRuntime(root, source = false, markers = true) {
+ const dir = join(root,source?'src':'dist/src');mkdirSync(dir,{recursive:true});
+ const extension = source?'ts':'js';
+ save(join(dir,'server.'+extension),"import {runtime} from './runtime."+extension+"';\n");
+ save(join(dir,'runtime.'+extension),markers?'// APTLY_SECRET_BACKEND APTLY_SECRET_CLIENT':'// old runtime');
+}
+test('credential source selection refuses custom launchers without changing either host or receipts', t => {
+ const options=fixture(t);mkdirSync(join(options.home,'.codex'));mkdirSync(join(options.home,'.claude'));
+ const codex=join(options.home,'.codex/config.toml'),claude=join(options.home,'.claude.json');
+ save(codex,'[mcp_servers.aptly]\ncommand="credential-launcher"\nargs=[]\nenv_vars=["SSH_AUTH_SOCK"]\n[mcp_servers.aptly.env]\nOPENAI_API_KEY="synthetic-preexisting-key"\n');
+ save(claude,{mcpServers:{aptly:{command:'other-launcher',env:{APTLY_SECRET_BACKEND:'os',APTLY_SECRET_CLIENT:'claude'}}}});
+ const beforeCodex=readFileSync(codex,'utf8'),beforeClaude=readFileSync(claude,'utf8');
+ assert.equal(setCredentialReference({...options,clients:['codex']}).clients[0].codes[0],'credential_launcher_unverified');
+ assert.equal(readFileSync(codex,'utf8'),beforeCodex);assert.equal(readFileSync(claude,'utf8'),beforeClaude);
+ assert.equal(existsSync(join(options.home,'.codex/aptly/setup-ownership.json')),false);
+});
+test('credential references reject old or redirected runtimes and support only the current standard source entry', t => {
+ const old={...fixture(t),clients:['codex']};credentialRuntime(old.packageRoot,false,false);
+ assert.equal(setCredentialReference(old).clients[0].codes[0],'credential_launcher_unverified');
+ assert.equal(existsSync(join(old.home,'.codex/config.toml')),false);
+ const linked={...fixture(t),clients:['codex']};credentialRuntime(linked.packageRoot);
+ const runtime=join(linked.packageRoot,'dist/src/runtime.js'),other=join(linked.home,'other-runtime.js');
+ fs.renameSync(runtime,other);symlinkSync(other,runtime);
+ assert.equal(setCredentialReference(linked).clients[0].codes[0],'credential_launcher_unverified');
+ const source={...fixture(t),clients:['codex']};credentialRuntime(source.packageRoot,true);
+ mkdirSync(join(source.home,'.codex'));
+ save(join(source.home,'.codex/config.toml'),'[mcp_servers.aptly]\ncommand='+JSON.stringify(process.execPath)+'\nargs=['+JSON.stringify(join(source.packageRoot,'src/server.ts'))+']\nenv_vars=["SSH_AUTH_SOCK"]\n[mcp_servers.aptly.env]\nOPENAI_API_KEY="synthetic-preexisting-key"\n');
+ assert.equal(setCredentialReference(source).status,'complete');
+ const codex=parse(readFileSync(join(source.home,'.codex/config.toml'),'utf8')).mcp_servers.aptly;
+ assert.deepEqual(codex.env_vars,['SSH_AUTH_SOCK']);assert.equal(codex.env.OPENAI_API_KEY,'synthetic-preexisting-key');assert.equal(codex.env.APTLY_SECRET_CLIENT,'codex');
+ assert.doesNotMatch(readFileSync(join(source.home,'.codex/aptly/setup-ownership.json'),'utf8'),/synthetic-preexisting-key/);
+ assert.equal(removeSetup(source).status,'complete');
+ const after=parse(readFileSync(join(source.home,'.codex/config.toml'),'utf8')).mcp_servers.aptly.env;
+ assert.equal(after.APTLY_SECRET_CLIENT,undefined);assert.equal(after.OPENAI_API_KEY,'synthetic-preexisting-key');
+});
+
+test('Windows setup protects only newly made directories, checks ACLs and keeps receipts removable', async t => {
+  const childProcess = (await import('node:child_process')).default;
+  const originalExec = childProcess.execFileSync, platform = Object.getOwnPropertyDescriptor(process, 'platform');
+  const options = fixture(t), calls = [];
+  for (const name of ['.codex', '.claude']) mkdirSync(join(options.home, name), {mode:0o755});
+  childProcess.execFileSync = (_executable, _args, execution) => { calls.push(JSON.parse(execution.input)); return 'private'; };
+  Object.defineProperty(process, 'platform', {value:'win32'}); syncBuiltinESMExports();
+  try {
+    assert.equal(setDefaults(options).status,'complete');
+    for (const name of ['.codex', '.claude']) {
+      const dir=join(options.home,name), privateDir=join(dir,'aptly');
+      assert.equal(calls.some(call => call.path===dir),false,'existing host directory ACL must stay untouched');
+      assert.ok(calls.some(call => call.path===privateDir && call.action==='protect-new-directory'));
+      assert.ok(calls.some(call => call.path===join(privateDir,'state') && call.action==='protect-new-directory'));
+      chmodSync(privateDir,0o777); // Windows ignores POSIX bits and actually inspects the ACL.
+    }
+    calls.length=0;
+    assert.equal(setEnvironment('ROUTER_PROVIDER','fixture',options).status,'complete');
+    assert.ok(calls.some(call => call.path?.endsWith('setup-ownership.json') && call.action==='assert-private'));
+    assert.equal(calls.some(call => call.action==='protect-new-directory'),false);
+    assert.equal(removeSetup(options).status,'complete');
+  } finally { childProcess.execFileSync=originalExec; Object.defineProperty(process,'platform',platform); syncBuiltinESMExports(); }
+});
+
+test('Windows insecure existing ACLs are refused without repair or raw diagnostics', async t => {
+  const childProcess = (await import('node:child_process')).default;
+  const originalExec = childProcess.execFileSync, platform = Object.getOwnPropertyDescriptor(process, 'platform');
+  const options = fixture(t); assert.equal(setDefaults(options).status,'complete');
+  const path=join(options.home,'.codex','aptly','setup-ownership.json'), before=readFileSync(path,'utf8'), calls=[];
+  childProcess.execFileSync = (_executable, _args, execution) => { const request=JSON.parse(execution.input); calls.push(request); if(request.path===path)throw new Error('raw-private-acl-details'); return 'private'; };
+  Object.defineProperty(process,'platform',{value:'win32'}); syncBuiltinESMExports();
+  try {
+    const outcome=setEnvironment('ROUTER_PROVIDER','fixture',options);
+    assert.equal(outcome.status,'partial');
+    assert.deepEqual(result(outcome,'codex').codes,['private_file_permissions']);
+    assert.equal(JSON.stringify(outcome).includes('raw-private'),false);
+    assert.equal(calls.some(call => call.action==='protect-new-directory'),false);
+    assert.equal(readFileSync(path,'utf8'),before);
+  } finally { childProcess.execFileSync=originalExec; Object.defineProperty(process,'platform',platform); syncBuiltinESMExports(); }
+});
+
+test('Windows replacements preserve existing DACL before staging any content and fail closed', async t => {
+  const childProcess = (await import('node:child_process')).default;
+  const originalExec = childProcess.execFileSync, platform = Object.getOwnPropertyDescriptor(process, 'platform');
+  const options = {...fixture(t), clients:['codex']};
+  assert.equal(setDefaults(options).status,'complete');
+  const configPath=join(options.home,'.codex','config.toml'), original=readFileSync(configPath,'utf8');
+  let reject=false; const copies=[];
+  childProcess.execFileSync = (_exe,_args,execution) => {
+    const request=JSON.parse(execution.input);
+    if(request.source) {
+      assert.equal(readFileSync(request.target,'utf8'),'','permissions must be set before any existing content is staged');
+      assert.equal(readFileSync(request.source,'utf8').length>0,true);
+      copies.push(request);
+      if(reject) throw new Error('raw-acl-copy-error');
+    }
+    return 'private';
+  };
+  Object.defineProperty(process,'platform',{value:'win32'});syncBuiltinESMExports();
+  try {
+    assert.equal(setEnvironment('ROUTER_PROVIDER','fixture',options).status,'complete');
+    assert.ok(copies.some(call=>call.source===configPath));
+    const changed=readFileSync(configPath,'utf8');assert.notEqual(changed,original);
+    const receiptPath=join(options.home,'.codex','aptly','setup-ownership.json'), receipt=readFileSync(receiptPath,'utf8');
+    reject=true;
+    const outcome=setEnvironment('ROUTER_PROVIDER','decisions',options);
+    assert.equal(outcome.status,'partial');assert.deepEqual(result(outcome,'codex').codes,['private_file_permissions']);
+    assert.equal(readFileSync(configPath,'utf8'),changed);
+    assert.equal(readFileSync(receiptPath,'utf8'),receipt);
+    assert.equal(readdirSync(join(options.home,'.codex')).some(name=>name.startsWith('.aptly-stage-')),false);
+  } finally {childProcess.execFileSync=originalExec;Object.defineProperty(process,'platform',platform);syncBuiltinESMExports();}
 });

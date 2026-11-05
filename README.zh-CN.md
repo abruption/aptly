@@ -46,6 +46,7 @@ aptly --version
 
 ## 文档
 
+- [下一版本 CLI 配置](docs/guide/zh-CN.md#使用-cli-设置--计划用于下一版本)
 - [使用指南](docs/guide/zh-CN.md)：安装与移除、密钥、Hook、直接推荐、错误恢复
 - [安装与移除](docs/guide/zh-CN.md#安装)：npm 全局安装、宿主注册、重启与信任批准
 - [模型与环境变量](docs/guide/zh-CN.md#模型与环境变量)：六个默认配置与候选设置

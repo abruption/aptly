@@ -18,7 +18,7 @@ const hookSchema={client:z.enum(['codex','claude']),event:z.record(z.string(),z.
 const content=(result:Record<string,unknown>):CallToolResult=>({content:[{type:'text',text:JSON.stringify(result)}],structuredContent:result});
 
 export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
- const {router,mode,modelInfo,disabledClients}=runtime(env);
+ const {router,mode,modelInfo,credentialStatus,disabledClients}=runtime(env);
  let lastAutomaticHook:AutomaticHookObservation|null=null;
  const server=new McpServer({name:'aptly',version:VERSION});
  const annotations={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:mode==='decisions'};
@@ -33,6 +33,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   precedence:'per_call_effective_host_evidence_required',automatic_settings_discovery:false,
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
+  credential_status:credentialStatus,
   automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,last_result:lastAutomaticHook},
  }));
  server.registerTool('recommend_agent',{
