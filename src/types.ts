@@ -11,6 +11,9 @@ export interface RoutingResult { status: RoutingStatus; reason: string; applicat
 export interface RoutingPolicy { version: string; catalog_version: string; max_summary_bytes: number; max_concurrency: number; max_daily_calls: number; max_total_calls: number; estimated_call_usd: number; max_estimated_usd: number; timeout_ms: number; profiles: readonly Profile[]; provider_id?: string; profile_descriptions?: Record<string,string>; }
 export interface ProviderArguments { input: RoutingInput; profiles: Profile[]; signal: AbortSignal; }
 export interface ProviderAnswer { choice: string; confidence?: number; usage?: unknown; }
-export type RoutingProvider = (args: ProviderArguments) => Promise<ProviderAnswer>;
+export type RoutingProvider = ((args: ProviderArguments) => Promise<ProviderAnswer>) & {
+  /** Synchronous local readiness check only; must not initiate transport. */
+  preflight?: () => void;
+};
 export function isRecord(value: unknown): value is UnknownRecord { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 export function errorCode(error: unknown): string | undefined { return isRecord(error) && typeof error.code === 'string' ? error.code : undefined; }
