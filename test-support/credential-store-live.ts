@@ -9,6 +9,7 @@ import {createTestTemp} from './temp.ts';
 import {setDefaults,setEnvironment,removeSetup} from '../src/setup.ts';
 import {setApiKey} from '../src/credential-setup.ts';
 import {runtime} from '../src/runtime.ts';
+import {protectNewWindowsPrivateDirectory} from '../src/windows-private.ts';
 if(process.env.CI!=='true'||process.env.APTLY_TEST_CREDENTIAL_STORE!=='1'||process.platform!=='win32')throw new Error('native_credential_probe_not_enabled');
 const options={service:'dev.aptly.ci.'+randomUUID(),account:'synthetic'};
 const value='synthetic-not-an-api-key-'+randomUUID();
@@ -36,6 +37,14 @@ function fileAcl(path:string,restrict=false):string{
  return execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify({path,restrict}),encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});
 }
 try{
+ const aclProbe=join(home,'acl-probe');mkdirSync(aclProbe);
+ protectNewWindowsPrivateDirectory(aclProbe,{execute(executable,args,input){
+  const diagnosticArgs=[...args];
+  const script=Buffer.from(diagnosticArgs.at(-1)!,'base64').toString('utf16le').replace("[Console]::Out.Write('rejected'); exit 1","[Console]::Out.Write('rejected '+$_.Exception.GetType().Name+' line '+$_.InvocationInfo.ScriptLineNumber); exit 1");
+  diagnosticArgs[diagnosticArgs.length-1]=Buffer.from(script,'utf16le').toString('base64');
+  try{return execFileSync(executable,diagnosticArgs,{input,encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});}
+  catch(error){const match=String((error as any).stdout??'').match(/^rejected [A-Za-z]+ line [0-9]+$/);console.log(match?.[0]??'native_acl_probe_failed');throw Error('native_acl_probe_failed');}
+ }});
  storeSecret(value,options);
  if(loadSecret(options)!==value)throw Error('native_credential_roundtrip_failed');
  storeSecret(value+'-updated',options);
