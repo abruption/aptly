@@ -1,18 +1,18 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.1 준비와 Issue #18
+## 0.1.1 게시와 Issue #18
 
-현재 소스는 0.1.1 릴리즈 준비 상태입니다. 설치 시험을 릴리즈 패키징과 분리한 job 경계를 유지합니다. 준비 PR 병합과 해당 main의 CI 확인 후 `v0.1.1` 태그를 push하면 실제 OIDC 게시가 시작됩니다. 준비 과정에서는 태그를 push하지 않습니다. 새 태그 push 자체가 게시를 시작하므로 먼저 push한 뒤 dry run으로 확인하는 순서로 진행하지 마십시오.
+2026-11-05에 `aptly@0.1.1`을 GitHub Actions의 OIDC로 게시하고 registry의 provenance를 검증했습니다. [실제 릴리즈 근거](releases/0.1.1.md)에 source SHA·workflow 실행·archive digest·검증 도구와 결과를 기록했습니다. 설치 시험을 릴리즈 패키징과 분리한 job 경계를 유지합니다. 이후 버전도 준비 PR 병합과 main CI 확인 후 해당 버전의 태그를 push하면 실제 게시가 시작됩니다. 새 태그 push 자체가 게시를 시작하므로 먼저 push한 뒤 dry run으로 확인하는 순서로 진행하지 마십시오.
 
-[Issue #18](https://github.com/abruption/aptly/issues/18)은 실제 게시 후 검증할 항목입니다. 준비 PR·무료 시험·dry run 성공만으로 닫지 않습니다. 아래 절차는 게시된 버전의 provenance를 확인하는 방법이며, 현재 Aptly 0.1.1의 검증이 완료됐다는 기록이 아닙니다.
+[Issue #18](https://github.com/abruption/aptly/issues/18)의 실제 게시·검증 근거는 위 릴리즈 기록으로 제출합니다. 준비 PR·무료 시험·dry run 성공만으로 완료를 선언하지 않습니다. 아래 절차는 실제 0.1.1 검증에도 사용했으며, 이후 버전에서는 버전·SHA·실행 번호를 해당 릴리즈에 맞게 바꾸십시오.
 
-2026-11-05 사용자 승인에 따라 GitHub `npm` environment의 배포 대상을 **태그 `v*`만** 허용하도록 설정하고 조회로 확인했습니다. 별도 required reviewer가 있다는 뜻은 아닙니다. 실제 게시 전 npm Trusted Publisher가 `abruption/aptly`·`publish.yml`·environment `npm`·직접 게시 허용에 연결됐는지 다시 확인합니다. `npm trust list aptly`가 추가 인증을 요구하면 인증을 완료하고, 자격·신뢰 설정 ID는 공개 증거에 복사하지 않습니다.
+2026-11-05 사용자 승인에 따라 GitHub `npm` environment의 배포 대상을 **태그 `v*`만** 허용하도록 설정하고 조회로 확인했습니다. 별도 required reviewer가 있다는 뜻은 아닙니다. 0.1.1 게시 전 npm Trusted Publisher도 `abruption/aptly`·`publish.yml`·environment `npm`·직접 게시 허용에 연결됐음을 재확인했습니다. 이후 게시 전에도 연결을 확인합니다. `npm trust list aptly`가 추가 인증을 요구하면 인증을 완료하고, 자격·신뢰 설정 ID는 공개 증거에 복사하지 않습니다.
 
 GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준비했습니다. 수동 실행의 기본값은 검증과 archive 생성만 수행하는 dry run이며, `v*` 태그 push는 OIDC 게시를 자동 실행합니다. 실제 원격 저장소 생성·push·npm 게시·계정 설정은 이 문서 준비와 별개입니다.
 
 공개 소스 저장소는 [abruption/aptly](https://github.com/abruption/aptly)이며, `package.json`의 `repository.url`에도 같은 주소를 기록했습니다. `aptly` 0.1.0은 `private: false`와 공개 npm registry·provenance·`latest` 게시 설정을 명시합니다. CI는 메타데이터를 임시로 바꾸지 않으며 기본 dry run에서는 게시하지 않습니다.
 
-0.1.0의 최초 게시에는 태그 `v0.1.0`의 검증된 tarball을 그대로 사용했고, 로그인한 npm 계정의 인증으로 게시했습니다. 최초 버전에는 CI provenance가 첨부되지 않았습니다. 이 부트스트랩 예외는 이후 CI 배포의 provenance 설정을 해제하지 않습니다. npm 계정 인증과 `abruption/aptly`·`publish.yml`·`npm` environment의 Trusted Publisher 등록 성공을 확인했습니다. 실제 OIDC 교환과 게시 성공은 다음 새 버전 배포에서 확인해야 합니다. dry run 성공은 실제 OIDC 게시 성공을 대신 검증하지 않습니다.
+0.1.0의 최초 게시에는 태그 `v0.1.0`의 검증된 tarball을 그대로 사용했고, 로그인한 npm 계정의 인증으로 게시했습니다. 최초 버전에는 CI provenance가 첨부되지 않았습니다. 이 부트스트랩 예외는 이후 CI 배포의 provenance 설정을 해제하지 않습니다. 후속 0.1.1은 Trusted Publisher를 사용하는 실제 Actions OIDC 게시와 registry attestation 검증을 모두 통과했습니다. dry run 성공은 실제 OIDC 게시 성공을 대신 검증하지 않습니다.
 
 ## 워크플로 동작
 
