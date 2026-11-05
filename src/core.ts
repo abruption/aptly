@@ -205,6 +205,11 @@ export class Router {
       };
       if ((kind === 'hook' && req.constraints.provenance_verified !== true) || preservedFields.some(k => req.constraints[k] !== false)) return complete(this.result('keep_current', 'preserved_constraints'));
       if (!req.task.context_sufficient) return complete(this.result('needs_context', 'insufficient_context'));
+      // Known local failures precede reservation. Do not cache them: correcting
+      // configuration must allow the same ID to be tried without ledger edits.
+      // Never infer this from a transport exception (including HTTP 401/403).
+      try { this.provider.preflight?.(); }
+      catch (e) { return this.result('unavailable', errorCode(e) === 'unauthorized' ? 'unauthorized' : 'provider_error'); }
       const day = new Date().toISOString().slice(0, 10);
       if (this.state.calls >= this.policy.max_total_calls || (this.state.days[day] ?? 0) >= this.policy.max_daily_calls || this.state.estimated_usd + this.policy.estimated_call_usd > this.policy.max_estimated_usd + 1e-12) return complete(this.result('unavailable', 'budget_exhausted'));
       this.state.calls++; this.state.days[day] = (this.state.days[day] ?? 0) + 1;
