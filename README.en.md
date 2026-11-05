@@ -21,8 +21,8 @@ Aptly classifies a minimal task summary with the OpenAI Decisions API and recomm
 Use Node.js **24 or later** and Claude Code or Codex. Install **MIT-licensed Aptly 0.1.0** from the npm registry.
 
 ```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
 ```
 
 During installation, `postinstall` registers the MCP server and a `PreToolUse` Hook in existing host configuration directories. Run `setup` explicitly if automatic registration was skipped or a host has no configuration directory yet. Other settings and Hooks, and any existing Aptly launch command and environment, are preserved.

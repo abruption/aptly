@@ -11,12 +11,19 @@
 需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。请指定 npm 软件包和安装位置。
 
 ```sh
-aptly_install=/absolute/aptly-local
-npm install --prefix "$aptly_install" aptly@0.1.0
-"$aptly_install/node_modules/.bin/aptly" setup --client all --mode defaults
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
 
-如需安装已审核的本地归档，请将安装命令中的 `aptly@0.1.0` 替换为实际文件路径，例如 `/absolute/path/aptly-0.1.0.tgz`。后续示例中的 `aptly` 指上述安装位置的可执行文件。如果尚未将它加入 PATH，请使用完整路径运行。不要直接执行已安装 `node_modules` 中的 TypeScript 源码。
+默认示例采用全局安装。请确认 `aptly --version` 输出 `0.1.0`。全局安装适用于当前 Node.js 环境；通过版本管理工具切换 Node 版本后，可能需要重新安装。如果遇到权限错误，请使用下面的本地安装方式，不要直接提升管理员权限。
+
+```sh
+npm install --prefix ./aptly-local aptly@0.1.0
+./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+```
+
+本地安装时，请使用上面路径中的可执行文件。安装本地归档时，可将 `aptly@0.1.0` 替换为 `/absolute/path/aptly-0.1.0.tgz`。不要直接执行已安装 `node_modules` 中的 TypeScript 源码。
 
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
 
@@ -35,6 +42,86 @@ npm install --prefix "$aptly_install" aptly@0.1.0
 | `OPENAI_API_KEY` | 通过安全运行环境注入的分类用密钥 |
 | `ROUTER_PROVIDER=decisions` | 使用实际分类 API |
 | `ROUTER_LEDGER_PATH` | 位于归用户所有、权限为 700 的私有目录中的账本绝对路径 |
+
+### MCP 环境变量设置步骤
+
+请先完成安装和 `setup`，再编辑已注册的 `aptly` 项。以下示例是**需要合并到现有条目中的部分设置**。不要覆盖整个配置文件，也不要删除现有的 `command`、`args`、`ROUTER_LEDGER_PATH` 或 `APTLY_HOOK_POLICY_PATH`。自动注册会准备账本与策略路径，以及私有目录。
+
+#### 配置文件位置
+
+| 宿主 | Aptly 使用的用户注册位置 |
+|---|---|
+| Codex | `$CODEX_HOME/config.toml`；未设置 `CODEX_HOME` 时为 `~/.codex/config.toml` |
+| Claude Code | `~/.claude.json` 中的 `mcpServers.aptly`；设置 `CLAUDE_CONFIG_DIR` 时为该目录中的 `.claude.json` |
+
+Claude Code 的 `~/.claude/settings.json` 用于 Hook 设置，与用户级 MCP 注册文件不同。如果已有项目 `.mcp.json` 或管理配置，请不要重复注册；先在 `/mcp` 中确认实际使用的条目。使用独立账户配置目录的应用，可能不会将默认主目录中的修改应用到当前账户。
+
+#### 传递 API 密钥
+
+`OPENAI_API_KEY` 是 OpenAI API 密钥，与 Codex、Claude Code 的订阅登录以及 npm 认证相互独立。使用默认的直接执行配置时，请在启动宿主进程的环境中准备密钥。以下示例在 **Bash 中**输入密钥，不将其显示在屏幕上或写入命令历史，然后从同一个 shell 启动 Codex。如果使用 zsh，请先运行 `bash`。
+
+```sh
+read -rsp 'OpenAI API key: ' OPENAI_API_KEY
+printf '\n'
+export OPENAI_API_KEY
+codex
+```
+
+使用 Claude Code 时，请将最后的 `codex` 替换为 `claude`。密钥只传递给当前 shell 及其子进程，不会永久保存。已经运行的 GUI 应用不会继承另一个终端中的 `export`。对于 GUI，请使用应用提供的安全环境传递方式，或读取凭据存储的启动包装程序。如果已有凭据注入包装程序，请保留原有方式。不要将密钥值直接写入配置 JSON、TOML 或共享文件。
+
+#### Codex 示例
+
+请将 `OPENAI_API_KEY` 添加到现有 `[mcp_servers.aptly]` 的 `env_vars` 列表，并保留 `SSH_AUTH_SOCK` 等已有条目。`env_vars` 是从 Codex 进程环境中**按名称转发的变量列表**，而 `.env` 表用于指定传递给 MCP 的**固定值**。以下只展示部分设置，不是完整的服务器注册配置。
+
+```toml
+[mcp_servers.aptly]
+env_vars = ["OPENAI_API_KEY"]
+
+[mcp_servers.aptly.env]
+ROUTER_PROVIDER = "decisions"
+APTLY_CLAUDE_MODELS = '["haiku","sonnet","opus"]'
+APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
+```
+
+请编辑现有表，不要在文件末尾再次添加相同的 TOML 表，否则可能产生错误。上述示例省略的启动命令、账本路径与 Hook 策略路径均应保留。
+
+#### Claude Code 示例
+
+请将以下值合并到现有的 `mcpServers.aptly.env` 对象中。此 JSON 仅展示 `env` 的内容。请保留原有的密钥读取包装程序、账本路径和 Hook 策略路径。
+
+```json
+{
+  "ROUTER_PROVIDER": "decisions",
+  "APTLY_CLAUDE_MODELS": "[\"haiku\",\"sonnet\",\"opus\"]",
+  "APTLY_CODEX_MODELS": "[\"gpt-6-luna\",\"gpt-6.1-terra\",\"gpt-6.1-sol\"]"
+}
+```
+
+在默认的直接执行注册中，如果需要显式关联密钥，可以使用 Claude Code 支持的环境变量引用。启动 Claude Code 的环境中必须先有该密钥。此示例不会将实际密钥保存到文件。
+
+```json
+{
+  "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+}
+```
+
+最后这一项是默认直接执行注册的可选设置。对于使用独立凭据包装程序的注册，不要一律添加此项。如果被引用的变量不存在，就无法传入正确密钥，甚至可能保留引用字符串本身。
+
+#### 应该修改哪些值？
+
+| 项目 | 默认使用时的操作 |
+|---|---|
+| `OPENAI_API_KEY` | 默认直接执行时，在宿主环境中准备；使用凭据包装程序时保留原有方式 |
+| `ROUTER_PROVIDER` | 实际分类使用 `decisions`，免费模拟测试使用 `fixture` |
+| `ROUTER_LEDGER_PATH`, `APTLY_HOOK_POLICY_PATH` | 保留 `setup` 生成的值 |
+| `APTLY_CLAUDE_MODELS`, `APTLY_CODEX_MODELS` | 未设置时使用默认候选；仅在限制候选时指定 |
+| `APTLY_MODEL_INFO_PATH` | 仅在显式更新并使用官方模型信息缓存时指定 |
+
+候选数组都必须是 **JSON 字符串**。JSON 配置中转义的双引号与 TOML 中的单引号写法会传递相同的值。`[]` 会关闭对应宿主的推荐。仅在项目中创建 `.env` 文件不会生效。Aptly 不会自动加载 `.env`，而是读取 MCP 服务器启动时收到的环境。
+
+保存后，请重启宿主或 MCP。在 `/mcp` 中确认 `aptly` 已连接，再通过 `get_routing_capabilities` 检查 `provider: decisions`、候选列表和 `automatic_hook.mode`。免费状态查询不会验证 API 密钥是否有效。实际的 `recommend_agent` 请求可能产生分类费用。如果返回 `unavailable`/`unauthorized`，请检查密钥传递；如果返回 `needs_context`，请检查任务摘要。不要将密钥值或整个配置输出到日志。
+
+配置位置与传递方式的官方说明，请参阅 [Codex 配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)和 [Claude Code MCP 指南](https://code.claude.com/docs/en/mcp)。
 
 ### 跳过与移除
 

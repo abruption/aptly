@@ -11,12 +11,19 @@
 Node.js 24 以上と Claude Code または Codex が必要です。npm パッケージとインストール先を指定してください。
 
 ```sh
-aptly_install=/absolute/aptly-local
-npm install --prefix "$aptly_install" aptly@0.1.0
-"$aptly_install/node_modules/.bin/aptly" setup --client all --mode defaults
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
 
-確認済みのローカルアーカイブをインストールする場合は、インストールコマンドの `aptly@0.1.0` を `/absolute/path/aptly-0.1.0.tgz` などの実際のファイルパスに置き換えてください。以降の例の `aptly` は、上記のインストール先にある実行ファイルを指します。PATH に追加していない場合はフルパスで実行してください。インストール済みの `node_modules` 内で TypeScript ソースを直接実行しないでください。
+既定の例はグローバルインストールです。`aptly --version` が `0.1.0` を表示することを確認してください。グローバルインストールは現在の Node.js 環境に適用されるため、バージョン管理ツールで Node のバージョンを切り替えると再インストールが必要になる場合があります。権限エラーの場合は、管理者権限を無条件に付けず、以下のローカルインストールを使用してください。
+
+```sh
+npm install --prefix ./aptly-local aptly@0.1.0
+./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+```
+
+ローカルインストールでは上記のパスの実行ファイルを使用してください。ローカルアーカイブをインストールする場合は `aptly@0.1.0` を `/absolute/path/aptly-0.1.0.tgz` に置き換えます。インストール済みの `node_modules` 内の TypeScript ソースを直接実行しないでください。
 
 `postinstall` は、現在のユーザーの既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使う場合は、インストールプロセスにも同じ環境を渡してください。まだ存在しないホストディレクトリは自動登録ではスキップし、明示的な `setup` で作成できます。必要なホストだけを登録するには、`--client codex` または `--client claude` を使用してください。
 
@@ -35,6 +42,86 @@ npm install --prefix "$aptly_install" aptly@0.1.0
 | `OPENAI_API_KEY` | 安全な実行環境から注入する分類用キー |
 | `ROUTER_PROVIDER=decisions` | 実際の分類 API を使用 |
 | `ROUTER_LEDGER_PATH` | ユーザー所有・権限 700 の非公開ディレクトリ内にある台帳の絶対パス |
+
+### MCP 環境変数の設定手順
+
+インストールと `setup` を済ませてから、登録済みの `aptly` 項目を編集してください。以下の例は、**既存の項目に追加・統合する設定の一部**です。設定ファイル全体を上書きしたり、既存の `command`、`args`、`ROUTER_LEDGER_PATH`、`APTLY_HOOK_POLICY_PATH` を削除したりしないでください。自動登録が台帳・ポリシーのパスと非公開ディレクトリを準備します。
+
+#### 設定ファイルの場所
+
+| ホスト | Aptly が使用するユーザー登録の場所 |
+|---|---|
+| Codex | `$CODEX_HOME/config.toml`。`CODEX_HOME` 未指定の場合は `~/.codex/config.toml` |
+| Claude Code | `~/.claude.json` の `mcpServers.aptly`。`CLAUDE_CONFIG_DIR` 指定時は、そのディレクトリの `.claude.json` |
+
+Claude Code の `~/.claude/settings.json` は Hook の設定場所であり、ユーザーの MCP 登録ファイルとは異なります。既存のプロジェクト用 `.mcp.json` や管理設定がある場合は重複登録せず、`/mcp` で実際に使用している項目を確認してください。アカウントごとに設定ディレクトリを使い分けるアプリでは、デフォルトのホームパスを編集しても現在のアカウントに反映されない場合があります。
+
+#### API キーの渡し方
+
+`OPENAI_API_KEY` は OpenAI API キーです。Codex・Claude Code のサブスクリプションへのログインや npm 認証とは別のものです。標準の直接起動設定では、ホストを起動するプロセスの環境に用意してください。以下は、**Bash で**キーを画面やコマンド履歴に残さず入力し、同じシェルから Codex を起動する例です。zsh を使用している場合は、先に `bash` を実行してください。
+
+```sh
+read -rsp 'OpenAI API key: ' OPENAI_API_KEY
+printf '\n'
+export OPENAI_API_KEY
+codex
+```
+
+Claude Code の場合は、最後の `codex` の代わりに `claude` を実行してください。キーはこのシェルと子プロセスにのみ渡され、永続保存されません。実行中の GUI アプリは、別のターミナルで設定した `export` を引き継ぎません。GUI から起動する場合は、アプリの安全な環境変数の受け渡し機能や、認証情報ストアを読み取る起動ラッパーを使用してください。既存の認証情報を渡すラッパーがある場合は、その方式を維持してください。キーの値を設定 JSON・TOML や共有ファイルに直接記載しないでください。
+
+#### Codex の例
+
+既存の `[mcp_servers.aptly]` の `env_vars` リストに `OPENAI_API_KEY` を追加してください。`SSH_AUTH_SOCK` などの既存項目も維持する必要があります。`env_vars` は Codex プロセスの環境から**名前を指定して渡す変数のリスト**、`.env` テーブルは MCP に渡す**固定値**です。以下は項目の一部であり、サーバー登録全体ではありません。
+
+```toml
+[mcp_servers.aptly]
+env_vars = ["OPENAI_API_KEY"]
+
+[mcp_servers.aptly.env]
+ROUTER_PROVIDER = "decisions"
+APTLY_CLAUDE_MODELS = '["haiku","sonnet","opus"]'
+APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
+```
+
+同じ TOML テーブルをファイル末尾に重複して追加するとエラーになる場合があるため、既存のテーブルを編集してください。上の例で省略した起動コマンドと台帳・Hook ポリシーのパスは、そのまま残してください。
+
+#### Claude Code の例
+
+既存の `mcpServers.aptly.env` オブジェクトに、以下の値を追加・統合してください。この JSON は `env` の内容だけを示しています。API キーを読み取る既存のラッパーと、台帳・Hook ポリシーのパスは維持してください。
+
+```json
+{
+  "ROUTER_PROVIDER": "decisions",
+  "APTLY_CLAUDE_MODELS": "[\"haiku\",\"sonnet\",\"opus\"]",
+  "APTLY_CODEX_MODELS": "[\"gpt-6-luna\",\"gpt-6.1-terra\",\"gpt-6.1-sol\"]"
+}
+```
+
+標準の直接起動用の登録でキーを明示的に渡す場合は、Claude Code が対応する環境変数参照を使用できます。先に、Claude Code を起動する環境にキーを用意する必要があります。この例は、実際のキーをファイルに保存しません。
+
+```json
+{
+  "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+}
+```
+
+この最後の項目は、標準の直接起動用の登録で使用する任意の設定です。別の認証情報ラッパーを使用する登録には、無条件に追加しないでください。参照する変数が存在しない場合、正しいキーは渡されず、参照文字列自体が残ることもあります。
+
+#### どの値を変更すればよいですか？
+
+| 項目 | 標準利用時の対応 |
+|---|---|
+| `OPENAI_API_KEY` | 標準の直接起動ではホスト環境に用意。認証情報ラッパー使用時は既存方式を維持 |
+| `ROUTER_PROVIDER` | 実際の分類は `decisions`、無料の試験用分類は `fixture` |
+| `ROUTER_LEDGER_PATH`, `APTLY_HOOK_POLICY_PATH` | `setup` が作成した値を維持 |
+| `APTLY_CLAUDE_MODELS`, `APTLY_CODEX_MODELS` | 未指定ならデフォルト候補を使用。候補を制限する場合だけ指定 |
+| `APTLY_MODEL_INFO_PATH` | 公式モデル情報のキャッシュを明示的に更新して使う場合だけ指定 |
+
+候補配列は、すべて **JSON 文字列**です。JSON 設定で引用符をエスケープした表記と、TOML の単一引用符で囲んだ表記は、同じ値を渡します。`[]` は、そのホストの推薦を無効にします。プロジェクトに `.env` を作成するだけでは反映されません。Aptly は `.env` を自動で読み込まず、MCP サーバーの起動時に受け取った環境を読み取ります。
+
+保存後はホストまたは MCP を再起動してください。`/mcp` で `aptly` の接続を確認し、`get_routing_capabilities` で `provider: decisions`、候補リスト、`automatic_hook.mode` を確認してください。無料の状態照会では API キーの有効性は検証しません。実際の `recommend_agent` リクエストでは分類費用が発生する場合があります。`unavailable` / `unauthorized` の場合はキーの受け渡しを、`needs_context` の場合はタスク要約を確認してください。キーの値や設定全体をログに出力しないでください。
+
+設定場所と受け渡し方式の公式説明は、[Codex 構成リファレンス](https://learn.chatgpt.com/docs/config-file/config-reference)と [Claude Code MCP ガイド](https://code.claude.com/docs/en/mcp)を参照してください。
 
 ### スキップ・削除
 
