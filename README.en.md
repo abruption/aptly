@@ -16,6 +16,8 @@
 
 Aptly classifies a minimal task summary with the OpenAI Decisions API and recommends an allowlisted execution profile. Its installed Hook can automatically select defaults for fresh, general-purpose subagents without explicit choices. The host retains control of execution and permissions.
 
+Our own tests showed **about 52–58% lower API-equivalent costs**. See the [test conditions and detailed results](docs/guide/en.md#cost-benchmark).
+
 ## Quick start
 
 Requires Node.js **24 or later** and Claude Code or Codex. Install [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) globally. [Source tag v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)

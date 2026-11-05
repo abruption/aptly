@@ -16,6 +16,8 @@
 
 Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し、あらかじめ許可された実行プロファイルを推薦します。インストールした Hook は、明示的な指定のない新しい汎用サブエージェントのデフォルト値を自動で選択できます。サブエージェントの実行と権限に関する判断は、既存のホストが行います。
 
+独自テストでは、**API 換算コストが約 52～58% 減少しました**。[測定条件と詳細結果](docs/guide/ja.md#費用実測)をご覧ください。
+
 ## クイックスタート
 
 Node.js **24 以上**と Claude Code または Codex が必要です。[aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) をグローバルインストールしてください。[ソースタグ v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)

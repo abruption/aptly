@@ -16,6 +16,8 @@
 
 Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐允许使用的执行配置。安装 Hook 后，可为未明确指定配置的新建通用子代理自动选择默认值。实际执行与权限决策仍由宿主（Claude Code 或 Codex）负责。
 
+在我们的测试中，**API 折算成本降低了约 52%～58%**。详见[测试条件与详细结果](docs/guide/zh-CN.md#成本实测)。
+
 ## 快速开始
 
 需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请全局安装 [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)。[源码标签 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)

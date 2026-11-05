@@ -16,6 +16,8 @@
 
 Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허용된 실행 프로필을 추천합니다. 설치한 Hook은 명시 선택이 없는 새 일반 서브에이전트의 기본값을 자동으로 선택할 수 있습니다. 실제 실행과 권한 결정은 기존 호스트가 담당합니다.
 
+자체 테스트에서 **API 환산 비용이 약 52~58% 감소했습니다**. [측정 조건과 상세 결과](docs/guide/ko.md#비용-실측)를 확인하세요.
+
 ## 빠른 시작
 
 Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)을 전역 설치하십시오. [소스 태그 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
