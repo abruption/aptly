@@ -20,19 +20,19 @@ Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐�
 
 ## 快速开始
 
-需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请全局安装 [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)。[源码标签 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
+需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。本文档以 **0.1.1** 为准。该版本发布到 npm 之前，请按[使用指南](docs/guide/zh-CN.md#安装)中的步骤安装本地归档。
 
 ```sh
-npm install -g aptly@0.1.0
+npm install -g aptly@0.1.1
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-版本检查命令应输出 `0.1.0`。
+版本检查命令应输出 `0.1.1`。
 
 安装时的 `postinstall` 会在现有宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果跳过了自动注册，或宿主尚无配置目录，也可以显式运行 `setup`。其他现有配置与 Hook，以及 Aptly 原有的启动命令和环境均会保留。
 
-请通过安全的运行环境，将分类用的 `OPENAI_API_KEY` 传递给 MCP 进程。不要将密钥写入命令行、请求、配置 JSON 或代码仓库。重启宿主或 MCP 后，**请在 Codex 的 `/hooks` 中审核新 Hook 并批准信任**。详见[安装、密钥与注册](docs/guide/zh-CN.md#安装)。
+请通过 `aptly set env OPENAI_API_KEY` 的隐藏输入，将分类用的 `OPENAI_API_KEY` 存入系统凭据存储，或通过安全的运行环境传递给 MCP 进程。不要将密钥写入命令行、请求、配置 JSON 或代码仓库。重启宿主或 MCP 后，**请在 Codex 的 `/hooks` 中审核新 Hook 并批准信任**。详见[安装、密钥与注册](docs/guide/zh-CN.md#安装)。
 
 ## 使用方式
 
@@ -46,7 +46,7 @@ aptly --version
 
 ## 文档
 
-- [下一版本 CLI 配置](docs/guide/zh-CN.md#使用-cli-设置--计划用于下一版本)
+- [CLI 配置](docs/guide/zh-CN.md#使用-cli-设置)
 - [使用指南](docs/guide/zh-CN.md)：安装与移除、密钥、Hook、直接推荐、错误恢复
 - [安装与移除](docs/guide/zh-CN.md#安装)：npm 全局安装、宿主注册、重启与信任批准
 - [模型与环境变量](docs/guide/zh-CN.md#模型与环境变量)：六个默认配置与候选设置

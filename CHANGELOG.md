@@ -1,12 +1,23 @@
 # Changelog
 
-## 0.1.0 — local package draft
+## 0.1.1
+
+- `aptly set default`와 `aptly set env ENV_KEY`로 Claude Code·Codex의 기본 환경 및 후보 모델을 설정할 수 있습니다. 기존 실행 명령·명시적 설정·advisory 정책을 보존합니다.
+- API 키를 macOS Keychain·Windows Credential Manager·Linux Secret Service(`secret-tool`)에 호스트별로 저장하고 MCP 시작 시 읽습니다. 설정 파일에는 참조만 남기며, 저장소 오류가 나도 다른 환경 키로 대체하지 않습니다. 설정 실패 시 가능한 범위에서 이전 키를 복구합니다.
+- Windows에서 UTF-8 입력·실제 PowerShell 실행 경로·설정 파일 ACL 보존을 보완했습니다. 키 입력과 실패 결과에 비밀 값이 노출되지 않도록 처리합니다.
+- 인증 키가 없을 때 유료 제공자 호출과 원장 예산 예약을 시작하지 않도록 수정했습니다.
+- lifecycle script를 실행하는 설치 시험은 별도 일회성 job으로 분리하고, 릴리즈 패키징은 새 runner에서 잠긴 의존성을 설치해 독립적으로 수행합니다. 시험 job의 파일·캐시·산출물은 릴리즈 패키징에 전달하지 않습니다.
+- 설치한 npm archive의 compiled CLI·MCP를 Linux·macOS·Windows에서 시험하는 CI를 추가했습니다. 합성 Windows 자격 저장소·격리 설정 시험을 포함하며, Windows의 실제 Claude Code·Codex 세션 지원을 인증한 것은 아닙니다.
+- 한국어·영어·중국어 간체·일본어의 설치 및 환경변수 안내, npm 전역 설치, 제한된 비용 실측 결과와 현재/과거 Hook 계약의 구분을 정리했습니다.
+- 기존 사용자 지정·구버전 실행 경로는 자동 교체하지 않습니다. OS 키 연결에는 현재 패키지와 호환되는 표준 실행 경로가 필요합니다.
+
+## 0.1.0 — 2026-11-05
 
 - 기본 후보를 Claude Haiku/Sonnet/Opus와 Codex Luna(max)/Terra(high)/Sol(medium)의 세 단계로 구성했어요.
 - 제공사별 JSON 문자열 환경변수로 후보를 선택하거나 비활성화하고, 모델명·effort·공식 특성을 Decisions 설명에 포함해요.
 - 고정 공식 Markdown의 명시적 catalog refresh와 시작 시 읽는 7일 캐시, 동봉 설명 fallback을 추가해요.
 - 추천과 Hook의 보존 경계·unknown 유료 요청 재호출 방지는 유지해요. 호스트 내부 패치는 계속 보류예요.
-- 로컬 archive 초안이며 private:true를 유지해요. 레지스트리 게시·전역 설치·운영 설정 변경은 포함하지 않아요.
+- 최초 공개 npm 버전입니다. 아래의 초안·preview 이력은 당시 검증 범위를 보존한 기록입니다.
 - 이전 preview 검증 기록은 아래에 보존하며 새 카탈로그의 성공 근거로 재표시하지 않아요.
 
 ## 0.1.0-preview.0 — unreleased
