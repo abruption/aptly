@@ -18,12 +18,15 @@ Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し�
 
 ## クイックスタート
 
-Node.js **24 以上**と Claude Code または Codex が必要です。**MIT ライセンスの Aptly 0.1.0** を npm registry からインストールしてください。
+Node.js **24 以上**と Claude Code または Codex が必要です。**MIT ライセンスの [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)** は npm で公開済みです。ソースは [v0.1.0 のソースタグ](https://github.com/abruption/aptly/tree/v0.1.0)で確認できます。
 
 ```sh
 npm install --prefix ./aptly-local aptly@0.1.0
 ./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+./aptly-local/node_modules/.bin/aptly --version
 ```
+
+バージョン確認コマンドの出力が `0.1.0` であることを確認してください。
 
 インストール時の `postinstall` は、既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。自動登録をスキップした場合や、ホストに設定ディレクトリがまだない場合も、`setup` を明示的に実行して登録できます。他の既存設定・Hook と、既存の Aptly の実行コマンド・環境は保持します。
 

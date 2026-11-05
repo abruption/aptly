@@ -18,12 +18,15 @@ Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허�
 
 ## 빠른 시작
 
-Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. **MIT 라이선스의 Aptly 0.1.0**을 npm 레지스트리에서 설치하십시오.
+Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. MIT 라이선스의 [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)이 npm 레지스트리에 공개됐습니다. 아래 명령으로 설치하십시오. [소스 태그 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)도 확인할 수 있습니다.
 
 ```sh
 npm install --prefix ./aptly-local aptly@0.1.0
 ./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+./aptly-local/node_modules/.bin/aptly --version
 ```
+
+버전 확인 명령의 출력은 `0.1.0`입니다.
 
 설치 시 `postinstall`은 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. 명시적인 `setup`은 자동 등록을 건너뛰었거나 아직 설정 디렉터리가 없는 호스트에도 사용할 수 있습니다. 기존 다른 설정·Hook과 기존 Aptly 실행 명령·환경은 보존합니다.
 
