@@ -23,8 +23,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  package-smoke:
+    name: Smoke-test package in a disposable runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      APTLY_SKIP_SETUP: '1'
+      OPENAI_API_KEY: ''
+      ANTHROPIC_API_KEY: ''
+      ROUTER_PROVIDER: fixture
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: refs/tags/${{ inputs.release_tag || github.ref_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build the disposable smoke package
+        run: npm run build
+      - name: Verify the installed compiled package
+        run: npm run test:package
+
   prepare:
     name: Validate and pack release
+    needs: package-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -66,8 +94,6 @@ jobs:
         run: npm run typecheck && npm run build
       - name: Run free policy and MCP tests
         run: npm test && npm run poc
-      - name: Verify the installed compiled package
-        run: npm run test:package
       - name: Audit public package contents
         run: npm run check:release
       - name: Pack the checked release and record its identity

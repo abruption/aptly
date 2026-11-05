@@ -20,19 +20,19 @@ Our own tests showed **about 52–58% lower API-equivalent costs**. See the [tes
 
 ## Quick start
 
-Requires Node.js **24 or later** and Claude Code or Codex. This documentation targets **0.1.1**. Before that version is published on npm, use the local archive installation in the [user guide](docs/guide/en.md#installation).
+Requires Node.js **24 or later** and Claude Code or Codex. Install [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) globally. [Source tag v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@0.1.0
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-The version command should print `0.1.1`.
+The version command should print `0.1.0`.
 
 During installation, `postinstall` registers the MCP server and a `PreToolUse` Hook in existing host configuration directories. Run `setup` explicitly if automatic registration was skipped or a host has no configuration directory yet. Other settings and Hooks, and any existing Aptly launch command and environment, are preserved.
 
-Store the classification key, `OPENAI_API_KEY`, in the OS credential store using the hidden prompt in `aptly set env OPENAI_API_KEY`, or pass it to the MCP process through a secure execution environment. Do not put it in command arguments, requests, configuration JSON, or the repository. Restart the host or MCP server, then **review and trust the new Hook through `/hooks` in Codex**. See [installation, keys, and registration](docs/guide/en.md#installation).
+Pass the classification key, `OPENAI_API_KEY`, to the MCP process through a secure execution environment. Do not put it in command arguments, requests, configuration JSON, or the repository. Restart the host or MCP server, then **review and trust the new Hook through `/hooks` in Codex**. See [installation, keys, and registration](docs/guide/en.md#installation).
 
 ## Usage modes
 
@@ -46,7 +46,7 @@ Automatic selection targets Codex calls with `fork_turns: "none"` and Claude Cod
 
 ## Documentation
 
-- [CLI configuration](docs/guide/en.md#configure-with-the-cli)
+- [Next-release CLI configuration](docs/guide/en.md#configure-with-the-cli--planned-for-the-next-release)
 - [User guide](docs/guide/en.md): installation and removal, keys, Hooks, direct recommendations, and error recovery
 - [Installation and removal](docs/guide/en.md#installation): global npm installation, host registration, restarting, and trust review
 - [Models and environment variables](docs/guide/en.md#models-and-environment-variables): six default profiles and candidate configuration
