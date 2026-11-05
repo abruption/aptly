@@ -126,7 +126,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### スキップ・削除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" aptly@0.1.0
+APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```

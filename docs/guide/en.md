@@ -126,7 +126,7 @@ See the official [Codex configuration reference](https://learn.chatgpt.com/docs/
 ### Skipping registration and removing it
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install --prefix "$aptly_install" aptly@0.1.0
+APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
