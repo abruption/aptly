@@ -1,15 +1,5 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.1 릴리즈 준비
-
-현재 소스는 **0.1.1 릴리즈 후보**이며 아직 npm에 게시되지 않았습니다. 현재 npm 안정 버전은 0.1.0입니다. 후보에는 CLI 환경 설정·OS 자격 저장소, 인증 누락 시 예산 미예약, 설치 패키지 CI와 갱신한 다국어 안내가 포함됩니다. 변경 목록은 [Changelog](../CHANGELOG.md)를 확인하십시오.
-
-릴리즈 준비 PR을 검토·병합하고 해당 main commit의 CI가 통과한 후 게시를 진행합니다. **`v0.1.1` 태그를 원격에 push하면 실제 npm OIDC 게시가 자동으로 시작됩니다.** 준비 과정에서는 이 태그를 생성·push하거나 기존 태그를 이동하지 않습니다. 태그를 먼저 push한 뒤 dry run으로 확인하는 순서로 진행하지 마십시오.
-
-태그 push 전에는 로컬에서 타입·빌드·무료 시험·fixture MCP·release 검사와 `npm run test:package`를 실행하여 후보 archive와 설치된 compiled CLI를 확인합니다. 실제 게시에는 병합된 commit에서 새 archive를 생성하고 다시 검증하는 Actions를 사용합니다. 후보 archive의 검증과 최종 배포 archive의 검증을 구분하십시오. `workflow_dispatch`의 dry run은 이미 존재하는 태그를 검증하는 기능이며, 새 태그 push의 자동 게시를 취소하지 않습니다.
-
-Windows CI는 합성 자격 저장소와 격리 설정·설치 패키지를 검증합니다. Windows의 실제 Claude Code 또는 Codex 세션 실행을 확인한 결과로 해석하지 마십시오. 이번 준비에서는 실제 키·사용자 호스트 설정·전역 설치를 변경하지 않습니다.
-
 GitHub Actions용 [배포 워크플로](../.github/workflows/publish.yml)를 준비했습니다. 수동 실행의 기본값은 검증과 archive 생성만 수행하는 dry run이며, `v*` 태그 push는 OIDC 게시를 자동 실행합니다. 실제 원격 저장소 생성·push·npm 게시·계정 설정은 이 문서 준비와 별개입니다.
 
 공개 소스 저장소는 [abruption/aptly](https://github.com/abruption/aptly)이며, `package.json`의 `repository.url`에도 같은 주소를 기록했습니다. `aptly` 0.1.0은 `private: false`와 공개 npm registry·provenance·`latest` 게시 설정을 명시합니다. CI는 메타데이터를 임시로 바꾸지 않으며 기본 dry run에서는 게시하지 않습니다.
@@ -100,7 +90,6 @@ npm run build
 npm test
 npm run poc
 npm run check:release
-npm run test:package
 ```
 
 공개 파일 검사는 금지 패턴·symlink·MIT 메타데이터와 닫힌 npm `files` 허용 목록을 확인합니다. Git에 공개할 소스와 npm archive에 넣을 파일의 범위는 다릅니다. npm에는 compiled 제품·예제·README 4개·언어별 가이드 4개·선택한 사용 문서만 포함합니다. 개발 소스·시험·개인 래퍼·원본 증거·자격 파일·로컬 지침은 npm archive에 넣지 않습니다.

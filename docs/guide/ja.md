@@ -4,34 +4,32 @@
 
 [README に戻る](../../README.ja.md)
 
-韓国語版が正本です。このガイドは Aptly 0.1.1 を対象とします。このバージョンが npm で公開される前は、以下のローカルアーカイブからインストールしてください。パッケージをインストールできることは、すべてのアカウントでモデルにアクセスできることを意味しません。子エージェントの実行・承認・サンドボックス・MCP 権限は、Claude Code または Codex が管理します。
+韓国語版が正本です。このガイドは npm で公開した Aptly 0.1.0 を対象とします。パッケージをインストールできることは、すべてのアカウントでモデルにアクセスできることを意味しません。子エージェントの実行・承認・サンドボックス・MCP 権限は、Claude Code または Codex が管理します。
 
 ## インストール
 
-Node.js 24 以上と Claude Code または Codex が必要です。0.1.1 が npm で公開されている場合は、以下のグローバルインストールコマンドを使用してください:
+Node.js 24 以上と Claude Code または Codex の環境にグローバルインストールします:
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@0.1.0
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-npm 公開前は、確認済みのローカルアーカイブを `npm install -g /absolute/path/aptly-0.1.1.tgz` でインストールし、同じ `setup` とバージョン確認を実行してください。以下の CLI 例は、0.1.1 をインストールした環境を対象とします。
-
-`aptly --version` が `0.1.1` を表示することを確認してください。Node.js 環境を切り替えると再インストールが必要な場合があります。
+`aptly --version` が `0.1.0` を表示することを確認してください。Node.js 環境を切り替えると再インストールが必要な場合があります。
 
 `postinstall` は、現在のユーザーの既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使う場合は、インストールプロセスにも同じ環境を渡してください。まだ存在しないホストディレクトリは自動登録ではスキップし、明示的な `setup` で作成できます。必要なホストだけを登録するには、`--client codex` または `--client claude` を使用してください。
 
 新規登録では `ROUTER_PROVIDER=decisions`、Hook の `defaults` ポリシー、ホストごとの非公開台帳を指定します。他の既存設定・Hook と、既存の Aptly のコマンド・環境・provider・台帳パスは保持します。既存の fixture 設定を自動で有料モードに切り替えることはありません。
 
-### CLI による設定
+### CLI による設定 — 次のリリース向け
 
-`set` コマンドは 0.1.1 に含まれ、0.1.0 にはありません。以下の例では、インストールした 0.1.1 の `aptly` を使用します。既存の起動パスは自動で切り替えません。API キー設定は、現在のパッケージの標準 Node/サーバー登録で、OS 資格情報の参照に対応する実行環境だと確認できた場合にのみ使用できます。独自ラッパー、旧バージョン、別のインストール先は `credential_launcher_unverified` で拒否します。登録を明示的に切り替えるかアップグレードしてから、再度実行してください。
+**以下の `set` コマンドは未公開の開発機能であり、npm `0.1.0` では使用できません。** インストール済みの版では既存の `setup` と手動設定手順を使用してください。ソースチェックアウトでは以下の方法で試せます。次のリリース後は `node bin/aptly.ts` を `aptly` に置き換えます。ソースで試す場合は、MCP サーバーも同じ開発ビルドで実行してください。既存の起動パスは自動で切り替えません。API キー設定は、現在のパッケージの標準 Node/サーバー登録で、OS 資格情報の参照に対応する実行環境だと確認できた場合にのみ使用できます。独自ラッパー、旧バージョン、別のインストール先は `credential_launcher_unverified` で拒否します。登録を明示的に切り替えるかアップグレードしてから、再度実行してください。
 
 ```sh
-aptly set default
-aptly set env APTLY_CODEX_MODELS
-aptly set env OPENAI_API_KEY
+node bin/aptly.ts set default
+node bin/aptly.ts set env APTLY_CODEX_MODELS
+node bin/aptly.ts set env OPENAI_API_KEY
 ```
 
 最初のコマンドは Claude Code と Codex を登録し、未設定のデフォルト環境設定を追加します。既存の起動コマンド、環境変数の許可リスト、分類方式、独自の候補、advisory ポリシーは保持します。次のコマンドは入力を表示せずに値を尋ね、指定した変数だけを変更します。最後のコマンドは API キーを OS の資格情報ストアに保存し、選択したホストの起動時に読み込むよう設定します。値をコマンド引数に渡さないでください。
@@ -39,18 +37,18 @@ aptly set env OPENAI_API_KEY
 既定では両ホストを選択します。`--client codex`、`--client claude`、`--client all` で対象を指定できます。Claude 候補には `["haiku","sonnet","opus"]` のような JSON 文字列を入力してください。
 
 ```sh
-aptly set env APTLY_CLAUDE_MODELS --client claude
+node bin/aptly.ts set env APTLY_CLAUDE_MODELS --client claude
 ```
 
 自動化では `--stdin` を明示してください。以下は公開変数の例です。実際のキーを `printf` コマンドやシェル履歴に含めないでください。
 
 ```sh
-printf '%s\n' '["gpt-6.1-terra"]' | aptly set env APTLY_CODEX_MODELS --stdin
+printf '%s\n' '["gpt-6.1-terra"]' | node bin/aptly.ts set env APTLY_CODEX_MODELS --stdin
 ```
 
 設定できる公開キーは `ROUTER_PROVIDER`（`fixture` または `decisions`）、`APTLY_CLAUDE_MODELS`、`APTLY_CODEX_MODELS`、`CLAUDE_MODELS`、`CODEX_MODELS`、`APTLY_MODEL_INFO_PATH` です。候補は対応モデルの JSON 配列文字列で、無効な値、重複、正式名と別名の競合は拒否します。`[]` は該当ホストの推薦を無効にします。モデルキャッシュには非公開ディレクトリ内の絶対パスが必要です。台帳や Hook ポリシーの管理パスはこのコマンドで変更できません。
 
-API キーは macOS Keychain、インストール済みの Linux `secret-tool`、または Windows Credential Manager に保存します。Windows バックエンドは PowerShell と、現在のユーザー範囲の Win32 Generic 資格情報を使用し、UTF-8 データの上限は 2,560 バイトです。Windows CI では、合成キーの保存・読み取り・更新・削除、Unicode パス、分離したホスト設定、キー参照、ACL の保持を確認しました。Windows 上の実際の Claude Code・Codex セッションを実行して検証したものではありません。ストアを利用できない場合はエラーとなり、平文ファイルには切り替えません。キーはホスト別アカウントに分け、MCP ファイルには `APTLY_SECRET_BACKEND=os` と `APTLY_SECRET_CLIENT` の参照だけを保存します。OS ストアを選択した後、キーがない場合や読み取りに失敗した場合も、別の環境変数キーに黙って切り替えません。`set default` は既存のラッパーや環境による認証を保持し、`set env OPENAI_API_KEY` が OS ストア認証を明示的に選択します。
+API キーは macOS Keychain、インストール済みの Linux `secret-tool`、または Windows Credential Manager に保存します。Windows バックエンドは PowerShell と、現在のユーザー範囲の Win32 Generic 資格情報を使用し、UTF-8 データの上限は 2,560 バイトです。バックエンドの実装と Windows のホスト設定全体の実機検証は別であり、後者はまだ完了していません。ストアを利用できない場合はエラーとなり、平文ファイルには切り替えません。キーはホスト別アカウントに分け、MCP ファイルには `APTLY_SECRET_BACKEND=os` と `APTLY_SECRET_CLIENT` の参照だけを保存します。OS ストアを選択した後、キーがない場合や読み取りに失敗した場合も、別の環境変数キーに黙って切り替えません。`set default` は既存のラッパーや環境による認証を保持し、`set env OPENAI_API_KEY` が OS ストア認証を明示的に選択します。
 
 結果にはホストごとの状態と固定エラーコードだけを返し、キーの値は表示しません。`partial` の場合は各ホストを確認してください。`credential_store_failed` ではストアへのアクセスや対応状況を、`credential_rollback_failed` では以前のキーを復元できたかを確認します。失敗したホストの旧キーは可能な場合に復元します。他のホストの成功を、全ホストでの原子的な成功とみなさないでください。
 
@@ -131,7 +129,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### スキップ・削除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.0
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
