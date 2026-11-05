@@ -16,14 +16,19 @@
 
 Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し、あらかじめ許可された実行プロファイルを推薦します。インストールした Hook は、明示的な指定のない新しい汎用サブエージェントのデフォルト値を自動で選択できます。サブエージェントの実行と権限に関する判断は、既存のホストが行います。
 
+独自テストでは、**API 換算コストが約 52～58% 減少しました**。[測定条件と詳細結果](docs/guide/ja.md#費用実測)をご覧ください。
+
 ## クイックスタート
 
-Node.js **24 以上**と Claude Code または Codex が必要です。**MIT ライセンスの Aptly 0.1.0** を npm registry からインストールしてください。
+Node.js **24 以上**と Claude Code または Codex が必要です。[aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0) をグローバルインストールしてください。[ソースタグ v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
+
+バージョン確認コマンドの出力が `0.1.0` であることを確認してください。
 
 インストール時の `postinstall` は、既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。自動登録をスキップした場合や、ホストに設定ディレクトリがまだない場合も、`setup` を明示的に実行して登録できます。他の既存設定・Hook と、既存の Aptly の実行コマンド・環境は保持します。
 
@@ -43,7 +48,7 @@ npm install --prefix ./aptly-local aptly@0.1.0
 
 - [次のリリースの CLI 設定](docs/guide/ja.md#cli-による設定--次のリリース向け)
 - [使用ガイド](docs/guide/ja.md): インストール・削除、キー、Hook、直接推薦、エラー復旧
-- [インストール・削除](docs/guide/ja.md#インストール): npm・ローカルアーカイブのインストール、ホスト登録、再起動と信頼の承認
+- [インストール・削除](docs/guide/ja.md#インストール): npm のグローバルインストール、ホスト登録、再起動と信頼の承認
 - [モデルと環境変数](docs/guide/ja.md#モデルと環境変数): 6 つのデフォルトプロファイルと候補の設定
 - [コンテキストの提供](docs/guide/ja.md#コンテキストの提供): 暗号化されたメッセージとリポジトリ URL の制約
 - [費用実測](docs/guide/ja.md#費用実測): README 翻訳レビューのトークン・換算費用と測定範囲

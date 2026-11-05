@@ -16,14 +16,19 @@
 
 Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허용된 실행 프로필을 추천합니다. 설치한 Hook은 명시 선택이 없는 새 일반 서브에이전트의 기본값을 자동으로 선택할 수 있습니다. 실제 실행과 권한 결정은 기존 호스트가 담당합니다.
 
+자체 테스트에서 **API 환산 비용이 약 52~58% 감소했습니다**. [측정 조건과 상세 결과](docs/guide/ko.md#비용-실측)를 확인하세요.
+
 ## 빠른 시작
 
-Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. **MIT 라이선스의 Aptly 0.1.0**을 npm 레지스트리에서 설치하십시오.
+Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. [aptly@0.1.0](https://www.npmjs.com/package/aptly/v/0.1.0)을 전역 설치하십시오. [소스 태그 v0.1.0](https://github.com/abruption/aptly/tree/v0.1.0)
 
 ```sh
-npm install --prefix ./aptly-local aptly@0.1.0
-./aptly-local/node_modules/.bin/aptly setup --client all --mode defaults
+npm install -g aptly@0.1.0
+aptly setup --client all --mode defaults
+aptly --version
 ```
+
+버전 확인 명령의 출력은 `0.1.0`입니다.
 
 설치 시 `postinstall`은 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. 명시적인 `setup`은 자동 등록을 건너뛰었거나 아직 설정 디렉터리가 없는 호스트에도 사용할 수 있습니다. 기존 다른 설정·Hook과 기존 Aptly 실행 명령·환경은 보존합니다.
 
@@ -43,7 +48,7 @@ npm install --prefix ./aptly-local aptly@0.1.0
 
 - [다음 버전 CLI 설정](docs/guide/ko.md#cli로-설정하기--다음-버전-예정)
 - [사용 가이드](docs/guide/ko.md): 설치·제거, 키, Hook, 직접 추천, 오류 복구
-- [설치·제거](docs/guide/ko.md#설치): npm·로컬 아카이브 설치, 호스트 등록, 재시작과 신뢰 승인
+- [설치·제거](docs/guide/ko.md#설치): npm 전역 설치, 호스트 등록, 재시작과 신뢰 승인
 - [모델과 환경변수](docs/guide/ko.md#모델과-환경변수): 여섯 기본 프로필과 후보 설정
 - [맥락 전달](docs/guide/ko.md#맥락-전달): 암호화된 메시지와 저장소 URL의 한계
 - [비용 실측](docs/guide/ko.md#비용-실측): README 번역 검토의 토큰·환산 비용과 측정 범위
