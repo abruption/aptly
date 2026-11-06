@@ -62,7 +62,13 @@ jobs:
       - name: Verify process-lifetime ledger locks and crash recovery
         env:
           POC_TEST_TMP_ROOT: ${{ runner.temp }}
-        run: node --test test/ledger-lock.test.ts test/ledger-crash.test.ts
+        run: |
+          # Warm the native runtime before the bounded ACL checks; serialize
+          # test files so their first PowerShell startups do not compete.
+          $windowsPowerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          & $windowsPowerShell -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test --test-concurrency=1 test/ledger-lock.test.ts test/ledger-crash.test.ts
   mock-tests:
     name: Node ${{ matrix.node }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
