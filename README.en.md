@@ -30,6 +30,8 @@ aptly --version
 
 Check the installed version with `aptly --version`.
 
+Before upgrading, stop all related host, MCP, and CLI processes and review the ledger transition in the [installation and upgrade guide](docs/guide/en.md#installation).
+
 During installation, `postinstall` registers the MCP server and a `PreToolUse` Hook in existing host configuration directories. Run `setup` explicitly if automatic registration was skipped or a host has no configuration directory yet. Other settings and Hooks, and any existing Aptly launch command and environment, are preserved.
 
 Store the classification key, `OPENAI_API_KEY`, in the OS credential store using the hidden prompt in `aptly set env OPENAI_API_KEY`, or pass it to the MCP process through a secure execution environment. Do not put it in command arguments, requests, configuration JSON, or the repository. Restart the host or MCP server, then **review and trust the new Hook through `/hooks` in Codex**. See [installation, keys, and registration](docs/guide/en.md#installation).

@@ -10,6 +10,8 @@
 
 需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。请使用以下命令全局安装 npm 上的最新稳定版本：
 
+**将现有持久化账本升级到 0.1.2 或更高版本前**，请停止所有可能访问该账本的宿主、MCP 服务器、独立 CLI 和旧版进程。新的持久锁不能与旧版写入进程并用。全新安装无需隔离旧锁。如果仍有旧版空锁，请遵循[账本迁移步骤](#进程中断与账本锁定)，仅在离线状态下隔离已确认的旧锁，并保留 JSON 账本、`unknown` 记录、成本和已完成缓存。
+
 ```sh
 npm install -g aptly@latest
 aptly setup --client all --mode defaults
@@ -56,9 +58,9 @@ API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows C
 
 修改后请重启 MCP，并通过 `get_routing_capabilities` 查看 `provider`、候选和 `credential_status`。`os_store` 仅表示读到了密钥，不代表 API 已通过认证。默认设置和公开变量设置仍会保留自定义包装程序。API 密钥设置不会修改未经确认的启动路径所对应的宿主设置；如果已尝试保存，则会在可能时恢复该宿主的旧密钥。不要假定新密钥会通过现有包装程序自动生效。命令不会绕过 Codex 的 `/hooks` 信任批准或宿主权限。
 
-### 恢复不兼容的启动路径 — 下一版本功能
+### 恢复不兼容的启动路径
 
-npm 0.1.1 不包含以下选项。请使用包含此修复的构建。在源码目录运行 `npm ci --ignore-scripts` 和 `npm run build` 后，将下文的 `aptly` 替换为 `node bin/aptly.ts`。
+以下选项需要 Aptly 0.1.2 或更高版本，npm 0.1.1 不包含这些选项。如需从源码测试，请运行 `npm ci --ignore-scripts` 和 `npm run build`，然后将下文的 `aptly` 替换为 `node bin/aptly.ts`。
 
 密钥设置会在输入和保存前诊断所选宿主。任一宿主失败时，不提示输入，也不修改任何宿主。`--check` 不访问密钥或凭据存储。`credential_node_mismatch`、`credential_server_mismatch` 和 `credential_runtime_unsupported` 分别表示 Node 路径、服务器路径及 OS 存储支持不兼容。
 
@@ -287,9 +289,9 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 
 测量路径为**显式 MCP 推荐 → 将推荐配置作为参数传递给宿主原生调用**。这不是对自动 Hook 的 URL 收集或传递功能的验证。基准组复用了紧接在此前的实测数据，每个条件的样本为 3 次。已确认各次执行读取了完整文档，并检查了原文引用的一致性和输出格式。这些检查不能证明结果质量相同或差异具有统计显著性，也不能保证其他任务会降低成本。
 
-### 进程中断与账本锁定 — 下一版本草案
+### 进程中断与账本锁定
 
-此锁定方案属于下一版本草案，npm `0.1.1` 尚不包含。JSON 账本保留原有的请求 ID、`unknown` 记录、已完成缓存、调用次数和预留成本。只有持久化账本使用 Node.js 24 内置的 SQLite。相邻的 `ledger.json.lock` 在正常退出后仍会保留；仅凭文件存在，不能判断锁仍被占用。新方案在进程退出时释放 OS 锁，后续请求可继续使用同一账本，但不会重试原有的结果不明 ID，也不会退回预留成本。
+此锁定方案需要 Aptly `0.1.2` 或更高版本，npm `0.1.1` 不包含。JSON 账本保留原有的请求 ID、`unknown` 记录、已完成缓存、调用次数和预留成本。只有持久化账本使用 Node.js 24 内置的 SQLite。相邻的 `ledger.json.lock` 在正常退出后仍会保留；仅凭文件存在，不能判断锁仍被占用。新方案在进程退出时释放 OS 锁，后续请求可继续使用同一账本，但不会重试原有的结果不明 ID，也不会退回预留成本。
 
 请将账本和锁放在支持硬链接的本地文件系统私有目录中，并为每个账本使用同一个规范路径。网络共享、云同步目录和路径别名不在支持范围内。不要删除或替换新锁文件及 SQLite journal，也不要在使用期间用其他数据库工具打开它们。仅凭文件年龄或 PID，无法确认所有者已退出。
 

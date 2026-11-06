@@ -10,6 +10,8 @@ Korean is the canonical documentation. This guide covers general Aptly installat
 
 Requires Node.js 24 or later and Claude Code or Codex. Install the latest stable npm release globally:
 
+**Before upgrading an existing persistent ledger to 0.1.2 or later**, stop every host, MCP server, standalone CLI, and older process that can access it. The persistent gate cannot coexist with older writers. Fresh installations need no legacy-lock quarantine. If an old empty lock remains, follow the [ledger transition procedure](#interrupted-processes-and-ledger-locks): quarantine only a confirmed legacy lock while offline and preserve the JSON ledger, `unknown` records, costs, and completed cache.
+
 ```sh
 npm install -g aptly@latest
 aptly setup --client all --mode defaults
@@ -56,9 +58,9 @@ A store timeout or malformed acknowledgement may occur after the OS has written 
 
 Restart MCP, then inspect `provider`, candidates, and `credential_status` with `get_routing_capabilities`. `os_store` means a key was loaded, not that the API authenticated it. Default and public-variable setup continue to preserve custom wrappers. API-key setup does not change host settings for an unverified launch path and restores that host's previous key where possible if storage was already attempted. Do not assume a new key automatically takes effect through an existing wrapper. These commands do not bypass Codex `/hooks` trust or host permissions.
 
-### Recover an incompatible launcher — next release
+### Recover an incompatible launcher
 
-These options are not in npm 0.1.1. Use a build containing this fix. From a source checkout, run `npm ci --ignore-scripts` and `npm run build`, then replace `aptly` below with `node bin/aptly.ts`.
+These options require Aptly 0.1.2 or later and are not in npm 0.1.1. To test from source, run `npm ci --ignore-scripts` and `npm run build`, then replace `aptly` below with `node bin/aptly.ts`.
 
 Key setup diagnoses selected hosts before input or storage. If any host fails, it does not prompt or change any host. `--check` does not access keys or the credential store. `credential_node_mismatch`, `credential_server_mismatch`, and `credential_runtime_unsupported` identify incompatible Node paths, server paths, and OS-store support respectively.
 
@@ -287,9 +289,9 @@ These are USD conversions of measured native tokens at the [official Standard AP
 
 The measured workflow was **explicit MCP recommendation → native execution with the recommended profile passed as arguments**. It did not test automatic Hook URL retrieval or forwarding. The prior benchmark was reused as the control, with three samples per condition. Full-document reads, matching source quotes, and output structure were checked, but the results do not establish equal quality, statistical significance, or savings for other tasks.
 
-### Interrupted processes and ledger locks — next-release draft
+### Interrupted processes and ledger locks
 
-This locking design is a next-release draft and is not included in npm `0.1.1`. The JSON ledger keeps its request IDs, `unknown` records, completed cache, call counts, and reserved costs. Only persistent ledgers use Node.js 24's built-in SQLite. The adjacent `ledger.json.lock` remains after a normal exit; its presence alone does not mean an active lock. With the new design, process exit releases the OS lock so a later request can use the same ledger. It does not retry an existing uncertain ID or refund reserved costs.
+This locking design requires Aptly `0.1.2` or later and is not included in npm `0.1.1`. The JSON ledger keeps its request IDs, `unknown` records, completed cache, call counts, and reserved costs. Only persistent ledgers use Node.js 24's built-in SQLite. The adjacent `ledger.json.lock` remains after a normal exit; its presence alone does not mean an active lock. With the new design, process exit releases the OS lock so a later request can use the same ledger. It does not retry an existing uncertain ID or refund reserved costs.
 
 Keep the ledger and lock in a private directory on a local filesystem that supports hard links, and use one canonical path for each ledger. Network shares, cloud-synced directories, and path aliases are outside the supported scope. Do not delete or replace the new lock or SQLite journal, or open them with another database tool while in use. Age and PID alone do not establish that an owner has exited.
 
