@@ -4,19 +4,19 @@
 
 [Back to README](../../README.en.md)
 
-Korean is the canonical documentation. This guide targets Aptly 0.1.1. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
+Korean is the canonical documentation. This guide covers general Aptly installation and usage. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
 
 ## Installation
 
-Requires Node.js 24 or later and Claude Code or Codex. When 0.1.1 is available on npm, use these global installation commands:
+Requires Node.js 24 or later and Claude Code or Codex. Install the latest stable npm release globally:
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version` should print `0.1.1`. Switching Node.js environments may require reinstalling.
+Use `aptly --version` to check the installed version. Switching Node.js environments may require reinstalling.
 
 `postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
 
@@ -55,6 +55,25 @@ Results contain host statuses and fixed error codes, never key values. Inspect e
 A store timeout or malformed acknowledgement may occur after the OS has written the new value. On failure, Aptly attempts to restore the previous value (or remove the new entry if none existed), then reads it back. `credential_rollback_failed` is added to the original failure codes when recovery cannot be confirmed; do not assume either key is active. Check the OS credential store before retrying. This is best-effort recovery, not an atomic transaction across processes or hosts.
 
 Restart MCP, then inspect `provider`, candidates, and `credential_status` with `get_routing_capabilities`. `os_store` means a key was loaded, not that the API authenticated it. Default and public-variable setup continue to preserve custom wrappers. API-key setup does not change host settings for an unverified launch path and restores that host's previous key where possible if storage was already attempted. Do not assume a new key automatically takes effect through an existing wrapper. These commands do not bypass Codex `/hooks` trust or host permissions.
+
+### Recover an incompatible launcher — next release
+
+These options are not in npm 0.1.1. Use a build containing this fix. From a source checkout, run `npm ci --ignore-scripts` and `npm run build`, then replace `aptly` below with `node bin/aptly.ts`.
+
+Key setup diagnoses selected hosts before input or storage. If any host fails, it does not prompt or change any host. `--check` does not access keys or the credential store. `credential_node_mismatch`, `credential_server_mismatch`, and `credential_runtime_unsupported` identify incompatible Node paths, server paths, and OS-store support respectively.
+
+If only Claude failed, diagnose that host and review migration only when `launcher_migration_available` is returned:
+
+```sh
+aptly set env OPENAI_API_KEY --client claude --check
+aptly setup --client claude --migrate-launcher --dry-run
+aptly setup --client claude --migrate-launcher
+aptly set env OPENAI_API_KEY --client claude
+```
+
+`--dry-run` makes no changes. Migration replaces the Node/server paths of a receipt-matching, Aptly-owned standard registration with the current build. It preserves environment settings, Hooks, policy and other hosts, accesses no credentials, and never executes the old launcher. Custom wrappers and missing or modified ownership records are rejected. Review such registrations locally; use the wrapper's secure environment or a separately reviewed standard registration. Do not edit or delete ownership records to bypass validation.
+
+A successful Codex configuration needs no reset. Retry only the affected host and restart MCP. Codex still requires `/hooks` trust review. Changes after diagnosis stop with `concurrent_configuration_change`. If recovery observes another key or cannot read the current key, it leaves the store unchanged and reports `credential_rollback_failed`. Files and the OS store do not form an atomic transaction; avoid concurrent configuration operations.
 
 ### Keys and restarting
 
@@ -129,7 +148,7 @@ See the official [Codex configuration reference](https://learn.chatgpt.com/docs/
 ### Skipping registration and removing it
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
@@ -267,6 +286,14 @@ All three automatic Hook trials supplied with only the task name abstained with 
 These are USD conversions of measured native tokens at the [official Standard API rates](https://developers.openai.com/api/docs/pricing). They are not actual subscription invoices or measured quota deductions. The Terra figures include the [Decisions classification cost](https://developers.openai.com/api/docs/guides/decisions), $0.0000756 per run. The comparison covers the reviewing subagent and classification; document retrieval, context preparation, and main-agent research costs are excluded.
 
 The measured workflow was **explicit MCP recommendation → native execution with the recommended profile passed as arguments**. It did not test automatic Hook URL retrieval or forwarding. The prior benchmark was reused as the control, with three samples per condition. Full-document reads, matching source quotes, and output structure were checked, but the results do not establish equal quality, statistical significance, or savings for other tasks.
+
+### Interrupted processes and ledger locks — next-release draft
+
+This locking design is a next-release draft and is not included in npm `0.1.1`. The JSON ledger keeps its request IDs, `unknown` records, completed cache, call counts, and reserved costs. Only persistent ledgers use Node.js 24's built-in SQLite. The adjacent `ledger.json.lock` remains after a normal exit; its presence alone does not mean an active lock. With the new design, process exit releases the OS lock so a later request can use the same ledger. It does not retry an existing uncertain ID or refund reserved costs.
+
+Keep the ledger and lock in a private directory on a local filesystem that supports hard links, and use one canonical path for each ledger. Network shares, cloud-synced directories, and path aliases are outside the supported scope. Do not delete or replace the new lock or SQLite journal, or open them with another database tool while in use. Age and PID alone do not establish that an owner has exited.
+
+An old empty `.lock` cannot establish whether its owner is still alive, so it is never initialized or removed automatically. Stop every relevant host, MCP process, and ledger-accessing process, including older versions, and upgrade all writers. Only after confirming that the file belongs to the legacy locking design may you quarantine that file and restart against the same JSON ledger path. Do not reset or delete the ledger, `unknown` records, costs, or completed results. If ownership or format is uncertain, leave access blocked and investigate.
 
 ## Diagnostics and development
 

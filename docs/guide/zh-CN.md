@@ -4,19 +4,19 @@
 
 [返回 README](../../README.zh-CN.md)
 
-韩语文档是正本。本指南以 Aptly 0.1.1 为准。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
+韩语文档是正本。本指南介绍 Aptly 的常规安装与使用方法。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
 
 ## 安装
 
-需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。如果 0.1.1 已发布到 npm，请使用以下全局安装命令：
+需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。请使用以下命令全局安装 npm 上的最新稳定版本：
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-确认 `aptly --version` 输出 `0.1.1`。切换 Node.js 环境后可能需要重新安装。
+请运行 `aptly --version` 确认已安装的版本。切换 Node.js 环境后可能需要重新安装。
 
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
 
@@ -55,6 +55,25 @@ API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows C
 保存超时或响应解析失败也可能发生在 OS 已写入新值之后。失败时会尝试恢复旧值；若原来没有值，则删除新条目，然后重新读取确认。如果无法确认恢复结果，会在原始错误代码之外添加 `credential_rollback_failed`。不要假定任一密钥仍然有效，请在重试前检查 OS 凭据存储。这是尽力恢复，并非跨进程或宿主的原子事务。
 
 修改后请重启 MCP，并通过 `get_routing_capabilities` 查看 `provider`、候选和 `credential_status`。`os_store` 仅表示读到了密钥，不代表 API 已通过认证。默认设置和公开变量设置仍会保留自定义包装程序。API 密钥设置不会修改未经确认的启动路径所对应的宿主设置；如果已尝试保存，则会在可能时恢复该宿主的旧密钥。不要假定新密钥会通过现有包装程序自动生效。命令不会绕过 Codex 的 `/hooks` 信任批准或宿主权限。
+
+### 恢复不兼容的启动路径 — 下一版本功能
+
+npm 0.1.1 不包含以下选项。请使用包含此修复的构建。在源码目录运行 `npm ci --ignore-scripts` 和 `npm run build` 后，将下文的 `aptly` 替换为 `node bin/aptly.ts`。
+
+密钥设置会在输入和保存前诊断所选宿主。任一宿主失败时，不提示输入，也不修改任何宿主。`--check` 不访问密钥或凭据存储。`credential_node_mismatch`、`credential_server_mismatch` 和 `credential_runtime_unsupported` 分别表示 Node 路径、服务器路径及 OS 存储支持不兼容。
+
+如果只有 Claude 失败，按以下顺序诊断，仅在返回 `launcher_migration_available` 时考虑迁移：
+
+```sh
+aptly set env OPENAI_API_KEY --client claude --check
+aptly setup --client claude --migrate-launcher --dry-run
+aptly setup --client claude --migrate-launcher
+aptly set env OPENAI_API_KEY --client claude
+```
+
+`--dry-run` 不修改文件。迁移仅将与所有权记录一致的 Aptly 标准注册的 Node 和服务器路径更新到当前构建，保留环境设置、Hook、策略及其他宿主，不访问凭据，也不执行旧启动程序。自定义包装程序、缺少所有权记录或已修改的注册会被拒绝。请在本地检查此类注册，使用包装程序的安全环境传递方式，或切换到另行审核的标准注册。不要编辑或删除所有权记录以绕过验证。
+
+已成功的 Codex 无需重新设置。仅指定失败的宿主重试，然后重启 MCP。Codex 仍需通过 `/hooks` 审核信任。诊断后的配置变更会以 `concurrent_configuration_change` 中止。恢复时若发现其他密钥或无法读取当前值，不会覆盖存储，而是返回 `credential_rollback_failed`。文件与 OS 存储之间不是原子事务，请避免同时运行配置操作。
 
 ### 密钥与重启
 
@@ -129,7 +148,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### 跳过与移除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
@@ -267,6 +286,14 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 这些数值将宿主记录的实测 token 用量按[官方 Standard API 单价](https://developers.openai.com/api/docs/pricing)换算为 USD，并非实际订阅账单或实际额度扣减。Terra 一侧包括每次 $0.0000756 的 [Decisions 分类费用](https://developers.openai.com/api/docs/guides/decisions)。比较范围是审阅子代理和分类，不包括文档收集、摘要准备或主代理调查的成本。
 
 测量路径为**显式 MCP 推荐 → 将推荐配置作为参数传递给宿主原生调用**。这不是对自动 Hook 的 URL 收集或传递功能的验证。基准组复用了紧接在此前的实测数据，每个条件的样本为 3 次。已确认各次执行读取了完整文档，并检查了原文引用的一致性和输出格式。这些检查不能证明结果质量相同或差异具有统计显著性，也不能保证其他任务会降低成本。
+
+### 进程中断与账本锁定 — 下一版本草案
+
+此锁定方案属于下一版本草案，npm `0.1.1` 尚不包含。JSON 账本保留原有的请求 ID、`unknown` 记录、已完成缓存、调用次数和预留成本。只有持久化账本使用 Node.js 24 内置的 SQLite。相邻的 `ledger.json.lock` 在正常退出后仍会保留；仅凭文件存在，不能判断锁仍被占用。新方案在进程退出时释放 OS 锁，后续请求可继续使用同一账本，但不会重试原有的结果不明 ID，也不会退回预留成本。
+
+请将账本和锁放在支持硬链接的本地文件系统私有目录中，并为每个账本使用同一个规范路径。网络共享、云同步目录和路径别名不在支持范围内。不要删除或替换新锁文件及 SQLite journal，也不要在使用期间用其他数据库工具打开它们。仅凭文件年龄或 PID，无法确认所有者已退出。
+
+旧版空 `.lock` 文件无法证明所有者是否仍存活，因此不会自动初始化或删除。请先停止所有相关宿主、MCP 进程及访问账本的进程，包括旧版本，并升级所有写入进程。只有确认该文件属于旧锁定方案后，才可将其单独隔离，再使用相同的 JSON 账本路径重新启动。请勿重置或删除账本、`unknown` 记录、成本或已完成结果。若无法确认所有者或格式，请保持阻止访问并调查原因。
 
 ## 诊断与开发
 

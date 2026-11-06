@@ -4,19 +4,19 @@
 
 [README로 돌아가기](../../README.md)
 
-한국어가 정본입니다. 이 안내는 Aptly 0.1.1을 기준으로 합니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
+한국어가 정본입니다. 이 안내는 Aptly의 일반적인 설치·사용 방법을 설명합니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
 
 ## 설치
 
-Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. 0.1.1이 npm에 게시된 경우 다음 전역 설치 명령을 사용하십시오:
+Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. npm의 최신 안정 버전을 전역 설치하려면 다음 명령을 사용하십시오:
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version`의 출력은 `0.1.1`이어야 합니다. Node.js 환경을 바꾸면 재설치가 필요할 수 있습니다.
+`aptly --version`으로 설치된 버전을 확인하십시오. Node.js 환경을 바꾸면 재설치가 필요할 수 있습니다.
 
 `postinstall`은 현재 사용자의 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. `CODEX_HOME`·`CLAUDE_CONFIG_DIR`을 사용한다면 설치 프로세스에도 같은 환경을 전달하십시오. 아직 없는 호스트 디렉터리는 자동 등록에서 건너뛰고, 명시적인 `setup`으로 만들 수 있습니다. 필요한 호스트만 등록하려면 `--client codex` 또는 `--client claude`를 사용하십시오.
 
@@ -55,6 +55,25 @@ API 키는 macOS Keychain, Linux의 설치된 `secret-tool`, 또는 Windows Cred
 저장 시간 초과나 응답 해석 실패는 OS가 새 값을 기록한 뒤에도 발생할 수 있습니다. 실패하면 이전 값을 복원하거나, 이전 값이 없었다면 새 항목을 제거한 뒤 재조회합니다. 복구 여부를 확인하지 못하면 원래 오류 코드와 함께 `credential_rollback_failed`를 반환합니다. 어느 키가 활성 상태인지 단정하지 말고 재시도 전에 OS 자격 증명 저장소를 확인하십시오. 이는 가능한 범위의 복구이며 프로세스·호스트 전체의 원자적 트랜잭션이 아닙니다.
 
 변경 후 MCP를 재시작하고 `get_routing_capabilities`의 `provider`, 후보 목록, `credential_status`를 확인하십시오. `os_store`는 저장소에서 키를 읽었다는 뜻이며 API 유효성 검증은 아닙니다. 기본 설정과 일반 변수 설정은 기존 사용자 지정 래퍼를 보존합니다. API 키 설정은 호환성이 확인되지 않은 실행 경로의 호스트 설정을 변경하지 않으며, 이미 저장을 시도했다면 해당 호스트의 이전 키를 가능한 경우 복원합니다. 새 키가 기존 래퍼에도 자동 적용된다고 가정하지 마십시오. 명령은 Codex의 `/hooks` 신뢰 승인이나 호스트 권한을 우회하지 않습니다.
+
+### 실행 경로 오류 복구 — 다음 릴리스 예정
+
+아래 옵션은 npm 0.1.1에는 없습니다. 이 수정이 포함된 빌드에서 사용하십시오. 개발 소스에서는 `npm ci --ignore-scripts`와 `npm run build` 후 `aptly` 대신 `node bin/aptly.ts`를 사용합니다.
+
+키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
+
+Claude만 실패했다면 다음 순서로 진단하고, `launcher_migration_available`일 때만 이전을 검토하십시오:
+
+```sh
+aptly set env OPENAI_API_KEY --client claude --check
+aptly setup --client claude --migrate-launcher --dry-run
+aptly setup --client claude --migrate-launcher
+aptly set env OPENAI_API_KEY --client claude
+```
+
+`--dry-run`은 변경하지 않습니다. 이전 명령은 소유 기록과 일치하는 Aptly 표준 등록의 Node·서버 경로를 현재 빌드로 바꿉니다. 기존 환경·Hook·정책·다른 호스트는 보존하며 키를 읽거나 저장하지 않습니다. 오래된 실행 파일을 실행하지 않습니다. 사용자 래퍼, 소유 기록이 없거나 수정된 등록은 거절합니다. 이 경우 로컬에서 등록을 검토하고 래퍼의 안전한 환경 전달을 사용하거나 별도로 검토한 표준 등록으로 전환하십시오. 소유 기록을 삭제하거나 편집해 검증을 우회하지 마십시오.
+
+이미 성공한 Codex는 재설정할 필요가 없습니다. 실패한 호스트만 지정해 재시도하고 MCP를 재시작하십시오. Codex를 대상으로 하면 `/hooks` 신뢰 검토가 계속 필요합니다. 진단 이후 설정 변경은 `concurrent_configuration_change`로 중단합니다. 저장 실패 후 다른 키가 관찰되거나 현재 키를 읽지 못하면 덮어쓰지 않고 `credential_rollback_failed`를 반환합니다. 파일과 OS 저장소 사이의 원자적 트랜잭션은 아니므로 다른 설정 작업을 동시에 실행하지 마십시오.
 
 ### 키와 재시작
 
@@ -129,7 +148,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### 건너뛰기·제거
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
@@ -267,6 +286,14 @@ Codex가 자식 `message`를 암호문으로 Hook에 전달하는 환경에서�
 호스트에 기록된 실측 토큰에 [공식 Standard API 단가](https://developers.openai.com/api/docs/pricing)를 적용한 USD 환산값입니다. 구독 실청구액이나 실제 한도 차감액은 아닙니다. Terra 쪽에는 [Decisions 분류 비용](https://developers.openai.com/api/docs/guides/decisions) 회당 $0.0000756을 포함했습니다. 비교 범위는 검토 자식 에이전트와 분류이며 문서 수집·요약 준비·메인 에이전트 조사 비용은 제외했습니다.
 
 측정은 **명시적 MCP 추천 → 추천 프로필을 인자로 전달한 호스트의 기본 실행**입니다. 자동 Hook의 URL 수집·전달 기능 검증이 아닙니다. 기준군은 직전 실측을 재사용했고 조건별 표본은 3회입니다. 문서 전체 읽기·원문 인용 일치·출력 형식은 확인했지만 품질 동등성, 통계적 유의성, 다른 업무의 절감을 보장하지 않습니다.
+
+### 중단된 프로세스와 원장 잠금 — 다음 버전 초안
+
+이 잠금 방식은 npm `0.1.1`에 포함되지 않은 다음 버전 초안입니다. JSON 원장의 요청 ID·`unknown`·완료 캐시·호출 수·비용 예약 형식은 유지합니다. 영속 원장에만 Node.js 24 내장 SQLite를 사용하며, 원장 옆의 `ledger.json.lock`은 정상 종료 후에도 남는 잠금 파일입니다. 파일이 있다는 사실만으로 활성 잠금을 뜻하지 않습니다. 새 방식에서는 프로세스 종료 시 OS 잠금이 해제되므로 후속 요청이 같은 원장을 다시 사용할 수 있습니다. 결과가 불명확했던 기존 ID를 재호출하거나 예약 비용을 되돌리지는 않습니다.
+
+원장과 잠금 파일은 하드 링크를 지원하는 로컬 파일시스템의 비공개 디렉터리에 두고, 하나의 원장을 동일한 정규 경로로 사용하십시오. 네트워크 공유·클라우드 동기화 디렉터리·경로 별칭은 지원 범위가 아닙니다. 새 잠금 파일과 SQLite journal을 삭제·교체하거나, 사용 중 다른 DB 도구로 열지 마십시오. 잠금 파일의 나이와 PID만으로 소유자가 종료됐다고 판단하지 않습니다.
+
+이전 버전의 빈 `.lock` 파일은 살아 있는 소유자가 있는지 확인할 수 없어 자동으로 초기화하거나 제거하지 않습니다. 구버전을 포함한 모든 관련 호스트·MCP·원장 접근 프로세스를 정지하고, 모든 writer를 새 버전으로 전환하십시오. 파일이 기존 방식의 잠금임을 확인한 경우에만 그 파일을 별도로 격리한 뒤 같은 JSON 원장 경로로 다시 시작합니다. 원장·`unknown`·비용·완료 결과는 초기화하거나 삭제하지 마십시오. 소유자나 형식을 확신할 수 없으면 차단 상태를 유지하고 조사하십시오.
 
 ## 진단과 개발
 
