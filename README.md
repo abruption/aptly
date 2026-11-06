@@ -6,7 +6,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/aptly)](https://www.npmjs.com/package/aptly)
 [![MIT license](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/abruption/aptly/blob/main/LICENSE)
 
-**Model and reasoning recommendations for subagents.**
+**Model and reasoning recommendations for subagents, powered by the OpenAI Decisions API.**
 
 **한국어** · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
