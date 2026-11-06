@@ -13,6 +13,7 @@ import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvir
 import { readEnvironmentValue } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { updateGlobalInstallation } from '../src/update.ts';
+import { updateNotification } from '../src/update-notifier.ts';
 const [command='serve',...args]=process.argv.slice(2);
 const output=(value:unknown)=>process.stdout.write(JSON.stringify(value,null,2)+'\n');
 try {
@@ -101,4 +102,12 @@ try {
  const setCodes=['set_environment_key_unsupported','set_invalid_options','set_value_too_large','set_interactive_input_required','set_input_cancelled'];
  const code=command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):configCode??'operation_failed';
  process.stderr.write('aptly: '+code+'\n');process.exitCode=1;
+}
+finally {
+ if(!process.exitCode){
+  try {
+   const hint=await updateNotification({command,args,env:process.env,stdinIsTTY:!!process.stdin.isTTY,stderrIsTTY:!!process.stderr.isTTY,stdoutIsTTY:!!process.stdout.isTTY,currentVersion:VERSION});
+   if(hint)process.stderr.write(hint+'\n');
+  } catch { /* Optional update hints cannot fail a successful command. */ }
+ }
 }
