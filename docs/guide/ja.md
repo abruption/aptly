@@ -4,19 +4,19 @@
 
 [README に戻る](../../README.ja.md)
 
-韓国語版が正本です。このガイドは Aptly 0.1.1 を対象とします。パッケージをインストールできることは、すべてのアカウントでモデルにアクセスできることを意味しません。子エージェントの実行・承認・サンドボックス・MCP 権限は、Claude Code または Codex が管理します。
+韓国語版が正本です。このガイドでは Aptly の基本的なインストール方法と使い方を説明します。パッケージをインストールできることは、すべてのアカウントでモデルにアクセスできることを意味しません。子エージェントの実行・承認・サンドボックス・MCP 権限は、Claude Code または Codex が管理します。
 
 ## インストール
 
-Node.js 24 以上と Claude Code または Codex が必要です。0.1.1 が npm で公開されている場合は、以下のグローバルインストールコマンドを使用してください:
+Node.js 24 以上と Claude Code または Codex が必要です。npm の最新安定版をグローバルにインストールするには、次のコマンドを実行してください:
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version` が `0.1.1` を表示することを確認してください。Node.js 環境を切り替えると再インストールが必要な場合があります。
+`aptly --version` でインストール済みのバージョンを確認してください。Node.js 環境を切り替えると再インストールが必要な場合があります。
 
 `postinstall` は、現在のユーザーの既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使う場合は、インストールプロセスにも同じ環境を渡してください。まだ存在しないホストディレクトリは自動登録ではスキップし、明示的な `setup` で作成できます。必要なホストだけを登録するには、`--client codex` または `--client claude` を使用してください。
 
@@ -129,7 +129,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### スキップ・削除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
