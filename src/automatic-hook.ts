@@ -4,7 +4,7 @@ import { closeSync, openSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { Router } from './core.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
-import { hookInput, hookOutput } from './hook.ts';
+import { hookInput, hookOutput, validatedHookProfile, profilePreservesChoices, effortKeys } from './hook.ts';
 import type { HookOutput } from './hook.ts';
 import { digestToolInput } from './provenance.ts';
 import type { Client, RoutingPolicy, UnknownRecord } from './types.ts';
@@ -18,7 +18,14 @@ export interface AutoPolicy {
   state_directory: string;
 }
 export interface AutomaticHookObservation {
-  status: 'applied' | 'advisory' | 'preserved';
+  status: 'arguments_updated' | 'advisory' | 'preserved' | 'pending';
+  preflight: 'observed';
+  correlation_id?: string;
+  classification: 'unknown' | 'evaluating' | 'not_requested' | 'provider_requested' | 'cache_hit' | 'local_outcome';
+  recommendation: 'not_produced' | 'produced';
+  application: 'not_attempted' | 'blocked' | 'arguments_updated';
+  execution: 'not_observed';
+  constraint_provenance: 'unknown';
   reason: string;
   profile_id?: string;
   request_id?: string;
@@ -34,6 +41,8 @@ export interface AutomaticHookOptions {
   /** Internal configuration only: callers read APTLY_HOOK_POLICY_PATH, never MCP arguments. */
   policyPath?: unknown;
   signal?: AbortSignal;
+  /** Internal diagnostics callback; never supplied through native tool arguments. */
+  onObservation?: (observation: AutomaticHookObservation) => void;
   /** A caller may revoke the pending event; absence does not certify native dispatch. */
   stillCurrent?: () => boolean | Promise<boolean>;
 }
@@ -83,14 +92,29 @@ function readCall(client: unknown, event: unknown): NativeCall | null {
 }
 function preservation(call: NativeCall): string | null {
   const input = call.input;
-  if (own(input, 'model')) return 'explicit_model';
-  if (['effort', 'reasoning_effort', 'model_reasoning_effort'].some(key => own(input, key))) return 'explicit_effort';
   if (['resume', 'resume_agent', 'agent_id'].some(key => own(input, key))) return 'resumed_agent';
   if (['role', 'agent_type'].some(key => own(input, key)) ||
-    (call.client === 'claude' && input.subagent_type !== 'general-purpose')) return 'fixed_role';
-  if (['fork_context', 'fork', 'fork_session', 'inherit_history'].some(key => own(input, key)) ||
-    (call.client === 'codex' ? input.fork_turns !== 'none' : own(input, 'fork_turns'))) return 'inherited_fork';
+    (call.client === 'claude' && input.subagent_type !== 'general-purpose') ||
+    (call.client === 'codex' && own(input,'subagent_type'))) return 'fixed_role';
   return null;
+}
+/** History semantics are checked at application, not used to suppress task advice. */
+function applicationConstraint(call: NativeCall): string | null {
+  if (['fork_context','fork','fork_session','inherit_history'].some(key=>own(call.input,key))) return 'history_semantics_unverified';
+  if (call.client==='codex' && call.input.fork_turns!=='none') return 'inherited_context_model_incompatible';
+  if (call.client==='claude' && own(call.input,'fork_turns')) return 'history_semantics_unverified';
+  // Only reasoning_effort has an application contract for native Codex spawns.
+  if (effortKeys.some(key=>key!=='reasoning_effort'&&own(call.input,key))) return 'effort_argument_unsupported';
+  return null;
+}
+export function automaticCallId(client: unknown,event: unknown): string | undefined {
+  const call=readCall(client,event);
+  return call?hash(['aptly-observation-v1',call.callKey,call.payloadDigest]):undefined;
+}
+export function initialHookObservation(client:unknown,event:unknown):AutomaticHookObservation {
+  const id=automaticCallId(client,event);
+  return {status:'pending',reason:'preflight_pending',preflight:'observed',...(id?{correlation_id:id}:{}),
+    classification:'not_requested',recommendation:'not_produced',application:'not_attempted',execution:'not_observed',constraint_provenance:'unknown'};
 }
 function catalogFingerprint(policy: RoutingPolicy): string {
   return hash([policy.version, policy.catalog_version, policy.provider_id ?? null, policy.profiles, policy.profile_descriptions ?? {}]);
@@ -147,8 +171,9 @@ function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: strin
 }
 
 /** Operator default selection only. No provenance_verified/evidence_verified host claim. */
-export async function automaticHook({ client, event, router, policyPath, signal, stillCurrent }: AutomaticHookOptions): Promise<AutomaticHookResult> {
-  const preserve = (reason: string, request_id?: string): AutomaticHookResult => ({ output: {}, observation: { status: 'preserved', reason, ...(request_id ? { request_id } : {}) } });
+export async function automaticHook({ client, event, router, policyPath, signal, stillCurrent, onObservation }: AutomaticHookOptions): Promise<AutomaticHookResult> {
+  const observation=initialHookObservation(client,event);
+  const preserve = (reason: string, request_id?: string): AutomaticHookResult => ({ output: {}, observation: { ...observation, status: 'preserved', reason, ...(request_id ? { request_id } : {}) } });
   try {
     const loaded = loadAutomaticHookPolicy(policyPath);
     if (!loaded.policy || !loaded.policy.enabled || !loaded.fingerprint) return preserve(loaded.reason);
@@ -156,6 +181,10 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if (!call) return preserve('invalid_event');
     const pinned = preservation(call);
     if (pinned) return preserve(pinned);
+    const hasModel=own(call.input,'model'),hasEffort=effortKeys.some(key=>own(call.input,key));
+    if (hasModel && (hasEffort || call.client==='claude')) return preserve('explicit_model');
+    const profiles=router.policy.profiles.filter(profile=>profile.client===call.client&&profilePreservesChoices(call.input,profile));
+    if(!profiles.length)return preserve(hasModel?'explicit_model':hasEffort?'explicit_effort':'no_candidates');
     // Synthetic fixture output must never select a native child's defaults.
     if (loaded.policy.mode === 'defaults' && router.policy.provider_id !== 'decisions') return preserve('synthetic_provider');
     const summary = boundedSummary(call, router.policy.max_summary_bytes);
@@ -175,11 +204,19 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if (!bound.request_id) return preserve(bound.reason ?? 'automatic_state_unavailable');
     const request_id = bound.request_id;
     const snapshot = structuredClone(call.event);
+    observation.classification='evaluating';
+    observation.request_id=request_id;
+    try { onObservation?.({...observation}); } catch { /* Diagnostics do not change routing. */ }
+    // These flags describe selection of the remaining defaults only. Explicit
+    // values constrain the candidate tuples; history is rechecked before application.
     const recommendation = await router.advise({ request_id, client: call.client,
       task: { summary: summary.summary, operation: 'analysis', context_sufficient: true },
-      eligible_profile_ids: router.policy.profiles.filter(profile => profile.client === call.client).map(profile => profile.id),
+      eligible_profile_ids: profiles.map(profile=>profile.id),
       constraints: { model_pinned: false, effort_pinned: false, role_pinned: false, fork_inherits: false },
     });
+    observation.classification=recommendation.cached?'cache_hit':typeof recommendation.latency_ms==='number'?'provider_requested':'local_outcome';
+    const profile=validatedHookProfile(client,recommendation,router.policy);
+    if(profile&&profiles.some(candidate=>candidate.id===profile.id)){observation.recommendation='produced';observation.profile_id=profile.id;observation.application='blocked';}
     if (signal?.aborted || (stillCurrent && await stillCurrent() !== true)) return preserve('call_cancelled', request_id);
     const current = readCall(client, event), policyNow = loadAutomaticHookPolicy(policyPath);
     if (!current || current.callKey !== call.callKey || current.digest !== call.digest || current.payloadDigest !== call.payloadDigest) return preserve('call_changed', request_id);
@@ -187,17 +224,24 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if (catalogFingerprint(router.policy) !== catalog) return preserve('catalog_changed', request_id);
     // The existing narrow catalog/tuple validator is reused. This local flag is an
     // operator-policy decision, never a claim about complete host-setting evidence.
-    const candidate = hookOutput({ client, event: snapshot, recommendation, mode: 'apply', compatibilityVerified: true, policy: router.policy });
-    if (!candidate.hookSpecificOutput || recommendation.status !== 'recommended') {
+    if (!profile || observation.recommendation!=='produced') {
       const allowed = ['preserved_constraints', 'unsupported_profile', 'invalid_response', 'invalid_choice', 'provider_abstained', 'no_candidates', 'insufficient_context',
         'provider_needs_context', 'budget_exhausted', 'concurrency_limit', 'ledger_locked', 'request_conflict', 'outcome_unknown', 'ledger_error', 'timeout', 'refused',
         'truncated', 'invalid_json', 'unauthorized', 'rate_limited', 'network', 'provider_error', 'sensitive_input', 'invalid_input'];
       return preserve(allowed.includes(recommendation.reason) ? recommendation.reason : 'recommendation_unavailable', request_id);
     }
-    const profile = router.policy.profiles.find(profile => profile.id === recommendation.profile_id && profile.client === call.client)!;
+    const blocked=applicationConstraint(call);
+    if(blocked){
+      const kept=preserve(blocked,request_id);
+      const next=blocked==='effort_argument_unsupported'?'The caller must review the native reasoning_effort argument spelling; Aptly never rewrites an explicit choice.':'For independent work only, the caller may explicitly choose a fresh child with sufficient standalone task context. Aptly never changes history automatically.';
+      kept.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next}`}};
+      return kept;
+    }
+    const candidate = hookOutput({ client, event: snapshot, recommendation, mode: 'apply', compatibilityVerified: true, policy: router.policy,fillUnspecified:true });
+    if(!candidate.hookSpecificOutput)return preserve('application_unsupported',request_id);
     if (loaded.policy.mode === 'advisory') return { output: { hookSpecificOutput: { hookEventName: 'PreToolUse',
       additionalContext: `Aptly suggests ${profile.model}${profile.reasoning_effort ? ` with ${profile.reasoning_effort} reasoning effort` : ''} for this task (${profile.id}). This is task advice; the host retains execution and permission decisions.` } },
-      observation: { status: 'advisory', reason: 'operator_policy_advice', profile_id: profile.id, request_id } };
-    return { output: candidate, observation: { status: 'applied', reason: 'operator_policy_defaults', profile_id: profile.id, request_id } };
-  } catch { return preserve('automatic_hook_unavailable'); }
+      observation: { ...observation, status: 'advisory', application:'not_attempted', reason: 'operator_policy_advice', profile_id: profile.id, request_id } };
+    return { output: candidate, observation: { ...observation, status: 'arguments_updated', application:'arguments_updated', reason: 'operator_policy_defaults', profile_id: profile.id, request_id } };
+  } catch { if(observation.classification==='evaluating')observation.classification='unknown';return preserve('automatic_hook_unavailable'); }
 }

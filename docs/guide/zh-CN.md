@@ -203,16 +203,15 @@ aptly remove --client all
 
 ## 自动 Hook
 
-已连接的目标调用会自动经过 `route_spawn_hook` → Decisions。`defaults` 是由操作者明确允许的策略，可在上述范围内优先采用 Aptly 的选择，而非宿主的默认模型。这并不表示已观测到宿主的全部配置来源。
+**以下行为面向下一版本，npm 0.1.3 尚不支持。** 已安装的 `PreToolUse` matcher 会在原生执行前，将 Codex 的 `spawn_agent` / `collaborationspawn_agent` / `Agent` 和 Claude Code 的 `Agent` 交给本地 `route_spawn_hook`。宿主必须加载并信任 Hook，且连接 MCP。Aptly 无法强制拦截未配置、不支持的宿主或 MCP 不可用的情况；执行仍由宿主负责。
 
-| 宿主 | 自动选择的适用范围 |
-|---|---|
-| Codex | 未指定模型、effort、固定角色或 resume，且 `fork_turns: "none"` 的新建通用调用 |
-| Claude Code | 未指定模型、effort、固定角色、resume 或历史继承，且 `subagent_type: "general-purpose"` 的调用 |
+本地预检评估显式字段、角色、resume、策略、缓存和预算。不是每次调用都需要新的付费 Decisions 请求。Codex 只指定模型或 effort 时，候选仅限于匹配的允许组合，只填写未指定字段。两者都指定、不支持的值、固定角色和 resume 均在本地保留，不进行分类。仅凭输入无法断定某个字段来自用户还是宿主默认值。
 
-明确指定的选择、角色、fork、resume、审批、沙箱与 MCP 权限设置均会保留。fixture 结果不会自动修改默认模型。如果上下文不足、响应不受支持、调用被取消或已发生变化，则保留现有参数。系统会将输入、策略和候选配置集合与同一次调用绑定，并在收到异步响应后重新确认。
+模型和 effort 未指定时，`fork_turns: "all"` 或省略 fork 也会评估推荐，但**不会改变历史**。Codex 应用模型和 effort 仍要求显式 `fork_turns: "none"`，否则报告 `inherited_context_model_incompatible` 并保留原始参数。其他历史字段以 `history_semantics_unverified` 阻止应用；Claude 也只对没有历史约束的通用调用应用推荐。生成推荐不等于已应用。
 
-未额外配置的 CLI 与现有手动配置默认使用 fixture / shadow。请区分未启用自动策略、依据宿主配置来源证据进行判断的既有路径，与安装后用于选择默认值的策略。宿主内部补丁工作处于暂停状态，不是直接推荐的前提条件。
+仅对独立任务，由调用方提供充分的独立任务上下文并明确选择新子代理。Aptly 不会将 `all` 改成 `none`，删除历史或覆盖显式模型和 effort。[合成的继承与新子代理示例](../../examples/spawn-preflight.codex.json)是不同请求，不是自动重试。不要用新 ID 重试结果不明的付费调用。
+
+`defaults` 允许兼容的参数更新，`advisory` 只提供建议。继承调用和部分指定的调用即使无法应用推荐，也可能向 Decisions 发送受限任务摘录；继承历史不是关闭共享的方式。策略关闭、上下文不足、预算限制、失败及取消时均保留执行约束。输入、策略和候选绑定、去重及未知结果保护保持不变，fixture 推荐不改写原生默认值。没有自动策略时的 strict 证据路径仍是独立路径；宿主内部补丁继续暂停。
 
 | MCP 工具 | 用途 |
 |---|---|
@@ -220,6 +219,7 @@ aptly remove --client all
 | `recommend_agent` | 根据任务摘要获取直接推荐 |
 | `get_routing_precedence` | 解释调用的保留依据与未确认的配置来源 |
 | `route_spawn_hook` | 根据已安装的策略选择目标调用的默认值，或仅传递推荐 |
+| `get_spawn_routing_observation` | 查询完全匹配的 Hook 调用，不证明原生执行 |
 
 ### 对外传输与关闭自动共享
 
@@ -312,7 +312,7 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 
 在 Codex 将子代理 `message` 以密文传递给 Hook 的环境中，Aptly 不会读取或解密正文。此时只使用足够具体的明文 `task_name` 作为摘要，例如用 `sort_supplied_numbers_3_1_2_ascending_without_tools` 说明任务类型与范围。名称过短或含糊时保留原有模型。对于 Claude Code 或传递明文正文的调用，则使用所提供正文的摘要。
 
-通过 `get_routing_capabilities` 的 `automatic_hook.last_result`，可查看该 MCP 进程最后一次应用或保留的原因。`null` 表示尚无自动 Hook 处理记录。该诊断不会返回任务正文或个人配置值。
+使用相同的 `client` 和原始 Hook `event` 调用 `get_spawn_routing_observation`，查询对应调用。它返回哈希关联 ID，并区分预检、分类/缓存结果、推荐、参数更新/应用受阻，以及 `execution: not_observed`。`arguments_updated` 只表示 Hook 输出的参数，不是实际子代理模型的观测。记录仅保留在当前 MCP 进程，最多 128 条、10 分钟。`not_observed` 也可能源于其他进程、重启、过期、淘汰或输入不匹配，不能证明全局绕过 Hook。进程级 `automatic_hook.last_result` 已移除，不返回原始任务、路径、会话 ID 或凭据。
 
 直接推荐的摘要可以同时包含仓库、文件 URL，以及阅读文档后整理的任务范围、规模和约束。发送 URL 字符串与提供文档正文不同。目前 Aptly 的分类请求处理代码不会向仓库 URL 发起 GET 请求，也不会获取文档正文。所需的文档读取和摘要由调用方完成。
 

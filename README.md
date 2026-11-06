@@ -40,11 +40,11 @@ aptly --version
 
 | 방식 | 동작 |
 |---|---|
-| 자동 Hook | 모델·effort·고정 역할·이력 상속·resume을 지정하지 않은 새 일반 호출의 기본값을 선택합니다 |
+| 자동 Hook | 새 호출의 제약을 검사하고 미지정 기본값을 추천합니다 |
 | 직접 추천 | `recommend_agent` 또는 `aptly recommend`로 프로필을 받고 호스트에서 명시적으로 실행합니다 |
 | fixture | 키·네트워크 없이 시험용 추천을 확인합니다. 실제 Decisions 결과가 아닙니다 |
 
-자동 선택 대상은 Codex의 `fork_turns: "none"`, Claude Code의 `subagent_type: "general-purpose"` 호출입니다. 명시 선택이나 맥락 부족·인증·연결 오류가 있으면 원래 호출을 유지합니다. 추천은 모델 접근 권한이나 호스트 전체 설정의 확인을 뜻하지 않습니다.
+다음 릴리스에서는 상속 호출도 추천을 평가합니다. Codex의 적용은 명시적인 `fork_turns: "none"`, Claude Code는 이력 제약 없는 일반 호출로 제한하며 명시한 필드는 보존합니다. 추천·Hook 인자 변경·실제 자식 실행은 별개입니다. 이 동작은 npm 0.1.3에 없으며 [가이드](docs/guide/ko.md#자동-hook)에서 확인할 수 있습니다.
 
 ## 문서
 

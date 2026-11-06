@@ -1,0 +1,30 @@
+{
+  "inherited_request": {
+    "client": "codex",
+    "event": {
+      "hook_event_name": "PreToolUse",
+      "session_id": "synthetic-session",
+      "tool_use_id": "synthetic-inherited-call",
+      "tool_name": "spawn_agent",
+      "tool_input": {
+        "task_name": "sort_supplied_numbers_without_tools",
+        "message": "Sort the supplied numbers [3, 1, 2] in ascending order. Return only the sorted list.",
+        "fork_turns": "all"
+      }
+    }
+  },
+  "intentional_independent_request": {
+    "client": "codex",
+    "event": {
+      "hook_event_name": "PreToolUse",
+      "session_id": "synthetic-session",
+      "tool_use_id": "synthetic-independent-call",
+      "tool_name": "spawn_agent",
+      "tool_input": {
+        "task_name": "sort_supplied_numbers_without_tools",
+        "message": "This independent task requires no prior conversation. Sort [3, 1, 2] in ascending order and return only the sorted list. No files or tools are needed.",
+        "fork_turns": "none"
+      }
+    }
+  }
+}
