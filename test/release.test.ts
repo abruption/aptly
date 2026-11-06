@@ -122,6 +122,7 @@ test('package audit rejects stale or unexpected compiled CLI entrypoints', () =>
 });
 
 test('npm can bundle the advisory guide without opening the whole docs namespace', () => {
+  assert.equal(auditFiles(baseline({ packageFiles: ['docs/SPAWN_CONTEXT.md'], packageMetadata: {license:'MIT',files:['docs/SPAWN_CONTEXT.md']} })).passed,true);
   assert.equal(auditFiles(baseline({ packageFiles: ['docs/ADVISORY_USAGE.md'], packageMetadata: {license:'MIT',files:['docs/ADVISORY_USAGE.md']} })).passed,true);
   for(const path of ['docs/HOST_DISPATCH_CONTRACT.md','docs/CODEX_PROVENANCE_PATCH.md','docs/private.md']){
     assert.ok(codes(auditFiles(baseline({packageFiles:[path]}))).includes('disallowed_package_path'));

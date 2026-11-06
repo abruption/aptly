@@ -40,6 +40,8 @@ export interface AutomaticHookOptions {
   router: Router;
   /** Internal configuration only: callers read APTLY_HOOK_POLICY_PATH, never MCP arguments. */
   policyPath?: unknown;
+  /** Internal process-local handoff; never accepted as native policy/provenance. */
+  context?: () => { summary?: string; fingerprint?: string; reason?: string } | undefined;
   signal?: AbortSignal;
   /** Internal diagnostics callback; never supplied through native tool arguments. */
   onObservation?: (observation: AutomaticHookObservation) => void;
@@ -107,6 +109,10 @@ function applicationConstraint(call: NativeCall): string | null {
   if (effortKeys.some(key=>key!=='reasoning_effort'&&own(call.input,key))) return 'effort_argument_unsupported';
   return null;
 }
+export function automaticCallIdentity(client: unknown, event: unknown): {key:string;id:string} | undefined {
+  const call=readCall(client,event);
+  return call?{key:call.callKey,id:hash(['aptly-observation-v1',call.callKey,call.payloadDigest])}:undefined;
+}
 export function automaticCallId(client: unknown,event: unknown): string | undefined {
   const call=readCall(client,event);
   return call?hash(['aptly-observation-v1',call.callKey,call.payloadDigest]):undefined;
@@ -150,9 +156,9 @@ function boundedSummary(call: NativeCall, maxBytes: number): { summary?: string;
   for (const point of first) { const size = Buffer.byteLength(point); if (bytes + size > budget) break; clipped += point; bytes += size; }
   return { summary: prefix + clipped };
 }
-function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: string, catalog: string): { request_id?: string; reason?: string } {
-  const binding = { schema_version: 1, input_digest: call.digest, payload_digest: call.payloadDigest, policy_fingerprint: policyFingerprint, catalog_fingerprint: catalog,
-    request_id: hash(['aptly-auto-hook-v1', call.callKey, call.payloadDigest, policyFingerprint, catalog]) };
+function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: string, catalog: string, contextDigest?: string): { request_id?: string; reason?: string } {
+  const binding = { ...(contextDigest ? {context_digest:contextDigest} : {}), schema_version: 1, input_digest: call.digest, payload_digest: call.payloadDigest, policy_fingerprint: policyFingerprint, catalog_fingerprint: catalog,
+    request_id: hash(['aptly-auto-hook-v1', call.callKey, call.payloadDigest, policyFingerprint, catalog, ...(contextDigest?[contextDigest]:[])]) };
   const path = join(policy.state_directory, `hook-call-${call.callKey}.json`);
   let fd: number | undefined;
   try {
@@ -175,7 +181,7 @@ function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: strin
 }
 
 /** Operator default selection only. No provenance_verified/evidence_verified host claim. */
-export async function automaticHook({ client, event, router, policyPath, signal, stillCurrent, onObservation }: AutomaticHookOptions): Promise<AutomaticHookResult> {
+export async function automaticHook({ client, event, router, policyPath, signal, context, stillCurrent, onObservation }: AutomaticHookOptions): Promise<AutomaticHookResult> {
   const observation=initialHookObservation(client,event);
   const preserve = (reason: string, request_id?: string): AutomaticHookResult => ({ output: {}, observation: { ...observation, status: 'preserved', reason, ...(request_id ? { request_id } : {}) } });
   try {
@@ -191,7 +197,10 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if(!profiles.length)return preserve(hasModel?'explicit_model':hasEffort?'explicit_effort':'no_candidates');
     // Synthetic fixture output must never select a native child's defaults.
     if (loaded.policy.mode === 'defaults' && router.policy.provider_id !== 'decisions') return preserve('synthetic_provider');
-    const summary = boundedSummary(call, router.policy.max_summary_bytes);
+    const supplied = context?.();
+    if (supplied?.reason) return preserve(supplied.reason);
+    const summary = supplied?.summary ? supplied : boundedSummary(call, router.policy.max_summary_bytes);
+    if (Buffer.byteLength(summary.summary ?? '') > Math.min(4000,router.policy.max_summary_bytes)) return preserve('insufficient_context');
     if (!summary.summary) return preserve(summary.reason ?? 'insufficient_context');
     if (signal?.aborted || (stillCurrent && await stillCurrent() !== true)) return preserve('call_cancelled');
     // Installing an operator policy must not bypass a historical strict-path
@@ -203,8 +212,10 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       hash([call.client, call.event.session_id, call.event.tool_use_id ?? call.event.tool_call_id]);
     try { router.load(); } catch { return preserve('ledger_error'); }
     if (own(router.state.requests, legacyId)) return preserve('legacy_request_exists', legacyId);
+    const contextBeforePaid=context?.();
+    if (contextBeforePaid?.reason || contextBeforePaid?.fingerprint!==supplied?.fingerprint) return preserve(contextBeforePaid?.reason??'context_changed');
     const catalog = catalogFingerprint(router.policy);
-    const bound = bindCall(call, loaded.policy, loaded.fingerprint, catalog);
+    const bound = bindCall(call, loaded.policy, loaded.fingerprint, catalog, supplied?.fingerprint);
     if (!bound.request_id) return preserve(bound.reason ?? 'automatic_state_unavailable');
     const request_id = bound.request_id;
     const snapshot = structuredClone(call.event);
@@ -222,6 +233,8 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     const profile=validatedHookProfile(client,recommendation,router.policy);
     if(profile&&profiles.some(candidate=>candidate.id===profile.id)){observation.recommendation='produced';observation.profile_id=profile.id;observation.application='blocked';}
     if (signal?.aborted || (stillCurrent && await stillCurrent() !== true)) return preserve('call_cancelled', request_id);
+    const currentContext=context?.();
+    if (currentContext?.reason || currentContext?.fingerprint!==supplied?.fingerprint) return preserve(currentContext?.reason??'context_changed',request_id);
     const current = readCall(client, event), policyNow = loadAutomaticHookPolicy(policyPath);
     if (!current || current.callKey !== call.callKey || current.digest !== call.digest || current.payloadDigest !== call.payloadDigest) return preserve('call_changed', request_id);
     if (!policyNow.policy?.enabled || policyNow.fingerprint !== loaded.fingerprint) return preserve('automatic_policy_changed', request_id);

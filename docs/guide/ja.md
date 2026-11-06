@@ -237,6 +237,12 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 
 台帳と Hook バインディングにはリクエストのメタデータ・ハッシュ・キャッシュ結果を保存し、タスクの抜粋は保存しません。Aptly の診断にもタスク原文を含めません。ただし、ローカルの Hook の `updatedInput` は、ホストが実行を続けられるよう元のタスクを保持します。ホスト自身の会話やログの保存は Aptly の制御対象ではありません。
 
+### 不透明な呼び出しへの明示的な説明（未リリース）
+
+実際の予定セッション・呼び出し ID と元のイベントを知る連携は、Hook の前に同じ MCP プロセスで `prepare_spawn_context({client, event, description})` を呼べます。目的・範囲・出力・制約・複雑さを短く記述してください。URL の内容は取得しません。上限付き説明と固定接頭文だけが抜粋を置き換え、履歴・ファイル・不透明な本文は送信しません。`cancel_spawn_context({client, event})` で取り消せます。有効な自動ポリシーが必要で、`enabled: false` は共有を止めます。既知の秘密パターン検査は完全ではありません。
+
+対応付けは5分間有効で変更不可、プロセスごとに最大128件です。入力変更・期限切れ・取消時は分類を止め、評価済みの呼び出しを説明変更で有料再試行しません。実際の予定イベントを取得できない呼び出し元は利用できません。標準 Hook は説明や呼び出し ID を作成しません。ローカルの `insufficient_context`、プロバイダーの `provider_needs_context`、適用時の `inherited_context_application_unverified` は別の結果です。ネイティブ・有料検証は未実施です。[契約と合成例](../SPAWN_CONTEXT.md)を参照してください。
+
 ## 直接推薦
 
 `recommend_agent` MCP と CLI の `recommend` は、タスク要約を受け取ってプロファイルを推薦します。子エージェントを直接生成することはありません。以下の JSON を MCP ツールの引数として渡すか、ファイルに保存して CLI の標準入力に渡してください。
