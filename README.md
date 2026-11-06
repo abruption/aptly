@@ -30,6 +30,8 @@ aptly --version
 
 `aptly --version`으로 설치된 버전을 확인하십시오.
 
+업그레이드 전에는 관련 호스트·MCP·CLI 프로세스를 모두 중지하고 [설치·업그레이드 안내](docs/guide/ko.md#설치)의 원장 전환 절차를 확인하십시오.
+
 설치 시 `postinstall`은 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. 명시적인 `setup`은 자동 등록을 건너뛰었거나 아직 설정 디렉터리가 없는 호스트에도 사용할 수 있습니다. 기존 다른 설정·Hook과 기존 Aptly 실행 명령·환경은 보존합니다.
 
 분류용 `OPENAI_API_KEY`는 `aptly set env OPENAI_API_KEY`의 숨김 입력으로 OS 자격 저장소에 보관하거나 안전한 실행 환경에서 MCP 프로세스에 전달하십시오. 키를 명령행·요청·설정 JSON·저장소에 기록하지 마십시오. 호스트 또는 MCP를 재시작한 뒤, **Codex에서는 `/hooks`에서 새 Hook을 검토하고 신뢰를 승인하십시오.** [설치·키·등록 상세](docs/guide/ko.md#설치)를 참고하십시오.

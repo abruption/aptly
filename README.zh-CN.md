@@ -30,6 +30,8 @@ aptly --version
 
 请使用 `aptly --version` 确认已安装的版本。
 
+升级前，请停止所有相关宿主、MCP 和 CLI 进程，并查看[安装与升级指南](docs/guide/zh-CN.md#安装)中的账本迁移步骤。
+
 安装时的 `postinstall` 会在现有宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果跳过了自动注册，或宿主尚无配置目录，也可以显式运行 `setup`。其他现有配置与 Hook，以及 Aptly 原有的启动命令和环境均会保留。
 
 请通过 `aptly set env OPENAI_API_KEY` 的隐藏输入，将分类用的 `OPENAI_API_KEY` 存入系统凭据存储，或通过安全的运行环境传递给 MCP 进程。不要将密钥写入命令行、请求、配置 JSON 或代码仓库。重启宿主或 MCP 后，**请在 Codex 的 `/hooks` 中审核新 Hook 并批准信任**。详见[安装、密钥与注册](docs/guide/zh-CN.md#安装)。
