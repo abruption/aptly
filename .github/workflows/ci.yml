@@ -59,6 +59,10 @@ jobs:
         run: npm run typecheck && npm run build
       - name: Regress Windows package installation and compiled CLI execution
         run: npm run test:package
+      - name: Verify process-lifetime ledger locks and crash recovery
+        env:
+          POC_TEST_TMP_ROOT: ${{ runner.temp }}
+        run: node --test test/ledger-lock.test.ts test/ledger-crash.test.ts
   mock-tests:
     name: Node ${{ matrix.node }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
