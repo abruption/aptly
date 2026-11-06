@@ -237,6 +237,12 @@ Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context
 
 账本与 Hook 绑定保存请求元数据、哈希和缓存结果，不保存任务摘录。Aptly 诊断也不包含任务原文。但本地 Hook 的 `updatedInput` 会保留原任务，以便宿主继续执行。宿主自身的会话和日志保留不受 Aptly 控制。
 
+### 为不透明调用提供明确说明（尚未发布）
+
+知道真实的待执行会话、调用 ID 和原始事件的集成，可在 Hook 前向同一 MCP 进程调用 `prepare_spawn_context({client, event, description})`。简述目的、范围、预期输出、约束和复杂度；不会抓取 URL 内容。只有受限说明和固定前缀替代任务摘录，不会发送历史、文件或不透明正文。使用 `cancel_spawn_context({client, event})` 撤销。必须启用自动策略；`enabled: false` 阻止共享。已知秘密模式检查并非完整保护。
+
+关联有效期为五分钟，不可修改，每个进程最多128项。输入变化、过期或撤销会阻止分类；不能通过修改说明对已评估调用进行付费重试。无法获取真实待执行事件的调用方不能使用此路径；默认 Hook 不生成说明或调用 ID。本地 `insufficient_context`、提供方 `provider_needs_context` 和应用阶段 `inherited_context_application_unverified` 是不同结果。尚未进行原生或付费验证。参见[交接契约与合成示例](../SPAWN_CONTEXT.md)。
+
 ## 直接推荐
 
 `recommend_agent` MCP 与 CLI 的 `recommend` 接收任务摘要并推荐执行配置，不会直接创建子代理。请将以下 JSON 作为 MCP 工具参数传递，或保存为文件并通过 CLI 的标准输入提供。

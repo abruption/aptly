@@ -237,6 +237,12 @@ For control over the shared summary, disable automatic sharing and write only th
 
 The ledger and Hook bindings store request metadata, hashes, and cached results, not task excerpts. Aptly diagnostics also exclude raw task text. The local Hook's `updatedInput` retains the original task so the host can continue execution. Aptly does not control the host's own transcript or log retention.
 
+### Explicit description for opaque spawns (unreleased)
+
+An integration that knows the real upcoming session/call IDs and exact original event can call `prepare_spawn_context({client, event, description})` on the same MCP process before the Hook. Describe purpose, scope, expected output, constraints and complexity; URLs alone do not fetch content. Only the bounded description and fixed prefix replace the task excerpt, not history, files or the opaque body. `cancel_spawn_context({client, event})` revokes it. Registration needs enabled automatic policy; `enabled: false` prevents sharing. Known-secret filters are incomplete.
+
+Associations last five minutes, are immutable, and are limited to 128 per process. Changed, expired or cancelled associations block routing; an already evaluated call cannot acquire a richer-summary retry or new paid identity. A caller unable to obtain the actual upcoming event cannot use this handoff; shipped Hooks do not create descriptions or call IDs. Local `insufficient_context`, provider `provider_needs_context`, and native `inherited_context_application_unverified` are distinct. No native or paid validation is claimed. See the [handoff contract and synthetic example](../SPAWN_CONTEXT.md).
+
 ## Direct recommendations
 
 The `recommend_agent` MCP tool and CLI `recommend` accept a task summary and recommend a profile. They do not spawn subagents. Pass this JSON as MCP tool arguments, or save it to a file and provide it to the CLI through standard input.

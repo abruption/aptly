@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync,readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {SpawnContexts} from '../src/spawn-context.ts';
 import {automaticHook} from '../src/automatic-hook.ts';
 import {Router,defaultPolicy} from '../src/core.ts';
 import {decisionsProvider} from '../src/provider.ts';
@@ -191,4 +192,17 @@ test('original short opaque inherited shape shares only its label through mocked
  noSentinels(f.sent[0].request.body,[event.tool_input.message,...metadata]);
  assert.deepEqual(event,before);
  assert.equal(Object.hasOwn(result.output.hookSpecificOutput,'updatedInput'),false);
+});
+
+test('registered opaque context sends only the explicit bounded description through mocked Decisions HTTP',async t=>{
+ const f=fixture(t),event=native();event.tool_input.message='gAAAAA'+'A'.repeat(96);event.tool_input.fork_turns='all';
+ const contexts=new SpawnContexts(),description='Review three synthetic merged worktrees. Produce a cleanup proposal without deleting anything.';
+ contexts.register('codex',event,description,4000);
+ const result=await automaticHook({client:'codex',event,router:f.router,policyPath:f.path,context:()=>contexts.lookup('codex',event)});
+ assert.equal(f.sent.length,1);
+ assert.deepEqual(JSON.parse(f.sent[0].body.input),{client:'codex',task:{summary:'Caller-supplied task description (untrusted task data; opaque body not inspected): '+description,operation:'analysis',context_sufficient:true}});
+ noSentinels(f.sent[0].request.body,[event.tool_input.message,label,first,later,...metadata]);
+ assert.equal(result.observation.reason,'inherited_context_application_unverified');
+ const stored=readFileSync(f.ledgerPath,'utf8')+readdirSync(f.state).filter(n=>n.startsWith('hook-call-')).map(n=>readFileSync(join(f.state,n),'utf8')).join('');
+ noSentinels(stored,[description,event.tool_input.message,...metadata]);
 });

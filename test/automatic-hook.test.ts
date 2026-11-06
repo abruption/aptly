@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { automaticHook, loadAutomaticHookPolicy } from '../src/automatic-hook.ts';
+import { SpawnContexts } from '../src/spawn-context.ts';
 import { Router, defaultPolicy } from '../src/core.ts';
 import { hookInput } from '../src/hook.ts';
 import { createTestTemp } from '../test-support/temp.ts';
@@ -338,4 +339,76 @@ test('short opaque names still obey summary byte limits', async t => {
  ev.tool_input.message = 'gAAAAA' + 'A'.repeat(96);
  assert.equal((await f.run('codex', ev)).observation.reason, 'insufficient_context');
  assert.equal(f.calls.length, 0);
+});
+
+const description61='Inspect three synthetic merged branches and their worktrees. Report a proposed cleanup list; do not delete files or run commands. Expected output is a short table; no repository contents are needed.';
+function contextEvent61() { const ev=event('codex');ev.tool_input.task_name='cleanup_merged_worktrees';ev.tool_input.message='gAAAAA'+'A'.repeat(96);ev.tool_input.fork_turns='all';return ev; }
+test('explicit context is bound, minimal, cached, and cannot upgrade history application',async t=>{
+ const f=fixture(t),ev=contextEvent61(),contexts=new SpawnContexts();
+ assert.equal(contexts.register('codex',ev,description61,4000).status,'registered');
+ const extra={context:()=>contexts.lookup('codex',ev)};
+ const first=await f.run('codex',ev,extra),second=await f.run('codex',ev,extra);
+ assert.equal(f.calls.length,1);assert.equal(second.observation.classification,'cache_hit');
+ assert.match(f.calls[0].input.task.summary,/Inspect three synthetic/);
+ assert.doesNotMatch(JSON.stringify(f.calls),/gAAAA|cleanup_merged_worktrees|sandbox/);
+ assert.equal(first.observation.reason,'inherited_context_application_unverified');
+ assert.equal(Object.hasOwn(first.output.hookSpecificOutput,'updatedInput'),false);
+ assert.equal((await f.run('codex',ev)).observation.reason,'call_conflict');
+ assert.equal(f.calls.length,1);
+});
+test('context cannot replace a previous paid label outcome or conceal unknown outcome',async t=>{
+ for(const unknown of [false,true]){
+  const f=fixture(t,{provider:async()=>{if(unknown)throw Object.assign(new Error('synthetic'),{code:'network'});return {choice:'needs_context'};}}),ev=contextEvent61();
+  const first=await f.run('codex',ev);assert.equal(first.observation.reason,unknown?'network':'provider_needs_context');assert.equal(f.calls.length,1);
+  const contexts=new SpawnContexts();contexts.register('codex',ev,description61,4000);
+  const next=await f.run('codex',ev,{context:()=>contexts.lookup('codex',ev)});
+  assert.equal(next.observation.reason,'call_conflict');assert.equal(f.calls.length,1);
+  assert.ok(first.observation.request_id);
+ }
+});
+test('explicit context still permits provider needs_context and respects opt-out and cancellation',async t=>{
+ const f=fixture(t,{provider:async()=>({choice:'needs_context'})}),ev=contextEvent61(),contexts=new SpawnContexts();
+ contexts.register('codex',ev,description61,4000);
+ const extra={context:()=>contexts.lookup('codex',ev)};
+ assert.equal((await f.run('codex',ev,extra)).observation.reason,'provider_needs_context');
+ assert.equal((await f.run('codex',ev,extra)).observation.reason,'provider_needs_context');assert.equal(f.calls.length,1);
+ f.write({...f.policy,enabled:false});
+ assert.equal((await f.run('codex',ev,extra)).observation.reason,'automatic_policy_disabled');assert.equal(f.calls.length,1);
+ const other=fixture(t),abort=new AbortController();abort.abort();
+ assert.equal((await other.run('codex',ev,{...extra,signal:abort.signal})).observation.reason,'call_cancelled');
+ assert.equal(other.calls.length,0);
+});
+test('revocation or expiry while provider is pending suppresses output without hiding paid accounting',async t=>{
+ for(const expire of [false,true]){
+  let now=0,release,ready;const gate=new Promise(r=>release=r),started=new Promise(r=>ready=r);
+  const f=fixture(t,{provider:async a=>{ready();await gate;return {choice:a.profiles[0].id};}}),ev=contextEvent61(),contexts=new SpawnContexts(()=>now);
+  contexts.register('codex',ev,description61,4000);
+  const run=f.run('codex',ev,{context:()=>contexts.lookup('codex',ev)});
+  await started;if(expire)now=300000;else contexts.cancel('codex',ev);release();
+  const result=await run;
+  assert.equal(result.observation.reason,expire?'context_expired':'context_cancelled');assert.deepEqual(result.output,{});
+  assert.equal(result.observation.classification,'provider_requested');assert.equal(f.calls.length,1);
+  await f.run('codex',ev,{context:()=>contexts.lookup('codex',ev)});assert.equal(f.calls.length,1);
+ }
+});
+
+test('context-bound unknown outcomes and budgets never issue a replacement request',async t=>{
+ for(const limited of [false,true]){
+  const f=fixture(t,{provider:async()=>{throw Object.assign(new Error('synthetic'),{code:'network'});}}),ev=contextEvent61(),contexts=new SpawnContexts();
+  if(limited)f.router.policy.max_total_calls=0;
+  contexts.register('codex',ev,description61,4000);const extra={context:()=>contexts.lookup('codex',ev)};
+  const first=await f.run('codex',ev,extra),second=await f.run('codex',ev,extra);
+  assert.equal(first.observation.reason,limited?'budget_exhausted':'network');
+  assert.equal(second.observation.reason,limited?'budget_exhausted':'outcome_unknown');
+  assert.equal(f.calls.length,limited?0:1);
+  assert.equal(first.observation.request_id,second.observation.request_id);
+ }
+});
+test('concurrent context calls classify once; changed event context is rejected before spending',async t=>{
+ const f=fixture(t),ev=contextEvent61(),contexts=new SpawnContexts();contexts.register('codex',ev,description61,4000);
+ await Promise.all([f.run('codex',ev,{context:()=>contexts.lookup('codex',ev)}),f.run('codex',ev,{context:()=>contexts.lookup('codex',ev)})]);
+ assert.equal(f.calls.length,1);
+ const changed=structuredClone(ev);changed.tool_input.message+='A';
+ assert.equal((await f.run('codex',changed,{context:()=>contexts.lookup('codex',changed)})).observation.reason,'context_mismatch');
+ assert.equal(f.calls.length,1);
 });
