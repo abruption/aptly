@@ -1,5 +1,14 @@
 # npm OIDC 배포와 공개 준비
 
+
+## 0.1.4 릴리즈 준비
+
+현재 후보 버전은 `0.1.4`이며, main에 병합된 #60·#62를 포함합니다. 상속·생략 호출의 추천 평가, 부분 모델·effort 선택 보존, 호출별 진단 도구와 명시적 설명 등록·취소를 제공합니다. 기능별 변경과 업그레이드 조건은 [한국어 릴리즈 노트 초안](release-notes/0.1.4.md)을 확인하십시오.
+
+이 항목은 게시 준비 기록입니다. `v0.1.4` 태그·npm 게시·0.1.4 provenance 검증은 아직 수행하지 않았습니다. 사용자의 게시 요청에 따라 준비 PR 병합과 해당 main CI 성공 후 태그 기반 Actions OIDC 게시를 진행합니다. 준비 PR이 병합되기 전에 태그를 push하지 마십시오. 실제 게시 후에는 새 artifact와 registry 파일·서명·인증서 identity를 검증하고 이 문서를 갱신합니다.
+
+`automatic_hook.last_result`는 호출별 `get_spawn_routing_observation`으로 전환해야 합니다. 상속 호출의 실제 모델 적용은 계속 보호 조건으로 차단되며, 설명 등록 API도 같은 MCP 프로세스의 정확한 예정 이벤트를 아는 호출자용입니다. 기본 Hook이 설명을 자동 생성하는 기능이나 모든 호스트의 모델 전환을 제공하는 릴리즈로 해석하지 마십시오.
+
 ## 0.1.3 게시와 검증
 
 2026-11-06에 `v0.1.3` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42162474877)를 실행했습니다. 설치 시험·새 runner 패키징·게시의 세 job이 모두 성공했으며, 확인 당시 npm `latest`는 0.1.3입니다. [한국어 릴리즈 노트](release-notes/0.1.3.md)와 [0.1.3 실제 검증 기록](releases/0.1.3.md)에 변경 이슈·업그레이드 순서·source SHA·run·attempt·digest와 검증 결과를 기록합니다.

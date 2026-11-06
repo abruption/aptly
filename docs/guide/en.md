@@ -203,7 +203,7 @@ aptly remove --client all
 
 ## Automatic Hook
 
-**Next-release behavior; not included in npm 0.1.3.** The installed `PreToolUse` matcher routes supported Codex `spawn_agent` / `collaborationspawn_agent` / `Agent` and Claude Code `Agent` calls to local `route_spawn_hook` before native execution. The host must load and trust this Hook and connect its MCP server. Aptly cannot enforce interception in an unconfigured or unsupported host, or when MCP is unavailable; native execution remains the host's responsibility.
+**The following preflight, recommendation and observation behavior requires Aptly 0.1.4 or later.** The installed `PreToolUse` matcher routes supported Codex `spawn_agent` / `collaborationspawn_agent` / `Agent` and Claude Code `Agent` calls to local `route_spawn_hook` before native execution. The host must load and trust this Hook and connect its MCP server. Aptly cannot enforce interception in an unconfigured or unsupported host, or when MCP is unavailable; native execution remains the host's responsibility.
 
 Local preflight checks explicit fields, roles/resume, policy, cache and budget. A new paid Decisions request is not required for every spawn. Model-only or effort-only Codex selections restrict candidates to matching allowlisted tuples; only the unspecified field can be filled. Both specified fields, unsupported values, fixed roles and resumed identities are preserved without classification. Input fields do not establish whether a choice came from the user or a host default.
 
@@ -222,6 +222,8 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 | `get_routing_precedence` | Explains preserved choices and unverified configuration sources for a call |
 | `route_spawn_hook` | Selects defaults for eligible calls or passes advice only, according to the installed policy |
 | `get_spawn_routing_observation` | Looks up one exact Hook invocation; never proves native execution |
+| `prepare_spawn_context` | Registers a bounded description for one exact upcoming invocation |
+| `cancel_spawn_context` | Revokes the description association, not native execution or a request already sent |
 
 ### Outbound data and disabling automatic sharing
 
@@ -237,11 +239,11 @@ For control over the shared summary, disable automatic sharing and write only th
 
 The ledger and Hook bindings store request metadata, hashes, and cached results, not task excerpts. Aptly diagnostics also exclude raw task text. The local Hook's `updatedInput` retains the original task so the host can continue execution. Aptly does not control the host's own transcript or log retention.
 
-### Explicit description for opaque spawns (unreleased)
+### Explicit description for opaque spawns (0.1.4+)
 
 An integration that knows the real upcoming session/call IDs and exact original event can call `prepare_spawn_context({client, event, description})` on the same MCP process before the Hook. Describe purpose, scope, expected output, constraints and complexity; URLs alone do not fetch content. Only the bounded description and fixed prefix replace the task excerpt, not history, files or the opaque body. `cancel_spawn_context({client, event})` revokes it. Registration needs enabled automatic policy; `enabled: false` prevents sharing. Known-secret filters are incomplete.
 
-Associations last five minutes, are immutable, and are limited to 128 per process. Changed, expired or cancelled associations block routing; an already evaluated call cannot acquire a richer-summary retry or new paid identity. A caller unable to obtain the actual upcoming event cannot use this handoff; shipped Hooks do not create descriptions or call IDs. Local `insufficient_context`, provider `provider_needs_context`, and native `inherited_context_application_unverified` are distinct. No native or paid validation is claimed. See the [handoff contract and synthetic example](../SPAWN_CONTEXT.md).
+Associations last five minutes, are immutable, and are limited to 128 per process. Changed, expired or cancelled associations block routing; an already evaluated call cannot acquire a richer-summary retry or new paid identity. A caller unable to obtain the actual upcoming event cannot use this handoff; shipped Hooks do not create descriptions or call IDs. Local `insufficient_context`, provider `provider_needs_context`, and native `inherited_context_application_unverified` are distinct. The [handoff contract](../SPAWN_CONTEXT.md) records a bounded native description-handoff check. It does not establish automatic description production or execution of the recommended model.
 
 ## Direct recommendations
 
@@ -318,7 +320,7 @@ Refresh only reads the fixed [Claude model documentation](https://code.claude.co
 
 ## Providing context
 
-When Codex passes a subagent `message` to the Hook as ciphertext, Aptly does not read or decrypt its body. It uses only a sufficiently descriptive plaintext `task_name` as a summary. Describe the task and its scope, for example `sort_supplied_numbers_3_1_2_ascending_without_tools`. Short or ambiguous names preserve the original model. Claude Code calls and calls that expose a plaintext body use a summary of the provided body.
+When Codex passes a subagent `message` to the Hook as ciphertext, Aptly does not read or decrypt its body. It uses only a sufficiently descriptive plaintext `task_name` as a summary. Describe the task and its scope, for example `sort_supplied_numbers_3_1_2_ascending_without_tools`. Unsupported or ambiguous task names preserve the original model. Claude Code calls and calls that expose a plaintext body use a summary of the provided body.
 
 Use `get_spawn_routing_observation` with the same `client` and exact original Hook `event` to query one invocation. It returns a redacted correlation ID, preflight, classification/cache outcome, recommendation, argument-update or blocked application, and `execution: not_observed`. `arguments_updated` only describes emitted Hook arguments, never an observed child model. Records are limited to 128 calls and 10 minutes in this MCP process; `not_observed` can also mean another process, restart, expiry, eviction or mismatched input. It does not prove global Hook bypass. The process-wide `automatic_hook.last_result` is removed. No raw task, path, session ID or credential is returned.
 

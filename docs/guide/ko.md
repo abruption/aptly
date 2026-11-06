@@ -203,7 +203,7 @@ aptly remove --client all
 
 ## 자동 Hook
 
-**다음 릴리스 동작이며 npm 0.1.3에는 없습니다.** 설치한 `PreToolUse` matcher는 Codex의 `spawn_agent` / `collaborationspawn_agent` / `Agent`와 Claude Code의 `Agent` 호출을 native 실행 전에 로컬 `route_spawn_hook`으로 전달합니다. 호스트가 Hook을 로드·신뢰하고 MCP를 연결해야 합니다. 미설정·미지원 호스트나 MCP 연결 실패까지 Aptly가 가로채도록 강제할 수는 없으며, 실행은 호스트가 담당합니다.
+**다음 사전 검사·추천·관측 동작은 Aptly 0.1.4부터 지원합니다.** 설치한 `PreToolUse` matcher는 Codex의 `spawn_agent` / `collaborationspawn_agent` / `Agent`와 Claude Code의 `Agent` 호출을 native 실행 전에 로컬 `route_spawn_hook`으로 전달합니다. 호스트가 Hook을 로드·신뢰하고 MCP를 연결해야 합니다. 미설정·미지원 호스트나 MCP 연결 실패까지 Aptly가 가로채도록 강제할 수는 없으며, 실행은 호스트가 담당합니다.
 
 로컬 사전 검사에서 명시 필드·역할·resume·정책·캐시·예산을 평가합니다. 매번 유료 Decisions 요청이 필요한 것은 아닙니다. Codex에서 모델이나 effort만 지정하면 일치하는 허용 튜플로 후보를 제한하고 미지정 필드만 채웁니다. 둘 다 지정하거나 값이 미지원인 경우, 고정 역할과 resume은 분류 없이 보존합니다. 입력 필드만으로 사용자 선택인지 호스트 기본값인지 단정하지 않습니다.
 
@@ -222,6 +222,8 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 | `get_routing_precedence` | 호출의 보존 근거와 미확인 설정 출처를 설명합니다 |
 | `route_spawn_hook` | 설치한 정책에 따라 대상 호출의 기본값을 선택하거나 추천만 전달합니다 |
 | `get_spawn_routing_observation` | 정확히 일치하는 Hook 호출을 조회하며 native 실행을 증명하지 않습니다 |
+| `prepare_spawn_context` | 정확한 예정 호출에 제한된 설명을 등록합니다 |
+| `cancel_spawn_context` | 등록한 설명의 연결을 취소하며 native 실행이나 이미 전송된 요청을 취소하지 않습니다 |
 
 ### 외부 전송과 자동 공유 끄기
 
@@ -237,11 +239,11 @@ Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_suffic
 
 원장과 Hook 바인딩에는 요청 메타데이터·해시·캐시 결과를 저장하며 작업 발췌문을 저장하지 않습니다. Aptly의 진단 결과에도 원문을 넣지 않습니다. 다만 로컬 호스트가 실행을 이어가도록 Hook의 `updatedInput`에는 원래 작업이 유지됩니다. 호스트 자체의 대화·로그 저장은 Aptly가 제어하지 않습니다.
 
-### 불투명 호출에 명시적 설명 전달 (미출시)
+### 불투명 호출에 명시적 설명 전달 (0.1.4부터)
 
 실제 예정된 세션·호출 ID와 원래 이벤트를 아는 연동은 Hook 전에 같은 MCP 프로세스에 `prepare_spawn_context({client, event, description})`를 호출할 수 있습니다. 목적·범위·결과물·제약·복잡도를 짧게 적으세요. URL의 내용은 가져오지 않습니다. 제한된 설명과 고정 접두문만 작업 발췌문을 대체하며, 이력·파일·불투명 본문은 보내지 않습니다. `cancel_spawn_context({client, event})`로 취소합니다. 자동 정책이 활성화되어야 하며 `enabled: false`는 공유를 차단합니다. 알려진 비밀 패턴 검사만으로 완전한 보호를 보장하지 않습니다.
 
-연결은 5분간 유효하고 변경할 수 없으며 프로세스당 최대 128개입니다. 입력 변경·만료·취소 시 분류를 중단하고, 이미 평가한 호출에 설명을 바꿔 유료 재시도하지 않습니다. 실제 예정 이벤트를 알 수 없는 호출자는 사용할 수 없습니다. 기본 Hook은 설명이나 호출 ID를 만들지 않습니다. 로컬 `insufficient_context`, 공급자 `provider_needs_context`, 실제 적용의 `inherited_context_application_unverified`는 서로 다릅니다. 네이티브·유료 검증은 아직 하지 않았습니다. [전달 계약과 합성 예제](../SPAWN_CONTEXT.md)를 참고하세요.
+연결은 5분간 유효하고 변경할 수 없으며 프로세스당 최대 128개입니다. 입력 변경·만료·취소 시 분류를 중단하고, 이미 평가한 호출에 설명을 바꿔 유료 재시도하지 않습니다. 실제 예정 이벤트를 알 수 없는 호출자는 사용할 수 없습니다. 기본 Hook은 설명이나 호출 ID를 만들지 않습니다. 로컬 `insufficient_context`, 공급자 `provider_needs_context`, 실제 적용의 `inherited_context_application_unverified`는 서로 다릅니다. 제한된 native 설명 전달 검증은 [전달 계약](../SPAWN_CONTEXT.md)에 기록했습니다. 이 검증은 기본 설명의 자동 생성이나 추천 모델의 실행을 증명하지 않습니다.
 
 ## 직접 추천
 
@@ -318,7 +320,7 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 
 ## 맥락 전달
 
-Codex가 자식 `message`를 암호문으로 Hook에 전달하는 환경에서는 본문을 읽거나 해독하지 않습니다. 이 경우 충분히 구체적인 평문 `task_name`만 요약으로 사용합니다. 예를 들어 `sort_supplied_numbers_3_1_2_ascending_without_tools`처럼 작업 종류와 범위를 설명하십시오. 짧거나 모호한 이름은 원래 모델을 유지합니다. Claude Code와 평문 본문이 전달되는 호출은 제공된 본문 요약을 사용합니다.
+Codex가 자식 `message`를 암호문으로 Hook에 전달하는 환경에서는 본문을 읽거나 해독하지 않습니다. 이 경우 충분히 구체적인 평문 `task_name`만 요약으로 사용합니다. 예를 들어 `sort_supplied_numbers_3_1_2_ascending_without_tools`처럼 작업 종류와 범위를 설명하십시오. 지원하지 않거나 모호한 작업명은 원래 모델을 유지합니다. Claude Code와 평문 본문이 전달되는 호출은 제공된 본문 요약을 사용합니다.
 
 동일한 `client`와 원래 Hook `event`로 `get_spawn_routing_observation`을 호출해 해당 호출을 조회하십시오. 식별자는 해시로 반환하며 사전 검사, 분류·캐시 결과, 추천, 인자 변경·적용 차단과 `execution: not_observed`를 구분합니다. `arguments_updated`는 Hook 출력 인자만 뜻하며 실제 자식 모델 관측이 아닙니다. 기록은 해당 MCP 프로세스의 최근 128개·10분으로 제한합니다. `not_observed`는 다른 프로세스·재시작·만료·퇴출·입력 불일치 때문일 수도 있으므로 전체 Hook 우회를 증명하지 않습니다. 프로세스 공용 `automatic_hook.last_result`는 제거합니다. 원문 작업·경로·세션 ID·자격 값은 반환하지 않습니다.
 

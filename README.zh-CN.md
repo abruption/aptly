@@ -44,7 +44,7 @@ aptly --version
 | 直接推荐 | 通过 `recommend_agent` 或 `aptly recommend` 获取执行配置，再在宿主中明确选择并执行 |
 | fixture | 无需密钥或网络即可测试本地模拟推荐；结果并非实际 Decisions 判断 |
 
-下一版本也会为继承调用评估推荐。应用仍要求 Codex 显式指定 `fork_turns: "none"`，或 Claude Code 使用无历史约束的通用调用；已指定字段会保留。推荐、Hook 参数更新与实际子代理执行是不同事实。npm 0.1.3 尚不支持此行为，详见[指南](docs/guide/zh-CN.md#自动-hook)。
+Aptly 0.1.4 起也会为继承调用评估推荐。应用仍要求 Codex 显式指定 `fork_turns: "none"`，或 Claude Code 使用无历史约束的通用调用；已指定字段会保留。推荐、Hook 参数更新与实际子代理执行是不同事实。应用条件详见[指南](docs/guide/zh-CN.md#自动-hook)。
 
 ## 文档
 

@@ -1,6 +1,6 @@
 # Pre-spawn routing and observation boundary
 
-This change for #59 is unreleased. npm 0.1.3 does not include the new selection or observation behavior.
+The selection and observation behavior described here is available from Aptly 0.1.4. It does not enable inherited model/effort updates in the product.
 
 The existing installed native `PreToolUse` matchers run `route_spawn_hook` before supported new spawn tools. They match the tool name, not model or fork arguments. No parent-agent reminder is required when that host has loaded/trusted the Hook and connected MCP. This is not a new native dispatcher: an absent, disabled or unavailable integration cannot be enforced by an MCP server it never calls. Existing host-internal patch work stays paused.
 
@@ -49,8 +49,8 @@ rejects overrides. No event field or caller-supplied capability flag can lift it
 
 Evidence inspected on 2026-11-06:
 
-- The local `codex-cli 0.159.0-alpha.3` binary reports that version and contains
-  a full-history-inherits-model contract. This is static inspection, not a live
+- Static inspection in the authoring environment found a
+  `codex-cli 0.159.0-alpha.3` binary and its full-history-inherits-model contract. This is static inspection, not a live
   child test and not evidence about the original Mac installation.
 - Public Codex source at
   [55897425](https://github.com/openai/codex/blob/55897425e839d943a744c658701445ff732568a0/codex-rs/core/src/agent/child_config.rs)
@@ -62,7 +62,7 @@ Evidence inspected on 2026-11-06:
   model with preserved history.
 - [Claude fork documentation](https://code.claude.com/docs/en/sub-agents#how-forks-differ-from-other-subagents)
   specifies the main session's model and full history for forks. No Claude
-  executable was available here. Fixed-role/fork calls remain preserved.
+  executable was available in that authoring environment. Fixed-role/fork calls remain preserved.
 
 The new regressions use a synthetic opaque string, an injected provider and
 mocked HTTP. They verify classification requests, label-only payloads, duplicate
@@ -70,9 +70,32 @@ suppression and unchanged inherited arguments, not real encryption, paid
 Decisions accuracy or native child model selection. Existing plaintext MCP
 dispatch fixtures are likewise simulations.
 
-Before enabling inherited application or completing #59, verify the exact host
-build and native tool contract, demonstrate that Hook updates are accepted, and
-correlate actual child model/effort with preserved history in a bounded native
-test. No native child was launched for this follow-up; no all-to-none fallback
-or host-internal patch was introduced. Keep this PR Draft while that original
-use-case acceptance remains unresolved.
+Before enabling inherited application for a host, its exact runtime contract
+and accepted Hook updates must be connected to the product's guarded application
+path. Merging the preflight changes does not lift that guard. No all-to-none
+fallback or host-internal patch is introduced.
+
+### Limited native evidence used during release preparation
+
+A macOS Codex CLI 0.167.0 trial of implementation commit
+`73f39ac56d9d747181fb64c53da7e46310e74a94` observed the installed trusted Hook,
+PR MCP server and one actual Decisions request for the short opaque task label.
+The provider returned `needs_context`, so no profile was recommended and the
+child retained the parent's `gpt-6.1-sol` / `low` configuration.
+
+A separate test-only response adapter selected the synthetic fixture's
+`gpt-6.1-terra` / `high` profile through `updatedInput`. The host accepted the
+update with `fork_turns: "all"`; the child's final native context reflected that
+model/effort and retained an exact marker-bearing parent user payload. An
+initial adapter trial with an incorrect profile expectation did not emit an
+update and was excluded. Totals were six parent turns, three children and one
+real Decisions request; host-contract trials made no paid classifications.
+
+This demonstrates the tested Mac/runtime's Hook update acceptance and history
+retention. It is not product application success, Decisions accuracy evidence,
+a native test of every 0.1.4 installation or a claim about the original MacBook.
+The product still reports `inherited_context_application_unverified`. Exact
+context registration has a separate bounded native test in
+[the handoff contract](SPAWN_CONTEXT.md#bounded-native-protocol-verification--2026-11-06).
+Persistent host configuration and trust settings were unchanged; temporary
+trial files were removed.
