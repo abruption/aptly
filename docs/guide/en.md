@@ -175,6 +175,20 @@ The CLI without additional configuration, and existing manual configurations, de
 | `get_routing_precedence` | Explains preserved choices and unverified configuration sources for a call |
 | `route_spawn_hook` | Selects defaults for eligible calls or passes advice only, according to the installed policy |
 
+### Outbound data and disabling automatic sharing
+
+For automatic classification, `summary` is an **excerpt assembled from an accepted task label and the clipped first paragraph** of the body. It is not a semantic rewrite or anonymization. Its UTF-8 size is at most `min(4000, max_summary_bytes)`; this is not a limit on the whole HTTP request. The opaque-message fallback in Codex uses only a sufficiently descriptive `task_name`, without decoding or transmitting that body. Labels can also contain sensitive information.
+
+Decisions receives `client`, `task.summary`, `task.operation`, `task.context_sufficient`, candidate profile IDs, model/effort descriptions, and configured model facts. The classification API key is sent in `Authorization`; the request ID is sent in `X-Client-Request-Id`. Automatic IDs are hashes; direct recommendation IDs are caller-supplied. Do not put secrets in IDs or candidate descriptions.
+
+To disable automatic sharing, change **only `enabled` to `false`** in the existing private policy file referenced by `APTLY_HOOK_POLICY_PATH`. Preserve the other fields and ownership record. Subsequent automatic Hook calls preserve the original call before classification or creation of a call-binding file. This cannot undo a transmission already started or recall information received by the server. Editing a generated policy can cause ownership conflicts in setup, configuration, or removal commands; those commands do not overwrite the disabled policy. Do not edit ownership records to bypass the checks.
+
+`mode: advisory` still transmits classification data; it is not a privacy opt-out. Removing `APTLY_HOOK_POLICY_PATH` can activate the older strict path, so do not use removal as an alternative. `enabled: false` does not block explicit `recommend_agent` or `aptly recommend` requests.
+
+For control over the shared summary, disable automatic sharing and write only the information needed for a direct recommendation. Aptly does not automatically fetch documents at URLs or attach source files mentioned in the summary. Checks for known key and Bearer patterns do not provide complete secret detection or establish that text is safe to transmit.
+
+The ledger and Hook bindings store request metadata, hashes, and cached results, not task excerpts. Aptly diagnostics also exclude raw task text. The local Hook's `updatedInput` retains the original task so the host can continue execution. Aptly does not control the host's own transcript or log retention.
+
 ## Direct recommendations
 
 The `recommend_agent` MCP tool and CLI `recommend` accept a task summary and recommend a profile. They do not spawn subagents. Pass this JSON as MCP tool arguments, or save it to a file and provide it to the CLI through standard input.

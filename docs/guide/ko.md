@@ -175,6 +175,20 @@ aptly remove --client all
 | `get_routing_precedence` | 호출의 보존 근거와 미확인 설정 출처를 설명합니다 |
 | `route_spawn_hook` | 설치한 정책에 따라 대상 호출의 기본값을 선택하거나 추천만 전달합니다 |
 
+### 외부 전송과 자동 공유 끄기
+
+자동 분류의 `summary`는 허용된 작업 라벨과 본문의 **첫 문단을 잘라 붙인 발췌문**입니다. 의미를 새로 요약하거나 익명화하지 않습니다. UTF-8 크기는 `min(4000, max_summary_bytes)` 이하이며 전체 HTTP 요청의 크기 제한은 아닙니다. Codex의 opaque 메시지 fallback은 본문을 해독·전송하지 않고 충분히 구체적인 `task_name`만 사용합니다. 라벨에도 민감한 정보가 들어갈 수 있습니다.
+
+Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_sufficient`와 후보 프로필 ID·모델·effort 설명 및 설정된 모델 특성이 전달됩니다. 분류용 API 키는 `Authorization` 헤더로, 요청 ID는 `X-Client-Request-Id` 헤더로 전송됩니다. 자동 경로의 ID는 해시이며 직접 추천의 ID는 호출자가 지정합니다. ID나 후보 설명에도 비밀을 넣지 마십시오.
+
+자동 공유를 끄려면 `APTLY_HOOK_POLICY_PATH`가 가리키는 기존 비공개 정책 파일에서 **`enabled`만 `false`로 변경**하십시오. 나머지 필드와 소유권 기록은 유지하십시오. 이후 자동 Hook 호출은 분류 API나 호출 바인딩 파일을 만들기 전에 원래 호출을 보존합니다. 이미 시작한 전송을 되돌리거나 서버가 받은 내용을 회수하지는 못합니다. 생성된 정책을 바꾸면 설치·설정·제거 명령의 소유권 검사에서 충돌할 수 있으며, 해당 명령은 끄기 설정을 덮어쓰지 않습니다. 소유권 기록을 수정해 검사를 우회하지 마십시오.
+
+`mode: advisory`도 분류 정보를 전송하므로 개인정보 보호용 비활성화가 아닙니다. `APTLY_HOOK_POLICY_PATH`를 지우면 기존 strict 경로로 전환될 수 있으므로 공유 끄기의 대안으로 사용하지 마십시오. `enabled: false`는 명시적인 `recommend_agent`·`aptly recommend` 요청까지 차단하지 않습니다.
+
+공유할 요약을 직접 선택하려면 자동 공유를 끈 뒤 직접 추천에 필요한 정보만 작성하십시오. Aptly는 요약에 적은 URL의 문서나 소스 파일을 자동으로 읽어 첨부하지 않습니다. 알려진 키·Bearer 패턴을 거르는 검사는 완전한 비밀 탐지나 전송 안전성 보장이 아닙니다.
+
+원장과 Hook 바인딩에는 요청 메타데이터·해시·캐시 결과를 저장하며 작업 발췌문을 저장하지 않습니다. Aptly의 진단 결과에도 원문을 넣지 않습니다. 다만 로컬 호스트가 실행을 이어가도록 Hook의 `updatedInput`에는 원래 작업이 유지됩니다. 호스트 자체의 대화·로그 저장은 Aptly가 제어하지 않습니다.
+
 ## 직접 추천
 
 `recommend_agent` MCP와 CLI `recommend`는 작업 요약을 받아 프로필을 추천합니다. 자식을 직접 생성하지 않습니다. 아래 JSON을 MCP 도구 인자로 전달하거나 파일에 저장해 CLI의 표준 입력으로 제공하십시오.
