@@ -273,6 +273,14 @@ These are USD conversions of measured native tokens at the [official Standard AP
 
 The measured workflow was **explicit MCP recommendation → native execution with the recommended profile passed as arguments**. It did not test automatic Hook URL retrieval or forwarding. The prior benchmark was reused as the control, with three samples per condition. Full-document reads, matching source quotes, and output structure were checked, but the results do not establish equal quality, statistical significance, or savings for other tasks.
 
+### Interrupted processes and ledger locks — next-release draft
+
+This locking design is a next-release draft and is not included in npm `0.1.1`. The JSON ledger keeps its request IDs, `unknown` records, completed cache, call counts, and reserved costs. Only persistent ledgers use Node.js 24's built-in SQLite. The adjacent `ledger.json.lock` remains after a normal exit; its presence alone does not mean an active lock. With the new design, process exit releases the OS lock so a later request can use the same ledger. It does not retry an existing uncertain ID or refund reserved costs.
+
+Keep the ledger and lock in a private directory on a local filesystem that supports hard links, and use one canonical path for each ledger. Network shares, cloud-synced directories, and path aliases are outside the supported scope. Do not delete or replace the new lock or SQLite journal, or open them with another database tool while in use. Age and PID alone do not establish that an owner has exited.
+
+An old empty `.lock` cannot establish whether its owner is still alive, so it is never initialized or removed automatically. Stop every relevant host, MCP process, and ledger-accessing process, including older versions, and upgrade all writers. Only after confirming that the file belongs to the legacy locking design may you quarantine that file and restart against the same JSON ledger path. Do not reset or delete the ledger, `unknown` records, costs, or completed results. If ownership or format is uncertain, leave access blocked and investigate.
+
 ## Diagnostics and development
 
 ```sh

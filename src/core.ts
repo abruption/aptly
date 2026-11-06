@@ -1,7 +1,9 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, lstatSync, chmodSync } from 'node:fs';
 import { isRecord, errorCode } from './types.ts';
 import { builtInProfiles, resolveCatalog, isSupportedProfile } from './catalog.ts';
+import { acquireLedgerLock } from './ledger-lock.ts';
+import type { LedgerLock } from './ledger-lock.ts';
 const defaultCatalog = resolveCatalog({});
 import type { Client, Profile, RoutingInput, RoutingPolicy, RoutingProvider, RoutingResult, RoutingStatus, UnknownRecord, Usage } from './types.ts';
 
@@ -69,6 +71,7 @@ export class Router {
   ledgerPath: string | undefined;
   state: LedgerState;
   active: number;
+  private heldLedgerLock: LedgerLock | undefined;
   constructor({ policy = defaultPolicy, provider, ledgerPath }: RouterOptions = {}) {
     this.policy = clone(policy);
     const integerCaps = { max_summary_bytes: 64000, max_concurrency: 16, max_daily_calls: 100000, max_total_calls: 1000000, timeout_ms: 60000 } as const;
@@ -109,6 +112,7 @@ export class Router {
   }
   load(): void {
     if (!this.ledgerPath) return;
+    this.heldLedgerLock?.assertHeld();
     try {
       const stat = lstatSync(this.ledgerPath);
       if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('unsafe_ledger');
@@ -132,11 +136,13 @@ export class Router {
   }
   save(): void {
     if (!this.ledgerPath) return;
-    const tmp = `${this.ledgerPath}.write-${process.pid}`;
+    this.heldLedgerLock?.assertHeld();
+    const tmp = `${this.ledgerPath}.write-${randomUUID()}`;
     let fd: number | undefined;
     try {
       fd = openSync(tmp, 'wx', 0o600);
       writeFileSync(fd, JSON.stringify(this.state)); closeSync(fd); fd = undefined;
+      this.heldLedgerLock?.assertHeld();
       renameSync(tmp, this.ledgerPath);
     } finally {
       if (fd !== undefined) closeSync(fd);
@@ -182,11 +188,12 @@ export class Router {
     // reuse results or automatically retry a previously uncertain paid request.
     const hash = kind === 'hook' ? digest({ input: req, policy: this.policy }) : digest({ kind: 'advisory-v1', input: req, policy: this.policy });
     if (this.active >= this.policy.max_concurrency) return this.result('unavailable', 'concurrency_limit');
-    let lock: number | undefined;
+    let lock: LedgerLock | undefined;
     if (this.ledgerPath) {
-      try { lock = openSync(`${this.ledgerPath}.lock`, 'wx', 0o600); }
-      catch { return this.result('unavailable', 'ledger_locked'); }
+      try { lock = acquireLedgerLock(this.ledgerPath); }
+      catch (error) { return this.result('unavailable', errorCode(error) === 'ledger_locked' ? 'ledger_locked' : 'ledger_error'); }
     }
+    this.heldLedgerLock = lock;
     this.active++;
     try {
       this.load();
@@ -237,14 +244,15 @@ export class Router {
         return complete(this.result('recommended', 'allowed_profile', { profile_id: profile.id, profile: clone(profile), ...metadata }));
       } catch (e) {
         // A failed transport can have consumed a paid call. Preserve its unknown marker.
-        const allowed = ['timeout', 'refused', 'truncated', 'invalid_json', 'unauthorized', 'rate_limited', 'network'];
+        const allowed = ['timeout', 'refused', 'truncated', 'invalid_json', 'unauthorized', 'rate_limited', 'network', 'ledger_error'];
         const code = errorCode(e);
         return this.result('unavailable', code !== undefined && allowed.includes(code) ? code : 'provider_error', { latency_ms: latency() });
       } finally { clearTimeout(timer); }
     } catch { return this.result('unavailable', 'ledger_error'); }
     finally {
       this.active--;
-      if (lock !== undefined) { closeSync(lock); try { unlinkSync(`${this.ledgerPath}.lock`); } catch {} }
+      this.heldLedgerLock = undefined;
+      if (lock !== undefined) { try { lock.release(); } catch { /* Never unlink a persistent OS-owned gate. */ } }
     }
   }
 }
