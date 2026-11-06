@@ -241,7 +241,7 @@ test('Codex opaque message uses only a descriptive visible task name, without de
 test('opaque task-name fallback rejects vague, malformed, non-Codex and unbounded sources without spending', async t => {
   const f = fixture(t), ciphertext = 'gAAAAA' + 'A'.repeat(96) + '==';
   const name = 'sort_supplied_numbers_3_1_2_ascending_without_tools';
-  for (const label of ['native_auto_app', 'sort_values', 'a_b_c_12345678901234567890_1_2', 'sort_supplied_numbers_1_2',
+  for (const label of ['native_auto_app', 'cleanup_all_things', 'cleanup_merged', 'cleanup_merged_worktrees_now', 'review_failing_secrets', 'sort_values', 'a_b_c_12345678901234567890_1_2', 'sort_supplied_numbers_1_2',
     '_'+name, name+'_', name.replace('_', '__'), name.replace('sort', 'Sort'), name.replace('sort', '정렬'), name.replace('_', ' '),
     name + '_x'.repeat(256), 'sort_supplied_numbers_sk-abcdefghijklmnop_ascending_without_tools']) {
     const ev = event('codex'); ev.tool_input.message = ciphertext; ev.tool_input.task_name = label;
@@ -307,4 +307,35 @@ test('inherited missing credentials stay local; pending cancellation keeps recom
  const pending=f.run('codex',ev,{signal:controller.signal,onObservation:o=>seen.push(o)});await started;
  assert.equal(seen[0].status,'pending');assert.equal(seen[0].classification,'evaluating');assert.equal(seen[0].execution,'not_observed');
  controller.abort();release();const result=await pending;assert.equal(result.observation.reason,'call_cancelled');assert.equal(result.observation.recommendation,'produced');assert.equal(result.observation.application,'blocked');assert.deepEqual(result.output,{});
+});
+
+test('short concrete opaque task names reach advice with inherited or omitted history, without rewriting it', async t => {
+ for (const fork of ['all', undefined]) {
+  const f = fixture(t), ev = event('codex');
+  ev.tool_input.task_name = 'cleanup_merged_worktrees';
+  ev.tool_input.message = 'gAAAAA' + 'A'.repeat(96) + '==';
+  if (fork) ev.tool_input.fork_turns = fork; else delete ev.tool_input.fork_turns;
+  const before = structuredClone(ev);
+  const result = await f.run('codex', ev);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls[0].input.task.summary, 'Task summary from visible task_name only; opaque message not inspected: cleanup merged worktrees');
+  assert.equal(result.observation.classification, 'provider_requested');
+  assert.equal(result.observation.recommendation, 'produced');
+  assert.equal(result.observation.application, 'blocked');
+  assert.equal(result.observation.reason, 'inherited_context_application_unverified');
+  assert.equal(result.observation.execution, 'not_observed');
+  assert.equal(Object.hasOwn(result.output.hookSpecificOutput, 'updatedInput'), false);
+  assert.match(result.output.hookSpecificOutput.additionalContext, /not verified for this host/);
+  assert.deepEqual(ev, before);
+  assert.doesNotMatch(JSON.stringify(f.calls), /gAAAA/);
+  await f.run('codex', ev);
+  assert.equal(f.calls.length, 1);
+ }
+});
+test('short opaque names still obey summary byte limits', async t => {
+ const f = fixture(t, { routerPolicy: { max_summary_bytes: 80 } }), ev = event('codex');
+ ev.tool_input.task_name = 'cleanup_merged_worktrees';
+ ev.tool_input.message = 'gAAAAA' + 'A'.repeat(96);
+ assert.equal((await f.run('codex', ev)).observation.reason, 'insufficient_context');
+ assert.equal(f.calls.length, 0);
 });

@@ -207,7 +207,9 @@ aptly remove --client all
 
 ローカルの事前確認で明示フィールド・ロール・resume・ポリシー・キャッシュ・予算を評価します。呼び出しごとに新しい有料 Decisions 要求が必要なわけではありません。Codex のモデルまたは effort だけが指定された場合は、一致する許可済みの組み合わせに候補を絞り、未指定フィールドだけを補います。両方の指定、未対応値、固定ロール、resume は分類せず保持します。入力だけからユーザー指定かホストのデフォルトかを断定しません。
 
-モデル・effort が未指定なら `fork_turns: "all"` や fork の省略も推薦を評価します。ただし**履歴は変更しません**。Codex のモデル・effort 適用には明示的な `fork_turns: "none"` が必要です。それ以外は `inherited_context_model_incompatible` として元の引数を保持します。他の履歴フィールドは `history_semantics_unverified` で適用を止め、Claude の適用も履歴制約のない汎用呼び出しに限ります。推薦の生成と適用は別です。
+モデル・effort が未指定なら `fork_turns: "all"` や fork の省略も推薦を評価します。ただし**履歴は変更しません**。Codex のモデル・effort 適用には明示的な `fork_turns: "none"` が必要です。それ以外は `inherited_context_application_unverified` として元の引数を保持します。他の履歴フィールドは `history_semantics_unverified` で適用を止め、Claude の適用も履歴制約のない汎用呼び出しに限ります。推薦の生成と適用は別です。
+
+Codex の本文が不透明な場合、`cleanup_merged_worktrees` のような具体的な短い作業名だけでも推薦できます。短い名前は cleanup/remove/prune + merged + worktrees/branches、または review/fix/test + failing/broken/flaky + tests/builds の組み合わせに限定し、他は従来の6単語チェックを維持します。本文は復号も送信もしません。詳細条件や削除権限は推測しません。履歴継承時の適用は対象ホストで未検証であり、全バージョンで不可能という意味ではありません。公開ソースだけでは実行環境の対応を確認できません。
 
 独立した作業の場合だけ、呼び出し側が十分な単独のタスク情報を渡し、新しい子を明示的に選択してください。Aptly は `all` を `none` に変更せず、履歴の削除や明示モデル・effort の上書きもしません。[合成の継承・新規子の例](../../examples/spawn-preflight.codex.json)は別々の要求であり、自動再試行ではありません。結果不明の有料呼び出しを新しい ID で再試行しないでください。
 

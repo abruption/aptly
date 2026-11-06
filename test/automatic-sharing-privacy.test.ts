@@ -177,3 +177,18 @@ for(const client of ['codex','claude'])test(`${client}: history constraints reta
  const task=JSON.parse(f.sent[0].body.input).task;assert.equal(task.summary,`Task: ${label}\n${first}`);
  noSentinels(JSON.stringify(task),[later,...metadata]);
 });
+
+test('original short opaque inherited shape shares only its label through mocked HTTP', async t => {
+ const f=fixture(t),event=native();
+ event.tool_input.task_name='cleanup_merged_worktrees';
+ event.tool_input.message='gAAAAA'+'a'.repeat(100);
+ event.tool_input.fork_turns='all';
+ const before=structuredClone(event);
+ const result=await f.run('codex',event);
+ assert.equal(result.observation.reason,'inherited_context_application_unverified');
+ assert.equal(f.sent.length,1);
+ assert.equal(JSON.parse(f.sent[0].body.input).task.summary,'Task summary from visible task_name only; opaque message not inspected: cleanup merged worktrees');
+ noSentinels(f.sent[0].request.body,[event.tool_input.message,...metadata]);
+ assert.deepEqual(event,before);
+ assert.equal(Object.hasOwn(result.output.hookSpecificOutput,'updatedInput'),false);
+});

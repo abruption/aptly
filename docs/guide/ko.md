@@ -207,7 +207,9 @@ aptly remove --client all
 
 로컬 사전 검사에서 명시 필드·역할·resume·정책·캐시·예산을 평가합니다. 매번 유료 Decisions 요청이 필요한 것은 아닙니다. Codex에서 모델이나 effort만 지정하면 일치하는 허용 튜플로 후보를 제한하고 미지정 필드만 채웁니다. 둘 다 지정하거나 값이 미지원인 경우, 고정 역할과 resume은 분류 없이 보존합니다. 입력 필드만으로 사용자 선택인지 호스트 기본값인지 단정하지 않습니다.
 
-모델·effort가 미지정이면 `fork_turns: "all"`이나 fork 생략도 추천을 평가합니다. **이력 변경은 허용하지 않습니다.** Codex의 모델·effort 적용에는 명시적인 `fork_turns: "none"`이 필요합니다. 그 외에는 `inherited_context_model_incompatible`을 알리고 원래 인자를 보존합니다. 다른 이력 필드는 `history_semantics_unverified`로 적용을 차단하며, Claude 적용도 이력 제약 없는 일반 호출로 한정합니다. 추천 성공과 실제 적용은 다릅니다.
+모델·effort가 미지정이면 `fork_turns: "all"`이나 fork 생략도 추천을 평가합니다. **이력 변경은 허용하지 않습니다.** Codex의 모델·effort 적용에는 명시적인 `fork_turns: "none"`이 필요합니다. 그 외에는 `inherited_context_application_unverified`을 알리고 원래 인자를 보존합니다. 다른 이력 필드는 `history_semantics_unverified`로 적용을 차단하며, Claude 적용도 이력 제약 없는 일반 호출로 한정합니다. 추천 성공과 실제 적용은 다릅니다.
+
+Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 짧은 작업명만으로도 추천할 수 있습니다. 짧은 이름은 cleanup/remove/prune + merged + worktrees/branches 또는 review/fix/test + failing/broken/flaky + tests/builds 조합만 허용하며, 나머지는 기존 6단어 검사를 유지합니다. 본문은 복호화하거나 전송하지 않습니다. 작업의 세부 조건이나 삭제 권한을 추론하지 않습니다. 이력 상속 상태의 적용은 대상 호스트에서 미검증이며, 모든 버전에서 불가능하다는 뜻은 아닙니다. 공개 소스만으로 설치된 런타임의 지원을 확정하지 않습니다.
 
 독립적인 작업일 때만 호출자가 충분한 독립 작업 맥락을 제공하고 새 자식을 명시적으로 선택하십시오. Aptly는 `all`을 `none`으로 바꾸거나 이력을 제거하거나 명시한 모델·effort를 덮어쓰지 않습니다. [합성 상속·새 자식 예제](../../examples/spawn-preflight.codex.json)는 별개의 호출이며 자동 재시도가 아닙니다. 결과 불명인 유료 호출을 새 ID로 재시도하지 마십시오.
 

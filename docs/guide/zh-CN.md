@@ -207,7 +207,9 @@ aptly remove --client all
 
 本地预检评估显式字段、角色、resume、策略、缓存和预算。不是每次调用都需要新的付费 Decisions 请求。Codex 只指定模型或 effort 时，候选仅限于匹配的允许组合，只填写未指定字段。两者都指定、不支持的值、固定角色和 resume 均在本地保留，不进行分类。仅凭输入无法断定某个字段来自用户还是宿主默认值。
 
-模型和 effort 未指定时，`fork_turns: "all"` 或省略 fork 也会评估推荐，但**不会改变历史**。Codex 应用模型和 effort 仍要求显式 `fork_turns: "none"`，否则报告 `inherited_context_model_incompatible` 并保留原始参数。其他历史字段以 `history_semantics_unverified` 阻止应用；Claude 也只对没有历史约束的通用调用应用推荐。生成推荐不等于已应用。
+模型和 effort 未指定时，`fork_turns: "all"` 或省略 fork 也会评估推荐，但**不会改变历史**。Codex 应用模型和 effort 仍要求显式 `fork_turns: "none"`，否则报告 `inherited_context_application_unverified` 并保留原始参数。其他历史字段以 `history_semantics_unverified` 阻止应用；Claude 也只对没有历史约束的通用调用应用推荐。生成推荐不等于已应用。
+
+Codex 正文不透明时，`cleanup_merged_worktrees` 等具体的短任务名也可用于仅基于名称的推荐。短名称仅允许 cleanup/remove/prune + merged + worktrees/branches，或 review/fix/test + failing/broken/flaky + tests/builds 组合；其他名称仍须通过原有的六词检查。不会解密或发送正文，也不会推断任务细节或删除权限。继承历史时的应用在目标主机上尚未验证，并非所有版本都不支持；公开源码不能证明已安装运行时的支持情况。
 
 仅对独立任务，由调用方提供充分的独立任务上下文并明确选择新子代理。Aptly 不会将 `all` 改成 `none`，删除历史或覆盖显式模型和 effort。[合成的继承与新子代理示例](../../examples/spawn-preflight.codex.json)是不同请求，不是自动重试。不要用新 ID 重试结果不明的付费调用。
 

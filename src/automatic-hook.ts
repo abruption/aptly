@@ -101,7 +101,7 @@ function preservation(call: NativeCall): string | null {
 /** History semantics are checked at application, not used to suppress task advice. */
 function applicationConstraint(call: NativeCall): string | null {
   if (['fork_context','fork','fork_session','inherit_history'].some(key=>own(call.input,key))) return 'history_semantics_unverified';
-  if (call.client==='codex' && call.input.fork_turns!=='none') return 'inherited_context_model_incompatible';
+  if (call.client==='codex' && call.input.fork_turns!=='none') return 'inherited_context_application_unverified';
   if (call.client==='claude' && own(call.input,'fork_turns')) return 'history_semantics_unverified';
   // Only reasoning_effort has an application contract for native Codex spawns.
   if (effortKeys.some(key=>key!=='reasoning_effort'&&own(call.input,key))) return 'effort_argument_unsupported';
@@ -129,9 +129,13 @@ function boundedSummary(call: NativeCall, maxBytes: number): { summary?: string;
   // it or forward it to the provider: a sufficiently descriptive visible name
   // is a separate, explicitly labelled source of task advice only.
   if (call.client === 'codex' && /^gAAAA[A-Za-z0-9_-]{75,}={0,2}$/.test(body)) {
-    if (!safeText(label, 512) || Buffer.byteLength(label) < 24 || !/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(label)) return { reason: 'insufficient_context' };
+    if (!safeText(label, 512) || !/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(label)) return { reason: 'insufficient_context' };
     const words = label.split('_');
-    if (words.length < 6 || words.filter(word => /^[a-z]{2,}$/.test(word)).length < 3) return { reason: 'insufficient_context' };
+    // Short labels need a concrete action, scope and object, not word padding.
+    // This is advice from the label alone, never authorization to perform it.
+    const concreteShortName = /^(?:cleanup|remove|prune)_merged_(?:worktrees|branches)$/.test(label) ||
+      /^(?:review|fix|test)_(?:failing|broken|flaky)_(?:tests|builds)$/.test(label);
+    if (!concreteShortName && (Buffer.byteLength(label) < 24 || words.length < 6 || words.filter(word => /^[a-z]{2,}$/.test(word)).length < 3)) return { reason: 'insufficient_context' };
     const summary = `Task summary from visible task_name only; opaque message not inspected: ${words.join(' ')}`;
     if (Buffer.byteLength(summary) > Math.min(4000, maxBytes)) return { reason: 'insufficient_context' };
     return { summary };
@@ -233,7 +237,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     const blocked=applicationConstraint(call);
     if(blocked){
       const kept=preserve(blocked,request_id);
-      const next=blocked==='effort_argument_unsupported'?'The caller must review the native reasoning_effort argument spelling; Aptly never rewrites an explicit choice.':'For independent work only, the caller may explicitly choose a fresh child with sufficient standalone task context. Aptly never changes history automatically.';
+      const next=blocked==='effort_argument_unsupported'?'The caller must review the native reasoning_effort argument spelling; Aptly never rewrites an explicit choice.':'Inherited model/effort updates are not verified for this host. Verify the host version and native contract before enabling them; task arguments cannot certify support. Aptly never changes history automatically.';
       kept.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next}`}};
       return kept;
     }

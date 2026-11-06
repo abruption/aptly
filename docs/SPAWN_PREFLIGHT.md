@@ -30,3 +30,49 @@ A pending evaluation is not proof of a paid request. Final `provider_requested` 
 Fixtures cover installed Hook expansion through the MCP protocol before a simulated native dispatch, inherited/omitted/fresh history, partial pins, roles/resume, budget/cache/unknown outcomes, concurrent calls, cancellation, input/policy changes, and observation correlation/expiry/eviction. These are fixture guarantees, not a native execution certification. Actual child metadata requires a separately authorized bounded native test and must be correlated independently; callers cannot self-certify it through MCP arguments.
 
 Inherited/default-fork advice can now transmit the existing bounded task excerpt even if application is blocked. The sharing policy and known-secret filters are unchanged, not a complete privacy guarantee. `enabled: false` remains the automatic-sharing opt-out. See the four-language guides and [synthetic examples](../examples/spawn-preflight.codex.json).
+
+## Short opaque tasks and host evidence
+
+The original synthetic shape, an opaque Codex message with
+`task_name: "cleanup_merged_worktrees"` and inherited/omitted fork, now reaches
+recommendation. Only the visible name is shared, explicitly labelled as such.
+The short-name allowlist accepts cleanup/remove/prune + merged +
+worktrees/branches and review/fix/test + failing/broken/flaky + tests/builds.
+Other labels retain the descriptive six-word check. Length, syntax, secret and
+summary-byte checks still apply. This is a limited context heuristic, not proof
+of task completeness, deletion permission or a privacy guarantee. Opaque text,
+history and additional metadata are not decoded or added to the summary.
+
+Application remains blocked with `inherited_context_application_unverified`.
+This is an Aptly verification boundary, not a claim that every Codex version
+rejects overrides. No event field or caller-supplied capability flag can lift it.
+
+Evidence inspected on 2026-11-06:
+
+- The local `codex-cli 0.159.0-alpha.3` binary reports that version and contains
+  a full-history-inherits-model contract. This is static inspection, not a live
+  child test and not evidence about the original Mac installation.
+- Public Codex source at
+  [55897425](https://github.com/openai/codex/blob/55897425e839d943a744c658701445ff732568a0/codex-rs/core/src/agent/child_config.rs)
+  applies requested model/effort overrides in `prepare_agent_spawn_config`,
+  including full-history configuration; the
+  [V2 spawn handler](https://github.com/openai/codex/blob/55897425e839d943a744c658701445ff732568a0/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs)
+  forwards fork mode and overrides. This establishes a source implementation,
+  not that the target host exposes it, accepts Hook updates or uses the chosen
+  model with preserved history.
+- [Claude fork documentation](https://code.claude.com/docs/en/sub-agents#how-forks-differ-from-other-subagents)
+  specifies the main session's model and full history for forks. No Claude
+  executable was available here. Fixed-role/fork calls remain preserved.
+
+The new regressions use a synthetic opaque string, an injected provider and
+mocked HTTP. They verify classification requests, label-only payloads, duplicate
+suppression and unchanged inherited arguments, not real encryption, paid
+Decisions accuracy or native child model selection. Existing plaintext MCP
+dispatch fixtures are likewise simulations.
+
+Before enabling inherited application or completing #59, verify the exact host
+build and native tool contract, demonstrate that Hook updates are accepted, and
+correlate actual child model/effort with preserved history in a bounded native
+test. No native child was launched for this follow-up; no all-to-none fallback
+or host-internal patch was introduced. Keep this PR Draft while that original
+use-case acceptance remains unresolved.

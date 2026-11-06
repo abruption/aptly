@@ -42,10 +42,15 @@ for(const host of ['codex','claude'])test(`${host}: installed Hook reaches MCP b
  const server=createServer({env:{ROUTER_PROVIDER:'fixture',APTLY_HOOK_POLICY_PATH:join(dir,'aptly/auto-policy.json')}}),client=new Client({name:'fixture-native-dispatch',version:'1'});
  const [left,right]=InMemoryTransport.createLinkedPair();await server.connect(right);await client.connect(left);t.after(async()=>{await client.close();await server.close();});
  const call=async(name,args)=>{const r=await client.callTool({name,arguments:args});assert.notEqual(r.isError,true);return r.structuredContent??JSON.parse(r.content[0].text);};
- for(const fork of ['all','omitted','none']){
-  const event={hook_event_name:'PreToolUse',session_id:'fixture-session',tool_use_id:fork,tool_name:host==='codex'?'spawn_agent':'Agent',
+ for(const variant of ['all','omitted','none',...(host==='codex'?['opaque-all','opaque-omitted']:[])]){
+  const fork=variant.replace('opaque-','');
+  const event={hook_event_name:'PreToolUse',session_id:'fixture-session',tool_use_id:variant,tool_name:host==='codex'?'spawn_agent':'Agent',
    tool_input:host==='codex'?{task_name:'Sort numbers',message:'Sort the supplied synthetic numbers 3, 2, 1.'}:{description:'Sort numbers',prompt:'Sort the supplied synthetic numbers 3, 2, 1.',subagent_type:'general-purpose'}};
   if(fork!=='omitted'&&(host==='codex'||fork==='all'))event.tool_input.fork_turns=fork;
+  if(variant.startsWith('opaque-')){
+   event.tool_input.task_name='cleanup_merged_worktrees';
+   event.tool_input.message='gAAAAA'+'A'.repeat(96)+'==';
+  }
   const before=structuredClone(event);assert.ok(new RegExp(entry.matcher).test(event.tool_name));
   assert.equal((await call('get_spawn_routing_observation',{client:host,event})).preflight,'not_observed');
   // Emulate the installed host's placeholder expansion, not a voluntary recommendation call.
@@ -53,6 +58,7 @@ for(const host of ['codex','claude'])test(`${host}: installed Hook reaches MCP b
   const output=await call(installed.tool,args);
   const observed=await call('get_spawn_routing_observation',{client:host,event});assert.equal(observed.preflight,'observed');assert.equal(observed.recommendation,'produced');assert.equal(observed.execution,'not_observed');
   if(fork==='all'||(host==='codex'&&fork==='omitted'))assert.equal(observed.application,'blocked');
+  if(variant.startsWith('opaque-'))assert.equal(observed.reason,'inherited_context_application_unverified');
   let executions=0;const native=(input)=>{executions++;assert.deepEqual(input,before.tool_input);};
   native(output.hookSpecificOutput?.updatedInput??event.tool_input);assert.equal(executions,1);assert.deepEqual(event,before);
   assert.equal((await call('get_spawn_routing_observation',{client:host,event:{...event,session_id:'unrelated'}})).preflight,'not_observed');
