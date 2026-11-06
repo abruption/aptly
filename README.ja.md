@@ -20,15 +20,15 @@ Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し�
 
 ## クイックスタート
 
-Node.js **24 以上**と Claude Code または Codex が必要です。以下のコマンドは **0.1.1 が npm で公開された後**に使用してください。
+Node.js **24 以上**と Claude Code または Codex が必要です。以下のコマンドで最新の安定版をグローバルインストールしてください。
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-バージョン確認コマンドの出力が `0.1.1` であることを確認してください。
+`aptly --version` でインストール済みのバージョンを確認してください。
 
 インストール時の `postinstall` は、既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。自動登録をスキップした場合や、ホストに設定ディレクトリがまだない場合も、`setup` を明示的に実行して登録できます。他の既存設定・Hook と、既存の Aptly の実行コマンド・環境は保持します。
 

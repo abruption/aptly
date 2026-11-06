@@ -20,15 +20,15 @@ Our own tests showed **about 52–58% lower API-equivalent costs**. See the [tes
 
 ## Quick start
 
-Requires Node.js **24 or later** and Claude Code or Codex. Use the commands below **after 0.1.1 is published on npm**.
+Requires Node.js **24 or later** and Claude Code or Codex. Install the latest stable version globally with these commands.
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-The version command should print `0.1.1`.
+Check the installed version with `aptly --version`.
 
 During installation, `postinstall` registers the MCP server and a `PreToolUse` Hook in existing host configuration directories. Run `setup` explicitly if automatic registration was skipped or a host has no configuration directory yet. Other settings and Hooks, and any existing Aptly launch command and environment, are preserved.
 

@@ -4,19 +4,19 @@
 
 [Back to README](../../README.en.md)
 
-Korean is the canonical documentation. This guide targets Aptly 0.1.1. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
+Korean is the canonical documentation. This guide covers general Aptly installation and usage. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
 
 ## Installation
 
-Requires Node.js 24 or later and Claude Code or Codex. When 0.1.1 is available on npm, use these global installation commands:
+Requires Node.js 24 or later and Claude Code or Codex. Install the latest stable npm release globally:
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version` should print `0.1.1`. Switching Node.js environments may require reinstalling.
+Use `aptly --version` to check the installed version. Switching Node.js environments may require reinstalling.
 
 `postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
 
@@ -129,7 +129,7 @@ See the official [Codex configuration reference](https://learn.chatgpt.com/docs/
 ### Skipping registration and removing it
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
