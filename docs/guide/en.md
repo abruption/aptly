@@ -90,6 +90,15 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` makes no changes. Migration replaces the Node/server paths of a receipt-matching, Aptly-owned standard registration with the current build. It preserves environment settings, Hooks, policy and other hosts, accesses no credentials, and never executes the old launcher. Custom wrappers and missing or modified ownership records are rejected. Review such registrations locally; use the wrapper's secure environment or a separately reviewed standard registration. Do not edit or delete ownership records to bypass validation.
 
+If `launcher_migration_not_owned` refers to a preserved registration (`mcp_created: false`), this follow-up source build offers the explicit `--include-existing` opt-in. **npm 0.1.2 does not include this option.** Build from source as described above, then run:
+
+```sh
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+```
+
+Review the local registration first. A valid existing Aptly ownership receipt and matching managed environment additions, Hook, and policy are required. Only an absolute Node path with a single standard server path is accepted; wrappers and registrations without a receipt remain unsupported. This does not make the entire MCP registration Aptly-owned: later removal preserves the migrated launcher and original user settings. The option applies only to explicit single-client migration, never automatic installation.
+
 A successful Codex configuration needs no reset. Retry only the affected host and restart MCP. Codex still requires `/hooks` trust review. Changes after diagnosis stop with `concurrent_configuration_change`. If recovery observes another key or cannot read the current key, it leaves the store unchanged and reports `credential_rollback_failed`. Files and the OS store do not form an atomic transaction; avoid concurrent configuration operations.
 
 ### Keys and restarting

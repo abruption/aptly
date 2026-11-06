@@ -90,6 +90,15 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` は変更しません。移行は所有記録と一致する Aptly の標準登録に限り、Node・サーバーパスを現在のビルドへ更新します。環境設定・Hook・ポリシー・他のホストを保持し、資格情報へのアクセスや古い起動プログラムの実行は行いません。独自ラッパー、所有記録のない登録、変更済みの登録は拒否します。その場合は登録をローカルで確認し、ラッパーの安全な環境変数受け渡しを使うか、別途確認した標準登録へ切り替えてください。検証を回避するために所有記録を編集・削除しないでください。
 
+`launcher_migration_not_owned` が既存の登録を保持した状態（`mcp_created: false`）を指す場合、この後続ソースビルドでは `--include-existing` を明示して移行できます。**npm 0.1.2 にはこのオプションは含まれません。** 上記の手順でソースからビルドし、次を実行してください。
+
+```sh
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+```
+
+実行前にローカルの登録を確認してください。有効な既存の Aptly 所有記録と、記録に一致する管理対象の環境変数・Hook・ポリシーが必要です。絶対 Node パスと単一の標準サーバーパスのみを許可し、ラッパーや記録のない登録は拒否します。MCP 登録全体を Aptly 所有には変更しないため、その後の削除でも移行後の起動パスと元のユーザー設定を保持します。明示的な単一ホストの移行専用で、自動インストールには適用されません。
+
 成功した Codex の再設定は不要です。失敗したホストだけを指定して再試行し、MCP を再起動してください。Codex では引き続き `/hooks` の信頼確認が必要です。診断後の設定変更は `concurrent_configuration_change` で中断します。復旧時に別のキーを検出した場合や現在値を読めない場合は上書きせず、`credential_rollback_failed` を返します。ファイルと OS ストアは原子的なトランザクションではないため、設定操作を同時に実行しないでください。
 
 ### キーと再起動
