@@ -20,7 +20,7 @@ Our own tests showed **about 52–58% lower API-equivalent costs**. See the [tes
 
 ## Quick start
 
-Requires Node.js **24 or later** and Claude Code or Codex. Install the latest stable version globally with these commands.
+Requires Node.js **24 or later** and Claude Code or Codex. For first-time installation, install and configure the latest stable version globally with these commands.
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
@@ -31,11 +31,18 @@ aptly --version
 
 Check the installed version with `aptly --version`. On supported npm versions, `--allow-scripts=aptly` allows Aptly’s installation script. If your npm does not support this option, follow the explicit installation and setup steps in the [installation guide](docs/guide/en.md#installation).
 
-Before upgrading, stop all related host, MCP, and CLI processes and review the ledger transition in the [installation and upgrade guide](docs/guide/en.md#installation).
-
 During installation, `postinstall` registers the MCP server and a `PreToolUse` Hook in existing host configuration directories. Run `setup` explicitly if automatic registration was skipped or a host has no configuration directory yet. Other settings and Hooks, and any existing Aptly launch command and environment, are preserved.
 
 Store the classification key, `OPENAI_API_KEY`, in the OS credential store using the hidden prompt in `aptly set env OPENAI_API_KEY`, or pass it to the MCP process through a secure execution environment. Do not put it in command arguments, requests, configuration JSON, or the repository. Restart the host or MCP server, then **review and trust the new Hook through `/hooks` in Codex**. See [installation, keys, and registration](docs/guide/en.md#installation).
+
+## Update
+
+To update an existing global npm installation running Aptly 0.1.3 or later, stop all related host, MCP, and CLI writers and review ledger migration and the manual fallback in the [installation and upgrade guide](docs/guide/en.md#installation). Existing key settings are preserved, so there is no need to re-enter the key. Restart afterward.
+
+```sh
+aptly update
+aptly setup --client all --mode defaults
+```
 
 ## Usage modes
 
@@ -49,9 +56,8 @@ From Aptly 0.1.4, inherited calls also reach recommendation. Application still r
 
 ## Documentation
 
-- [CLI configuration](docs/guide/en.md#configure-with-the-cli)
 - [User guide](docs/guide/en.md): installation and removal, keys, Hooks, direct recommendations, and error recovery
-- [Installation and removal](docs/guide/en.md#installation): global npm installation, host registration, restarting, and trust review
+- [Installation and removal](docs/guide/en.md#installation) and [CLI configuration](docs/guide/en.md#configure-with-the-cli): global npm installation, host registration, restarting, and trust review
 - [Models and environment variables](docs/guide/en.md#models-and-environment-variables): six default profiles and candidate configuration
 - [Providing context](docs/guide/en.md#providing-context): encrypted messages and repository URL limitations
 - [Cost benchmark](docs/guide/en.md#cost-benchmark): tokens, converted costs, and measurement scope for a README translation review
