@@ -4,19 +4,19 @@
 
 [README로 돌아가기](../../README.md)
 
-한국어가 정본입니다. 이 안내는 Aptly 0.1.1을 기준으로 합니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
+한국어가 정본입니다. 이 안내는 Aptly의 일반적인 설치·사용 방법을 설명합니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
 
 ## 설치
 
-Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. 0.1.1이 npm에 게시된 경우 다음 전역 설치 명령을 사용하십시오:
+Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. npm의 최신 안정 버전을 전역 설치하려면 다음 명령을 사용하십시오:
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version`의 출력은 `0.1.1`이어야 합니다. Node.js 환경을 바꾸면 재설치가 필요할 수 있습니다.
+`aptly --version`으로 설치된 버전을 확인하십시오. Node.js 환경을 바꾸면 재설치가 필요할 수 있습니다.
 
 `postinstall`은 현재 사용자의 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. `CODEX_HOME`·`CLAUDE_CONFIG_DIR`을 사용한다면 설치 프로세스에도 같은 환경을 전달하십시오. 아직 없는 호스트 디렉터리는 자동 등록에서 건너뛰고, 명시적인 `setup`으로 만들 수 있습니다. 필요한 호스트만 등록하려면 `--client codex` 또는 `--client claude`를 사용하십시오.
 
@@ -55,6 +55,25 @@ API 키는 macOS Keychain, Linux의 설치된 `secret-tool`, 또는 Windows Cred
 저장 시간 초과나 응답 해석 실패는 OS가 새 값을 기록한 뒤에도 발생할 수 있습니다. 실패하면 이전 값을 복원하거나, 이전 값이 없었다면 새 항목을 제거한 뒤 재조회합니다. 복구 여부를 확인하지 못하면 원래 오류 코드와 함께 `credential_rollback_failed`를 반환합니다. 어느 키가 활성 상태인지 단정하지 말고 재시도 전에 OS 자격 증명 저장소를 확인하십시오. 이는 가능한 범위의 복구이며 프로세스·호스트 전체의 원자적 트랜잭션이 아닙니다.
 
 변경 후 MCP를 재시작하고 `get_routing_capabilities`의 `provider`, 후보 목록, `credential_status`를 확인하십시오. `os_store`는 저장소에서 키를 읽었다는 뜻이며 API 유효성 검증은 아닙니다. 기본 설정과 일반 변수 설정은 기존 사용자 지정 래퍼를 보존합니다. API 키 설정은 호환성이 확인되지 않은 실행 경로의 호스트 설정을 변경하지 않으며, 이미 저장을 시도했다면 해당 호스트의 이전 키를 가능한 경우 복원합니다. 새 키가 기존 래퍼에도 자동 적용된다고 가정하지 마십시오. 명령은 Codex의 `/hooks` 신뢰 승인이나 호스트 권한을 우회하지 않습니다.
+
+### 실행 경로 오류 복구 — 다음 릴리스 예정
+
+아래 옵션은 npm 0.1.1에는 없습니다. 이 수정이 포함된 빌드에서 사용하십시오. 개발 소스에서는 `npm ci --ignore-scripts`와 `npm run build` 후 `aptly` 대신 `node bin/aptly.ts`를 사용합니다.
+
+키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
+
+Claude만 실패했다면 다음 순서로 진단하고, `launcher_migration_available`일 때만 이전을 검토하십시오:
+
+```sh
+aptly set env OPENAI_API_KEY --client claude --check
+aptly setup --client claude --migrate-launcher --dry-run
+aptly setup --client claude --migrate-launcher
+aptly set env OPENAI_API_KEY --client claude
+```
+
+`--dry-run`은 변경하지 않습니다. 이전 명령은 소유 기록과 일치하는 Aptly 표준 등록의 Node·서버 경로를 현재 빌드로 바꿉니다. 기존 환경·Hook·정책·다른 호스트는 보존하며 키를 읽거나 저장하지 않습니다. 오래된 실행 파일을 실행하지 않습니다. 사용자 래퍼, 소유 기록이 없거나 수정된 등록은 거절합니다. 이 경우 로컬에서 등록을 검토하고 래퍼의 안전한 환경 전달을 사용하거나 별도로 검토한 표준 등록으로 전환하십시오. 소유 기록을 삭제하거나 편집해 검증을 우회하지 마십시오.
+
+이미 성공한 Codex는 재설정할 필요가 없습니다. 실패한 호스트만 지정해 재시도하고 MCP를 재시작하십시오. Codex를 대상으로 하면 `/hooks` 신뢰 검토가 계속 필요합니다. 진단 이후 설정 변경은 `concurrent_configuration_change`로 중단합니다. 저장 실패 후 다른 키가 관찰되거나 현재 키를 읽지 못하면 덮어쓰지 않고 `credential_rollback_failed`를 반환합니다. 파일과 OS 저장소 사이의 원자적 트랜잭션은 아니므로 다른 설정 작업을 동시에 실행하지 마십시오.
 
 ### 키와 재시작
 
@@ -129,7 +148,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### 건너뛰기·제거
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```

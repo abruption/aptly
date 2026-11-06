@@ -6,7 +6,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/aptly)](https://www.npmjs.com/package/aptly)
 [![MIT license](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/abruption/aptly/blob/main/LICENSE)
 
-**Model and reasoning recommendations for subagents.**
+**Model and reasoning recommendations for subagents, powered by the OpenAI Decisions API.**
 
 [한국어](README.md) · [English](README.en.md) · **简体中文** · [日本語](README.ja.md)
 
@@ -20,15 +20,15 @@ Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐�
 
 ## 快速开始
 
-需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请在 **0.1.1 发布到 npm 后**使用以下命令。
+需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请使用以下命令全局安装最新稳定版。
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-版本检查命令应输出 `0.1.1`。
+请使用 `aptly --version` 确认已安装的版本。
 
 安装时的 `postinstall` 会在现有宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果跳过了自动注册，或宿主尚无配置目录，也可以显式运行 `setup`。其他现有配置与 Hook，以及 Aptly 原有的启动命令和环境均会保留。
 
