@@ -10,7 +10,13 @@ export function decisionsProvider({ key, fetchImpl = fetch, descriptions = {} }:
     preflight();
     const payload = {
       model: 'gpt-6-luna',
-      input: JSON.stringify({ task: input.task, client: input.client }),
+      // Keep the wire boundary explicit even for internal callers that bypass
+      // Router validation. Unrelated task/native metadata is never serialized.
+      input: JSON.stringify({ task: {
+        summary: input.task.summary,
+        operation: input.task.operation,
+        context_sufficient: input.task.context_sufficient,
+      }, client: input.client }),
       questions: [{type:'choice',name:'profile',instructions,choices:[
         ...profiles.map(p=>({value:p.id,description:descriptions[p.id]??`${p.model}${p.reasoning_effort?' / effort '+p.reasoning_effort:''}. Select only for an appropriate task; capabilities not supplied.`})),
         {value:'keep_current',description:'Preserve the existing selection; no confident supported choice.'},

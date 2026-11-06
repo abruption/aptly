@@ -156,6 +156,20 @@ aptly remove --client all
 | `get_routing_precedence` | 解释调用的保留依据与未确认的配置来源 |
 | `route_spawn_hook` | 根据已安装的策略选择目标调用的默认值，或仅传递推荐 |
 
+### 对外传输与关闭自动共享
+
+自动分类的 `summary` 是由有效任务标签与正文**截取后的首段拼接成的摘录**，并不是重新进行语义摘要或匿名化。其 UTF-8 大小不超过 `min(4000, max_summary_bytes)`；这不是整个 HTTP 请求的大小限制。Codex 的 opaque 消息回退仅使用足够具体的 `task_name`，不会解码或传输该正文。标签也可能包含敏感信息。
+
+Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context_sufficient`，以及候选配置 ID、模型与 effort 说明、已配置的模型特性。分类 API 密钥通过 `Authorization` 请求头发送，请求 ID 通过 `X-Client-Request-Id` 发送。自动路径使用哈希 ID，直接推荐的 ID 由调用方提供。请勿在 ID 或候选说明中放入秘密信息。
+
+如需关闭自动共享，请在 `APTLY_HOOK_POLICY_PATH` 指向的现有私有策略文件中，**仅将 `enabled` 改为 `false`**，保留其他字段和所有权记录。之后的自动 Hook 调用会在分类或创建调用绑定文件之前保留原始调用。这无法撤销已开始的传输，也无法收回服务器已收到的信息。修改生成的策略后，安装、配置或移除命令的所有权检查可能报告冲突；这些命令不会覆盖已关闭的策略。请勿修改所有权记录来绕过检查。
+
+`mode: advisory` 仍会传输分类数据，不是隐私共享的关闭方式。删除 `APTLY_HOOK_POLICY_PATH` 可能启用既有 strict 路径，请勿以此代替关闭共享。`enabled: false` 不会阻止显式发起的 `recommend_agent` 或 `aptly recommend` 请求。
+
+如需自行控制共享摘要，请先关闭自动共享，再为直接推荐编写必要的信息。Aptly 不会自动获取摘要中 URL 的文档，也不会附加提到的源文件。已知密钥和 Bearer 模式检查不能完整检测所有秘密，也不能保证文本适合对外传输。
+
+账本与 Hook 绑定保存请求元数据、哈希和缓存结果，不保存任务摘录。Aptly 诊断也不包含任务原文。但本地 Hook 的 `updatedInput` 会保留原任务，以便宿主继续执行。宿主自身的会话和日志保留不受 Aptly 控制。
+
 ## 直接推荐
 
 `recommend_agent` MCP 与 CLI 的 `recommend` 接收任务摘要并推荐执行配置，不会直接创建子代理。请将以下 JSON 作为 MCP 工具参数传递，或保存为文件并通过 CLI 的标准输入提供。

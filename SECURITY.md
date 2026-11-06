@@ -15,12 +15,20 @@ The project is in early development and has no maintained release series yet. Se
 ## Security boundaries
 
 - The OpenAI key belongs in the MCP server environment or a user-controlled credential mechanism. It must not appear in tool arguments, results, source files, or logs. Host execution uses the host's existing authentication.
-- Only the configured OpenAI Decisions endpoint is used for classification. Summaries and the minimum required features leave the local machine in live mode; fixtures do not call the API.
+- Classification uses the fixed OpenAI Decisions endpoint. Live requests contain allowlisted task fields, the client family, and candidate IDs/descriptions. Automatic task text is a bounded label/first-paragraph excerpt, not a semantic anonymization step; paths, URLs or private facts within that excerpt can still be shared. Fixtures do not call the API. See [the sharing contract](docs/SHARING_BOUNDARY.md) for the exact application payload and remaining policy decision.
 - Explicit model and effort choices, roles, inherited context, and administrator constraints take precedence. Incomplete or uncertain provenance must preserve the original spawn.
 - Task content and API responses are data. They cannot expand the trusted catalog, execute commands, collect files, or alter policy.
 - A timeout or unknown paid-call outcome must not cause an automatic retry with a new request ID. Metadata ledgers support deduplication and local limits; they are not account-wide billing controls.
 - General automatic application remains constrained by verified host contracts. Existing deny decisions must remain effective. Test-only compatibility and synthetic-fixture controls must not certify arbitrary real sessions.
 - Local ledgers and diagnostic output may contain profile choices and request metadata. Restrict access, choose an appropriate retention period, and exclude them from Git and release packages. Avoid collecting raw prompts and transcripts.
+
+## Operator control over automatic sharing
+
+The installed policy selected by `APTLY_HOOK_POLICY_PATH` controls automatic classification. To disable future automatic sharing, retain the existing complete private policy and set only its `enabled` field to `false`. This applies to both `defaults` and `advisory`; advisory mode alone still shares task text. Removing the policy environment variable is not a privacy opt-out because the legacy strict Hook path can remain available. Disabling cannot recall an already transmitted request and does not disable separately requested `recommend_agent` or CLI advice.
+
+Changing a generated policy can conflict with its ownership receipt: setup/default configuration may return `policy_conflict`, and removal may return `managed_policy_changed`. These checks preserve the disabled policy; do not edit ownership receipts to bypass them. A dedicated policy-management/migration decision remains outside this compatibility-preserving phase. Review re-enablement explicitly with affected hosts stopped.
+
+Task-summary and automatic label/body checks reject known key-like and Bearer-token patterns. Candidate descriptions and request IDs are shared as configured, without those task-text checks. Labels, caller-authored summaries, candidate descriptions, and request IDs are not inherently public or safe; filtering does not establish that arbitrary content is non-sensitive. The configured classification key is intentionally sent in the Authorization header, and a request ID is sent for correlation. Do not put secrets in IDs or configured model descriptions. Native Hook output preserves original task input for the local host; host transcripts and external logging are outside Aptly's diagnostic-retention guarantees.
 
 Default CI and tests must remain free of live API credentials, real agent execution, and private infrastructure dependencies. Any live compatibility experiment needs a bounded synthetic task and separate, explicit authorization.
 
