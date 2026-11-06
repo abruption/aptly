@@ -38,7 +38,7 @@ function noSentinels(text,sentinels){for(const sentinel of sentinels)assert.equa
 
 for(const client of ['codex','claude'])test(`${client}: native sharing sends only the bounded excerpt and catalog contract`,async t=>{
  const f=fixture(t),event=native(client),before=structuredClone(event),result=await f.run(client,event);
- assert.equal(result.observation.status,'applied');assert.equal(f.sent.length,1);assert.deepEqual(event,before);
+ assert.equal(result.observation.status,'arguments_updated');assert.equal(f.sent.length,1);assert.deepEqual(event,before);
  const {url,request,body}=f.sent[0];
  assert.equal(url,'https://api.openai.com/v1/decisions');assert.equal(request.method,'POST');assert.equal(request.redirect,'error');
  assert.deepEqual(Object.keys(body).sort(),['input','model','questions']);
@@ -97,9 +97,9 @@ test('disabling an owned policy stops sharing and ownership-conflicting setup or
  assert.deepEqual(readdirSync(join(directory,'state')),[]);
 });
 
-for(const client of ['codex','claude'])test(`${client}: explicit model, effort, role and inherited context never transmit`,async t=>{
+for(const client of ['codex','claude'])test(`${client}: unsupported explicit model/effort and fixed roles never transmit`,async t=>{
  const f=fixture(t);
- for(const field of ['model','reasoning_effort','role','inherit_history']){
+ for(const field of ['model','reasoning_effort','role']){
   const event=native(client);
   if(field==='inherit_history')event.tool_input.inherit_history=true;else event.tool_input[field]='explicit-synthetic-selection';
   assert.deepEqual((await f.run(client,event)).output,{});
@@ -110,7 +110,7 @@ for(const client of ['codex','claude'])test(`${client}: explicit model, effort, 
 test('opaque Codex messages are never decoded or forwarded; visible task labels remain shared data',async t=>{
  const f=fixture(t),event=native();event.tool_input.task_name='review_synthetic_module_for_missing_configuration_guard';
  event.tool_input.message='gAAAA'+'a'.repeat(100);
- const result=await f.run('codex',event);assert.equal(result.observation.status,'applied');assert.equal(f.sent.length,1);
+ const result=await f.run('codex',event);assert.equal(result.observation.status,'arguments_updated');assert.equal(f.sent.length,1);
  assert.deepEqual(JSON.parse(f.sent[0].body.input).task,{summary:'Task summary from visible task_name only; opaque message not inspected: review synthetic module for missing configuration guard',operation:'analysis',context_sufficient:true});
  noSentinels(f.sent[0].request.body,[event.tool_input.message,...metadata]);
 });
@@ -119,7 +119,7 @@ test('automatic excerpts obey UTF-8 byte bounds and never split a Unicode code p
  for(const limit of [96,4000,64000]){
   const f=fixture(t,{routerPolicy:{max_summary_bytes:limit}}),event=native();event.tool_input.task_name='Review';
   const paragraph='Review these symbols '+'😀한'.repeat(1100);event.tool_input.message=paragraph+'\n\n'+later;
-  const result=await f.run('codex',event);assert.equal(result.observation.status,'applied');
+  const result=await f.run('codex',event);assert.equal(result.observation.status,'arguments_updated');
   const summary=JSON.parse(f.sent[0].body.input).task.summary,prefix='Task: Review\n',cap=Math.min(4000,limit);
   assert.ok(Buffer.byteLength(summary)<=cap);assert.equal(summary.includes('\uFFFD'),false);
   assert.equal(summary.startsWith(prefix),true);assert.equal(paragraph.startsWith(summary.slice(prefix.length)),true);
@@ -168,4 +168,27 @@ test('direct operator-authored summaries share the supplied bounded text and rej
  assert.equal(f.sent[0].request.headers['X-Client-Request-Id'],input.request_id);
  assert.equal((await f.router.advise({...input,request_id:'oversized-synthetic',task:{...input.task,summary:'x'.repeat(97)}})).reason,'invalid_input');
  assert.equal(f.sent.length,1);
+});
+
+for(const client of ['codex','claude'])test(`${client}: history constraints retain minimal sharing but block application`,async t=>{
+ const f=fixture(t),event=native(client);event.tool_input.inherit_history=true;
+ const result=await f.run(client,event);assert.equal(f.sent.length,1);assert.equal(result.observation.application,'blocked');
+ assert.equal(Object.hasOwn(result.output.hookSpecificOutput,'updatedInput'),false);
+ const task=JSON.parse(f.sent[0].body.input).task;assert.equal(task.summary,`Task: ${label}\n${first}`);
+ noSentinels(JSON.stringify(task),[later,...metadata]);
+});
+
+test('original short opaque inherited shape shares only its label through mocked HTTP', async t => {
+ const f=fixture(t),event=native();
+ event.tool_input.task_name='cleanup_merged_worktrees';
+ event.tool_input.message='gAAAAA'+'a'.repeat(100);
+ event.tool_input.fork_turns='all';
+ const before=structuredClone(event);
+ const result=await f.run('codex',event);
+ assert.equal(result.observation.reason,'inherited_context_application_unverified');
+ assert.equal(f.sent.length,1);
+ assert.equal(JSON.parse(f.sent[0].body.input).task.summary,'Task summary from visible task_name only; opaque message not inspected: cleanup merged worktrees');
+ noSentinels(f.sent[0].request.body,[event.tool_input.message,...metadata]);
+ assert.deepEqual(event,before);
+ assert.equal(Object.hasOwn(result.output.hookSpecificOutput,'updatedInput'),false);
 });

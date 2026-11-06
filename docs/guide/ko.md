@@ -203,16 +203,17 @@ aptly remove --client all
 
 ## 자동 Hook
 
-연결된 대상 호출은 `route_spawn_hook` → Decisions를 자동 경유합니다. `defaults`는 해당 범위에서 호스트 기본 모델보다 Aptly의 선택을 우선하도록 운영자가 허용하는 정책입니다. 호스트의 모든 설정 출처를 관측했다는 선언은 아닙니다.
+**다음 릴리스 동작이며 npm 0.1.3에는 없습니다.** 설치한 `PreToolUse` matcher는 Codex의 `spawn_agent` / `collaborationspawn_agent` / `Agent`와 Claude Code의 `Agent` 호출을 native 실행 전에 로컬 `route_spawn_hook`으로 전달합니다. 호스트가 Hook을 로드·신뢰하고 MCP를 연결해야 합니다. 미설정·미지원 호스트나 MCP 연결 실패까지 Aptly가 가로채도록 강제할 수는 없으며, 실행은 호스트가 담당합니다.
 
-| 호스트 | 자동 선택 대상 |
-|---|---|
-| Codex | 모델·effort·고정 역할·resume을 지정하지 않고 `fork_turns: "none"`인 새 일반 호출 |
-| Claude Code | 모델·effort·고정 역할·resume·이력 상속을 지정하지 않은 `subagent_type: "general-purpose"` 호출 |
+로컬 사전 검사에서 명시 필드·역할·resume·정책·캐시·예산을 평가합니다. 매번 유료 Decisions 요청이 필요한 것은 아닙니다. Codex에서 모델이나 effort만 지정하면 일치하는 허용 튜플로 후보를 제한하고 미지정 필드만 채웁니다. 둘 다 지정하거나 값이 미지원인 경우, 고정 역할과 resume은 분류 없이 보존합니다. 입력 필드만으로 사용자 선택인지 호스트 기본값인지 단정하지 않습니다.
 
-명시 선택과 역할·fork·resume, 승인·샌드박스·MCP 권한은 보존합니다. fixture 결과로 기본 모델을 자동 변경하지 않습니다. 불충분한 맥락·지원하지 않는 응답·취소·변경된 호출에서는 기존 인자를 유지합니다. 각 호출의 입력·정책·후보 정보가 일치하는지 확인하고, 비동기 응답 후 다시 확인합니다.
+모델·effort가 미지정이면 `fork_turns: "all"`이나 fork 생략도 추천을 평가합니다. **이력 변경은 허용하지 않습니다.** Codex의 모델·effort 적용에는 명시적인 `fork_turns: "none"`이 필요합니다. 그 외에는 `inherited_context_application_unverified`을 알리고 원래 인자를 보존합니다. 다른 이력 필드는 `history_semantics_unverified`로 적용을 차단하며, Claude 적용도 이력 제약 없는 일반 호출로 한정합니다. 추천 성공과 실제 적용은 다릅니다.
 
-별도 설정 없이 실행하는 CLI와 기존 수동 설정은 fixture / shadow가 기본입니다. 자동 정책이 없는 기존 호스트 설정 증거에 기반한 경로와 설치한 기본값 선택 정책은 구분합니다. 호스트 내부 패치는 보류 상태이며 직접 추천의 선행 조건이 아닙니다.
+Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 짧은 작업명만으로도 추천할 수 있습니다. 짧은 이름은 cleanup/remove/prune + merged + worktrees/branches 또는 review/fix/test + failing/broken/flaky + tests/builds 조합만 허용하며, 나머지는 기존 6단어 검사를 유지합니다. 본문은 복호화하거나 전송하지 않습니다. 작업의 세부 조건이나 삭제 권한을 추론하지 않습니다. 이력 상속 상태의 적용은 대상 호스트에서 미검증이며, 모든 버전에서 불가능하다는 뜻은 아닙니다. 공개 소스만으로 설치된 런타임의 지원을 확정하지 않습니다.
+
+독립적인 작업일 때만 호출자가 충분한 독립 작업 맥락을 제공하고 새 자식을 명시적으로 선택하십시오. Aptly는 `all`을 `none`으로 바꾸거나 이력을 제거하거나 명시한 모델·effort를 덮어쓰지 않습니다. [합성 상속·새 자식 예제](../../examples/spawn-preflight.codex.json)는 별개의 호출이며 자동 재시도가 아닙니다. 결과 불명인 유료 호출을 새 ID로 재시도하지 마십시오.
+
+`defaults`는 호환되는 인자 변경을, `advisory`는 추천만 허용합니다. 상속 호출과 일부 필드만 지정한 호출도 적용 차단 여부와 관계없이 제한된 작업 발췌문을 Decisions에 전송할 수 있습니다. 이력 상속은 공유 거부 설정이 아닙니다. 정책 비활성화·맥락 부족·예산 제한·실패·취소에서는 실행 제약을 보존합니다. 입력·정책·카탈로그 결합, 중복 방지와 결과 불명 보호는 유지하며 fixture 추천으로 native 기본값을 바꾸지 않습니다. 자동 정책 없는 strict 증거 경로는 별개이며 호스트 내부 패치는 계속 보류합니다.
 
 | MCP 도구 | 용도 |
 |---|---|
@@ -220,6 +221,7 @@ aptly remove --client all
 | `recommend_agent` | 작업 요약으로 프로필 추천을 받습니다 |
 | `get_routing_precedence` | 호출의 보존 근거와 미확인 설정 출처를 설명합니다 |
 | `route_spawn_hook` | 설치한 정책에 따라 대상 호출의 기본값을 선택하거나 추천만 전달합니다 |
+| `get_spawn_routing_observation` | 정확히 일치하는 Hook 호출을 조회하며 native 실행을 증명하지 않습니다 |
 
 ### 외부 전송과 자동 공유 끄기
 
@@ -312,7 +314,7 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 
 Codex가 자식 `message`를 암호문으로 Hook에 전달하는 환경에서는 본문을 읽거나 해독하지 않습니다. 이 경우 충분히 구체적인 평문 `task_name`만 요약으로 사용합니다. 예를 들어 `sort_supplied_numbers_3_1_2_ascending_without_tools`처럼 작업 종류와 범위를 설명하십시오. 짧거나 모호한 이름은 원래 모델을 유지합니다. Claude Code와 평문 본문이 전달되는 호출은 제공된 본문 요약을 사용합니다.
 
-`get_routing_capabilities`의 `automatic_hook.last_result`에서 해당 MCP 프로세스가 마지막으로 기본값을 적용하거나 원래 호출을 유지한 사유를 확인할 수 있습니다. `null`은 아직 자동 Hook 처리 기록이 없다는 뜻입니다. 작업 본문이나 개인 설정 값은 반환하지 않습니다.
+동일한 `client`와 원래 Hook `event`로 `get_spawn_routing_observation`을 호출해 해당 호출을 조회하십시오. 식별자는 해시로 반환하며 사전 검사, 분류·캐시 결과, 추천, 인자 변경·적용 차단과 `execution: not_observed`를 구분합니다. `arguments_updated`는 Hook 출력 인자만 뜻하며 실제 자식 모델 관측이 아닙니다. 기록은 해당 MCP 프로세스의 최근 128개·10분으로 제한합니다. `not_observed`는 다른 프로세스·재시작·만료·퇴출·입력 불일치 때문일 수도 있으므로 전체 Hook 우회를 증명하지 않습니다. 프로세스 공용 `automatic_hook.last_result`는 제거합니다. 원문 작업·경로·세션 ID·자격 값은 반환하지 않습니다.
 
 직접 추천에는 저장소·파일 URL과 문서를 읽고 정리한 작업 범위·규모·제약을 요약에 함께 제공할 수 있습니다. URL 문자열을 보내는 것과 문서 본문을 제공하는 것은 다릅니다. 현재 Aptly의 분류 요청 처리 코드는 저장소 URL을 GET하거나 문서를 수집하지 않습니다. 필요한 문서 조회와 요약은 호출자가 수행합니다.
 

@@ -203,16 +203,17 @@ aptly remove --client all
 
 ## Automatic Hook
 
-Connected, eligible calls automatically pass through `route_spawn_hook` → Decisions. The `defaults` policy lets an operator authorize Aptly's choice to take precedence over host defaults within this scope. It is not a claim that all host configuration sources have been observed.
+**Next-release behavior; not included in npm 0.1.3.** The installed `PreToolUse` matcher routes supported Codex `spawn_agent` / `collaborationspawn_agent` / `Agent` and Claude Code `Agent` calls to local `route_spawn_hook` before native execution. The host must load and trust this Hook and connect its MCP server. Aptly cannot enforce interception in an unconfigured or unsupported host, or when MCP is unavailable; native execution remains the host's responsibility.
 
-| Host | Calls eligible for automatic selection |
-|---|---|
-| Codex | Fresh, general-purpose calls with no explicit model, effort, fixed role, or resume target, and `fork_turns: "none"` |
-| Claude Code | Calls with `subagent_type: "general-purpose"` and no explicit model, effort, fixed role, resume target, or inherited history |
+Local preflight checks explicit fields, roles/resume, policy, cache and budget. A new paid Decisions request is not required for every spawn. Model-only or effort-only Codex selections restrict candidates to matching allowlisted tuples; only the unspecified field can be filled. Both specified fields, unsupported values, fixed roles and resumed identities are preserved without classification. Input fields do not establish whether a choice came from the user or a host default.
 
-Explicit choices, roles, fork and resume settings, approvals, sandboxing, and MCP permissions are preserved. Fixture results never automatically change the default model. Insufficient context, unsupported responses, cancellation, or a changed call preserve the original arguments. Each call is bound to its input, policy, and catalog, and checked again after an asynchronous response.
+Unspecified model/effort with `fork_turns: "all"` or omitted fork now reaches recommendation. It does **not** authorize history changes: Codex model/effort application still requires explicit `fork_turns: "none"`. Otherwise the Hook reports `inherited_context_application_unverified` and preserves the original arguments. Other history fields produce `history_semantics_unverified`; Claude application remains limited to general-purpose calls without history constraints. A recommendation may therefore be produced without being applied.
 
-The CLI without additional configuration, and existing manual configurations, default to fixture / shadow. The older host-evidence-based path without an automatic policy is distinct from the installed default-selection policy. Host-internal patches remain on hold and are not a prerequisite for direct recommendations.
+For opaque Codex messages, a concrete short task name such as `cleanup_merged_worktrees` can supply label-only advice. The short-name allowlist covers cleanup/remove/prune + merged + worktrees/branches, and review/fix/test + failing/broken/flaky + tests/builds; other names retain the descriptive six-word check. The body is never decoded or sent. This does not establish missing task details or permission to clean up. Inherited application is unverified for the target host, not universally impossible; public source support alone cannot certify the installed runtime.
+
+For genuinely independent work, the caller can intentionally choose a fresh child and provide sufficient standalone task context. Aptly never changes `all` to `none`, removes history or rewrites a specified model/effort. [Synthetic inherited and fresh examples](../../examples/spawn-preflight.codex.json) show the distinct requests; they are not automatic retries. Never retry an uncertain paid call with a new ID.
+
+`defaults` enables compatible argument updates; `advisory` supplies advice only. Inherited calls and partially specified calls may now share the same bounded task excerpt with Decisions even when application is blocked; history is not a privacy opt-out. Disabled policy, insufficient context, budget limits, failure and cancellation preserve execution constraints. Input, policy and catalog bindings, duplicate suppression and unknown-outcome protection remain in place. Fixture recommendations never rewrite native defaults. The strict evidence-based path without an automatic policy remains separate; host-internal patches stay paused.
 
 | MCP tool | Purpose |
 |---|---|
@@ -220,6 +221,7 @@ The CLI without additional configuration, and existing manual configurations, de
 | `recommend_agent` | Returns a direct recommendation for a task summary |
 | `get_routing_precedence` | Explains preserved choices and unverified configuration sources for a call |
 | `route_spawn_hook` | Selects defaults for eligible calls or passes advice only, according to the installed policy |
+| `get_spawn_routing_observation` | Looks up one exact Hook invocation; never proves native execution |
 
 ### Outbound data and disabling automatic sharing
 
@@ -312,7 +314,7 @@ Refresh only reads the fixed [Claude model documentation](https://code.claude.co
 
 When Codex passes a subagent `message` to the Hook as ciphertext, Aptly does not read or decrypt its body. It uses only a sufficiently descriptive plaintext `task_name` as a summary. Describe the task and its scope, for example `sort_supplied_numbers_3_1_2_ascending_without_tools`. Short or ambiguous names preserve the original model. Claude Code calls and calls that expose a plaintext body use a summary of the provided body.
 
-Use `automatic_hook.last_result` in `get_routing_capabilities` to check the last application or preservation reason for that MCP process. `null` means it has not yet processed an automatic Hook call. Task bodies and personal configuration values are not returned.
+Use `get_spawn_routing_observation` with the same `client` and exact original Hook `event` to query one invocation. It returns a redacted correlation ID, preflight, classification/cache outcome, recommendation, argument-update or blocked application, and `execution: not_observed`. `arguments_updated` only describes emitted Hook arguments, never an observed child model. Records are limited to 128 calls and 10 minutes in this MCP process; `not_observed` can also mean another process, restart, expiry, eviction or mismatched input. It does not prove global Hook bypass. The process-wide `automatic_hook.last_result` is removed. No raw task, path, session ID or credential is returned.
 
 For direct recommendations, you can include repository and file URLs alongside a summary of the scope, size, and constraints derived from reading the documents. Sending a URL string differs from providing document contents. Aptly's classification request code does not fetch repository URLs or retrieve their contents. The caller performs any required retrieval and summarization.
 

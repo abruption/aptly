@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { defaultPolicy } from './core.ts';
 import { isSupportedProfile } from './catalog.ts';
 import type { Client, UnknownRecord, RoutingConstraints, RoutingInput, Profile, RoutingPolicy } from './types.ts';
-export interface HookOptions { client?: unknown; event?: unknown; recommendation?: unknown; mode?: string; compatibilityVerified?: boolean; policy?: RoutingPolicy; }
+export interface HookOptions { client?: unknown; event?: unknown; recommendation?: unknown; mode?: string; compatibilityVerified?: boolean; policy?: RoutingPolicy; fillUnspecified?: boolean; }
 export interface HookOutput { hookSpecificOutput?: { hookEventName: 'PreToolUse'; permissionDecision?: 'allow'; updatedInput: UnknownRecord; }; }
 interface Target { client: Client; event: UnknownRecord; input: UnknownRecord; id: string; }
 
@@ -58,25 +58,19 @@ export function hookInput({ client, event, policy = defaultPolicy }: HookOptions
 }
 
 /** Native Hook JSON, defaulting to no permission or argument intervention. */
-export function hookOutput({ client, event, recommendation, mode = 'shadow', compatibilityVerified = false, policy = defaultPolicy }: HookOptions = {}): HookOutput {
+export function hookOutput({ client, event, recommendation, mode = 'shadow', compatibilityVerified = false, policy = defaultPolicy, fillUnspecified = false }: HookOptions = {}): HookOutput {
   if (mode !== 'apply' || compatibilityVerified !== true) return {};
   const found = target(client, event);
   if (!found || !object(recommendation) || recommendation.status !== 'recommended') return {};
   const pins = constraints(found.client, found.input);
-  if ((['model_pinned', 'effort_pinned', 'role_pinned', 'fork_inherits'] as const).some(k => pins[k])) return {};
-  const profile = policy.profiles.find(p => p.client === client && p.id === recommendation.profile_id) as Profile | undefined;
-  if (!profile || !isSupportedProfile(profile) || recommendation.policy_version !== policy.version ||
-      recommendation.catalog_version !== policy.catalog_version) return {};
-  // Select executable values solely from the trusted catalog. Reject conflicting
-  // copies instead of letting a provider supply arbitrary model/effort strings.
-  if (own(recommendation, 'model') || own(recommendation, 'reasoning_effort') || own(recommendation, 'effort')) return {};
-  const suppliedProfile = recommendation.profile;
-  if (!object(suppliedProfile) || Object.keys(suppliedProfile).length !== Object.keys(profile).length ||
-      Object.entries(profile).some(([key, value]) => suppliedProfile[key] !== value)) return {};
+  if (pins.role_pinned || pins.fork_inherits || (!fillUnspecified && (pins.model_pinned || pins.effort_pinned))) return {};
+  const profile = validatedHookProfile(client,recommendation,policy);
+  if (!profile) return {};
+  if (fillUnspecified && !profilePreservesChoices(found.input,profile)) return {};
   let updatedInput;
   try { updatedInput = structuredClone(found.input); } catch { return {}; }
-  updatedInput.model = profile.model;
-  if (client === 'codex') updatedInput.reasoning_effort = profile.reasoning_effort;
+  if (!own(found.input,'model')) updatedInput.model = profile.model;
+  if (client === 'codex' && !effortKeys.some(key=>own(found.input,key))) updatedInput.reasoning_effort = profile.reasoning_effort;
   return { hookSpecificOutput: {
     hookEventName: 'PreToolUse',
     // Codex requires allow with updatedInput. Claude permits input-only
@@ -84,4 +78,24 @@ export function hookOutput({ client, event, recommendation, mode = 'shadow', com
     ...(client === 'codex' ? { permissionDecision: 'allow' } : {}),
     updatedInput,
   } };
+}
+
+export const effortKeys = ['effort','reasoning_effort','model_reasoning_effort'] as const;
+/** Presence is a pin, not evidence of its source. Never replace a specified half. */
+export function profilePreservesChoices(input: UnknownRecord, profile: Profile): boolean {
+  if (own(input,'model') && input.model !== profile.model) return false;
+  return effortKeys.every(key=>!own(input,key) || (typeof input[key]==='string' && profile.reasoning_effort===input[key]));
+}
+export function validatedHookProfile(client: unknown, recommendation: unknown, policy: RoutingPolicy): Profile | undefined {
+  if (!object(recommendation) || recommendation.status !== 'recommended') return undefined;
+  const profile = policy.profiles.find(p => p.client === client && p.id === recommendation.profile_id) as Profile | undefined;
+  if (!profile || !isSupportedProfile(profile) || recommendation.policy_version !== policy.version ||
+      recommendation.catalog_version !== policy.catalog_version) return undefined;
+  // Select executable values solely from the trusted catalog. Reject conflicting
+  // copies instead of letting a provider supply arbitrary model/effort strings.
+  if (own(recommendation, 'model') || own(recommendation, 'reasoning_effort') || own(recommendation, 'effort')) return undefined;
+  const suppliedProfile = recommendation.profile;
+  if (!object(suppliedProfile) || Object.keys(suppliedProfile).length !== Object.keys(profile).length ||
+      Object.entries(profile).some(([key, value]) => suppliedProfile[key] !== value)) return undefined;
+  return profile;
 }

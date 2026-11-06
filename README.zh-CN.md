@@ -40,11 +40,11 @@ aptly --version
 
 | 方式 | 行为 |
 |---|---|
-| 自动 Hook | 为未指定模型、effort、固定角色、历史继承或 resume 的新建通用调用选择默认值 |
+| 自动 Hook | 检查新调用的约束，并推荐未指定的默认值 |
 | 直接推荐 | 通过 `recommend_agent` 或 `aptly recommend` 获取执行配置，再在宿主中明确选择并执行 |
 | fixture | 无需密钥或网络即可测试本地模拟推荐；结果并非实际 Decisions 判断 |
 
-自动选择适用于 Codex 的 `fork_turns: "none"` 调用和 Claude Code 的 `subagent_type: "general-purpose"` 调用。如果已有明确选择，或发生上下文不足、认证或连接错误，则保留原始调用。推荐结果并不表示已确认账户的模型访问权限，也不表示已核实宿主的全部配置。
+下一版本也会为继承调用评估推荐。应用仍要求 Codex 显式指定 `fork_turns: "none"`，或 Claude Code 使用无历史约束的通用调用；已指定字段会保留。推荐、Hook 参数更新与实际子代理执行是不同事实。npm 0.1.3 尚不支持此行为，详见[指南](docs/guide/zh-CN.md#自动-hook)。
 
 ## 文档
 
