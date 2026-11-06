@@ -85,10 +85,40 @@ and accounting design.
 - `inherited_context_application_unverified`: advice can be available while
   the native model/history update remains unverified and blocked.
 
-Tests use synthetic opaque strings, injected providers, mocked Decisions HTTP
-and in-memory MCP transport. They verify the exact shared summary, request
-counts, identity, cancellation, bounds and cache/unknown protections. They do
-not establish native host handoff availability, paid provider behavior or the
-actual child's model/effort. The separately authorized native evaluation in
-#61 acceptance criterion 4 remains outstanding. Keep the PR Draft until that
-evidence and the integration's exact event handoff are reviewed.
+Automated tests use synthetic opaque strings, injected providers, mocked
+Decisions HTTP and in-memory MCP transport. They verify shared summaries,
+identity, cancellation, bounds and cache/unknown protections. The separate
+native observation below does not turn those fixtures into native evidence.
+
+### Bounded native protocol verification — 2026-11-06
+
+A macOS Codex CLI 0.167.0 test used product commit
+`efae8211f6d92b9a9619886c80792d4e1b737d4d`. The installed Hook was enabled and
+trusted without changing its trust settings. A test-only MCP transport adapter
+captured the real host event, registered the description on the same product
+server, and then forwarded the original `route_spawn_hook` request. It did not
+invent IDs, decode the opaque body, alter Hook responses or patch host code.
+
+The safe synthetic description requested extraction of a nonsecret marker
+from earlier conversation history and output of `[1, 2, 3]`, with no tools,
+files, network access, settings changes or real worktree deletion. An HTTP
+boundary recorder confirmed exactly one forwarded Decisions request whose task
+text was the labelled description, with no opaque body or native event fields.
+Registration and observation correlation matched the actual invocation.
+
+The provider selected `codex-simple` (`gpt-6-luna` / `max`). Application remained
+blocked as `inherited_context_application_unverified` for `fork_turns: "all"`.
+The native child's final context remained `gpt-6.1-sol` / `low`, matching the
+parent. Parent linkage, exact copying of the marker-bearing parent user payload,
+and the child's final marker/list response were independently checked.
+
+This is one protocol and payload verification, not a provider-quality benchmark,
+a causal comparison with label-only advice, or successful application of the
+recommended model. The test used two parent turns and one child; temporary
+files were removed and persistent host configuration was unchanged.
+
+This validates a caller that can capture the exact event before product
+preflight. The adapter does not ship an automatic description producer, and
+ordinary parent agents still cannot invent the required IDs. PR #60's separate
+history/model application acceptance and merge order must be resolved before
+merging this dependent change. No richer-summary retry workflow is enabled.
