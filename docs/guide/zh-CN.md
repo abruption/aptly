@@ -26,7 +26,7 @@ aptly --version
 
 ### 软件包更新
 
-`aptly update` 是本次后续源码构建新增的命令，**npm 0.1.2 不包含此命令**。仅支持已验证的全局 npm 安装，将 `aptly@latest` 安装到与当前运行软件包一致且已验证的 prefix。局部安装、源码检出和无法验证的路径会被拒绝。
+`aptly update` 是本次后续源码构建新增的命令，**npm 0.1.2 不包含此命令**。仅支持已验证的全局 npm 安装，将 `aptly@latest` 安装到与当前运行软件包一致且已验证的 prefix。局部安装、源码检出和无法验证的路径会被拒绝。 如果 npm 的有效配置为 `dry-run=true`，命令会在开始安装前返回 `update_dry_run_enabled` 并拒绝更新。无法验证配置时返回 `update_configuration_unverified`。不会将试运行报告为更新成功。
 
 更新前，请按上文账本迁移步骤停止其他使用账本的宿主、MCP 和 CLI 进程。该命令跳过安装脚本，更新后请显式配置并重启宿主：
 

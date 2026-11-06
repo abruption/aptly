@@ -26,7 +26,7 @@ New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy,
 
 ### Package updates
 
-`aptly update` is added in this follow-up source build and is **absent from npm 0.1.2**. It requires a verified global npm installation and installs `aptly@latest` into the same verified prefix as the running package. Local installations, source checkouts, and unverified paths are rejected.
+`aptly update` is added in this follow-up source build and is **absent from npm 0.1.2**. It requires a verified global npm installation and installs `aptly@latest` into the same verified prefix as the running package. Local installations, source checkouts, and unverified paths are rejected. If the effective npm configuration has `dry-run=true`, the command refuses with `update_dry_run_enabled` before starting installation. If configuration cannot be verified, it stops with `update_configuration_unverified`. A dry-run is never reported as a successful update.
 
 Stop other host, MCP, and CLI processes using the ledger before updating, following the transition steps above. The command skips lifecycle scripts; explicitly configure afterward and restart hosts:
 
