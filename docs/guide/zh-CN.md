@@ -41,7 +41,7 @@ aptly setup --client all --mode defaults
 
 ### 软件包更新
 
-`aptly update` 是本次后续源码构建新增的命令，**npm 0.1.2 不包含此命令**。仅支持已验证的全局 npm 安装，将 `aptly@latest` 安装到与当前运行软件包一致且已验证的 prefix。局部安装、源码检出和无法验证的路径会被拒绝。 如果 npm 的有效配置为 `dry-run=true`，命令会在开始安装前返回 `update_dry_run_enabled` 并拒绝更新。无法验证配置时返回 `update_configuration_unverified`。不会将试运行报告为更新成功。
+`aptly update` 需要 **Aptly 0.1.3 或更高版本**。仅支持已验证的全局 npm 安装，将 `aptly@latest` 安装到与当前运行软件包一致且已验证的 prefix。局部安装、源码检出和无法验证的路径会被拒绝。 如果 npm 的有效配置为 `dry-run=true`，命令会在开始安装前返回 `update_dry_run_enabled` 并拒绝更新。无法验证配置时返回 `update_configuration_unverified`。不会将试运行报告为更新成功。
 
 更新前，请按上文账本迁移步骤停止其他使用账本的宿主、MCP 和 CLI 进程。该命令跳过安装脚本，更新后请显式配置并重启宿主：
 
@@ -55,7 +55,7 @@ aptly --version
 
 ### 新版本通知
 
-本次后续源码构建会在交互式普通 CLI 命令中检查最新稳定版本，并在有新版时通过 stderr 提示 `aptly update`。**npm 0.1.2 不包含此通知。** 三个标准流必须都是终端；MCP 服务、自动 setup、推荐或分类路径、管道和 CI 均跳过检查。JSON stdout 和 MCP、Hook 响应保持不变。
+**Aptly 0.1.3 或更高版本**会在交互式普通 CLI 命令中检查最新稳定版本，并在有新版时通过 stderr 提示 `aptly update`。 三个标准流必须都是终端；MCP 服务、自动 setup、推荐或分类路径、管道和 CI 均跳过检查。JSON stdout 和 MCP、Hook 响应保持不变。
 
 仅向公开 npm 注册表请求 Aptly 版本元数据，不发送密钥、任务摘要或宿主配置。网络及响应读取限制为 800ms 和 16KiB，结果缓存于 `~/.cache/aptly/update-check.json`，有效期为 24 小时，失败后等待一小时。网络或缓存错误不会使原命令失败。在 CLI 环境中设置 `APTLY_NO_UPDATE_NOTIFIER=1` 可关闭检查；此变量不属于 `aptly set env` 支持的键。通知不会安装更新。
 
@@ -110,11 +110,11 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` 不修改文件。迁移仅将与所有权记录一致的 Aptly 标准注册的 Node 和服务器路径更新到当前构建，保留环境设置、Hook、策略及其他宿主，不访问凭据，也不执行旧启动程序。自定义包装程序、缺少所有权记录或已修改的注册会被拒绝。请在本地检查此类注册，使用包装程序的安全环境传递方式，或切换到另行审核的标准注册。不要编辑或删除所有权记录以绕过验证。
 
-如果 `launcher_migration_not_owned` 对应的是保留的注册（`mcp_created: false`），本次后续源码构建提供显式选项 `--include-existing`。**npm 0.1.2 不包含此选项。** 请按上文从源码构建，然后运行：
+如果 `launcher_migration_not_owned` 对应的是保留的注册（`mcp_created: false`），**Aptly 0.1.3 或更高版本**提供显式选项 `--include-existing`。请安装 0.1.3 或更高版本，然后运行：
 
 ```sh
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+aptly setup --client claude --migrate-launcher --include-existing --dry-run
+aptly setup --client claude --migrate-launcher --include-existing
 ```
 
 请先在本地检查注册。必须已有有效的 Aptly 所有权记录，且受管理的环境变量、Hook 和策略与记录一致。仅接受绝对 Node 路径和单个标准服务器路径；包装程序或缺少记录的注册仍会被拒绝。此选项不会将整个 MCP 注册改为 Aptly 所有，后续移除仍会保留迁移后的启动路径和原有用户设置。仅可用于显式指定的单个宿主迁移，不适用于自动安装。

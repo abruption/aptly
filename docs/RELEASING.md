@@ -1,5 +1,11 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.3 릴리즈 준비
+
+현재 소스의 게시 후보 버전은 `0.1.3`입니다. 기존 표준 MCP 등록의 명시적 이전(`--include-existing`), 검증된 전역 설치의 `aptly update`와 npm dry-run 거절, 대화형 CLI의 신규 버전 알림, npm 설치 스크립트 허용 안내를 포함합니다. [한국어 릴리즈 노트 초안](release-notes/0.1.3.md)과 [Changelog](../CHANGELOG.md)를 확인하십시오.
+
+이 항목은 **게시 준비 상태**를 기록합니다. `v0.1.3` 태그·npm 게시·0.1.3 provenance 검증은 아직 수행하지 않았습니다. 준비 PR 병합과 해당 main CI 성공 후, 별도 게시 지시를 받고 태그를 push해야 합니다. 이전 버전의 artifact·digest·OIDC 실행 결과를 0.1.3의 검증 근거로 재사용하지 않습니다. 실제 게시 후 이 문서와 릴리즈 노트를 결과에 맞게 갱신하십시오.
+
 ## 0.1.2 게시와 검증
 
 2026-11-06에 `v0.1.2` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42151554506)를 실행하고, registry 파일·무결성과 인증서 기반 provenance를 검증했습니다. 확인 당시 npm `latest`는 0.1.2입니다. source SHA·run·attempt·digest·검증 결과는 [0.1.2 릴리즈 근거](releases/0.1.2.md)에 기록했습니다. 이후 버전도 준비 PR 병합과 main CI 확인 후 태그를 push하면 실제 게시가 시작됩니다. 일반 설치 문서는 계속 `aptly@latest`를 사용합니다.

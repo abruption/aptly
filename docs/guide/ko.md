@@ -41,7 +41,7 @@ aptly setup --client all --mode defaults
 
 ### 패키지 업데이트
 
-`aptly update`는 이 후속 소스 빌드에서 추가한 명령이며 **npm 0.1.2에는 없습니다**. 검증된 전역 npm 설치에서만 현재 실행 중인 패키지와 동일한 prefix의 `aptly@latest`를 설치합니다. 로컬 설치·소스 체크아웃·확인할 수 없는 경로는 거절합니다. npm의 유효 설정에서 `dry-run=true`이면 실제 설치를 시작하기 전에 `update_dry_run_enabled`로 거절합니다. 설정을 확인할 수 없으면 `update_configuration_unverified`로 중단합니다. 시험 실행을 업데이트 성공으로 보고하지 않습니다.
+`aptly update`는 **Aptly 0.1.3부터 지원합니다**. 검증된 전역 npm 설치에서만 현재 실행 중인 패키지와 동일한 prefix의 `aptly@latest`를 설치합니다. 로컬 설치·소스 체크아웃·확인할 수 없는 경로는 거절합니다. npm의 유효 설정에서 `dry-run=true`이면 실제 설치를 시작하기 전에 `update_dry_run_enabled`로 거절합니다. 설정을 확인할 수 없으면 `update_configuration_unverified`로 중단합니다. 시험 실행을 업데이트 성공으로 보고하지 않습니다.
 
 업데이트 전에 위 원장 전환 절차에 따라 다른 호스트·MCP·CLI 프로세스를 중지하십시오. 명령은 설치 스크립트를 실행하지 않으므로 업데이트 후 명시적으로 설정하고 호스트를 재시작하십시오:
 
@@ -55,7 +55,7 @@ aptly --version
 
 ### 새 버전 알림
 
-이 후속 소스 빌드는 일반 CLI의 대화형 실행에서 최신 안정 버전을 확인하고, 더 새 버전이 있으면 stderr에 `aptly update`를 안내합니다. **npm 0.1.2에는 이 알림이 없습니다.** stdin·stdout·stderr가 모두 터미널일 때만 동작하며, MCP 서버·자동 setup·추천/분류 경로·파이프·CI에서는 확인하지 않습니다. 기존 JSON stdout과 MCP·Hook 응답은 유지합니다.
+**Aptly 0.1.3부터** 일반 CLI의 대화형 실행에서 최신 안정 버전을 확인하고, 더 새 버전이 있으면 stderr에 `aptly update`를 안내합니다. stdin·stdout·stderr가 모두 터미널일 때만 동작하며, MCP 서버·자동 setup·추천/분류 경로·파이프·CI에서는 확인하지 않습니다. 기존 JSON stdout과 MCP·Hook 응답은 유지합니다.
 
 공개 npm 레지스트리의 Aptly 버전 메타데이터만 조회하며 키·작업 요약·호스트 설정은 보내지 않습니다. 네트워크와 응답 읽기는 최대 800ms·16KiB로 제한하고, 결과는 `~/.cache/aptly/update-check.json`에 24시간 캐시합니다. 실패 후에는 1시간 대기하며, 조회·캐시 오류로 원래 명령을 실패시키지 않습니다. 버전 조회를 끄려면 CLI 실행 환경에 `APTLY_NO_UPDATE_NOTIFIER=1`을 설정하십시오. 이 변수는 MCP 키 설정용 `aptly set env`의 지원 대상이 아닙니다. 알림은 업데이트를 설치하지 않습니다.
 
@@ -110,11 +110,11 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run`은 변경하지 않습니다. 이전 명령은 소유 기록과 일치하는 Aptly 표준 등록의 Node·서버 경로를 현재 빌드로 바꿉니다. 기존 환경·Hook·정책·다른 호스트는 보존하며 키를 읽거나 저장하지 않습니다. 오래된 실행 파일을 실행하지 않습니다. 사용자 래퍼, 소유 기록이 없거나 수정된 등록은 거절합니다. 이 경우 로컬에서 등록을 검토하고 래퍼의 안전한 환경 전달을 사용하거나 별도로 검토한 표준 등록으로 전환하십시오. 소유 기록을 삭제하거나 편집해 검증을 우회하지 마십시오.
 
-`launcher_migration_not_owned`가 나오고 기존 등록을 보존한 상태(`mcp_created: false`)라면, 이 후속 소스 빌드의 `--include-existing`으로 명시적으로 이전할 수 있습니다. **npm 0.1.2에는 이 옵션이 없습니다.** 위의 소스 빌드 절차를 사용하고 다음 명령을 실행하십시오:
+`launcher_migration_not_owned`가 나오고 기존 등록을 보존한 상태(`mcp_created: false`)라면, **Aptly 0.1.3부터** `--include-existing`으로 명시적으로 이전할 수 있습니다. 0.1.3 이상을 설치한 뒤 다음 명령을 실행하십시오:
 
 ```sh
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+aptly setup --client claude --migrate-launcher --include-existing --dry-run
+aptly setup --client claude --migrate-launcher --include-existing
 ```
 
 실행 전에 로컬 등록을 검토하십시오. 유효한 기존 Aptly 소유 기록과 일치하는 관리 환경변수·Hook·정책이 필요하며, 절대 Node 경로와 단일 표준 서버 경로만 허용합니다. 사용자 래퍼나 기록이 없는 등록은 이 옵션으로도 이전하지 않습니다. 기존 MCP 전체를 Aptly 소유로 바꾸지 않으므로, 이후 `remove`도 이전한 MCP 실행 경로와 원래 사용자 설정을 보존합니다. 이 옵션은 단일 호스트의 명시적 이전에만 사용할 수 있고 자동 설치에는 적용되지 않습니다.

@@ -41,7 +41,7 @@ Explicit `setup` works regardless of lifecycle execution. It preserves existing 
 
 ### Package updates
 
-`aptly update` is added in this follow-up source build and is **absent from npm 0.1.2**. It requires a verified global npm installation and installs `aptly@latest` into the same verified prefix as the running package. Local installations, source checkouts, and unverified paths are rejected. If the effective npm configuration has `dry-run=true`, the command refuses with `update_dry_run_enabled` before starting installation. If configuration cannot be verified, it stops with `update_configuration_unverified`. A dry-run is never reported as a successful update.
+`aptly update` requires **Aptly 0.1.3 or later**. It requires a verified global npm installation and installs `aptly@latest` into the same verified prefix as the running package. Local installations, source checkouts, and unverified paths are rejected. If the effective npm configuration has `dry-run=true`, the command refuses with `update_dry_run_enabled` before starting installation. If configuration cannot be verified, it stops with `update_configuration_unverified`. A dry-run is never reported as a successful update.
 
 Stop other host, MCP, and CLI processes using the ledger before updating, following the transition steps above. The command skips lifecycle scripts; explicitly configure afterward and restart hosts:
 
@@ -55,7 +55,7 @@ Existing MCP launchers and user wrappers are not automatically migrated. Follow 
 
 ### New-version notifications
 
-This follow-up source build checks the latest stable version during interactive human-facing CLI commands and suggests `aptly update` on stderr when a newer version exists. **npm 0.1.2 does not include this notification.** All three standard streams must be terminals. MCP serving, automatic setup, recommendation/classification paths, pipes, and CI skip checks. JSON stdout and MCP/Hook payloads stay unchanged.
+**Aptly 0.1.3 or later** checks the latest stable version during interactive human-facing CLI commands and suggests `aptly update` on stderr when a newer version exists. All three standard streams must be terminals. MCP serving, automatic setup, recommendation/classification paths, pipes, and CI skip checks. JSON stdout and MCP/Hook payloads stay unchanged.
 
 Only public Aptly version metadata is requested from the npm registry; no key, task summary, or host configuration is sent. Network and body reads are limited to 800ms and 16KiB. Results are cached at `~/.cache/aptly/update-check.json` for 24 hours, with a one-hour cooldown after failure. Network/cache errors cannot fail the requested command. Set `APTLY_NO_UPDATE_NOTIFIER=1` in the CLI environment to disable checks; it is not a supported key for `aptly set env`. Notifications never install updates.
 
@@ -110,11 +110,11 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` makes no changes. Migration replaces the Node/server paths of a receipt-matching, Aptly-owned standard registration with the current build. It preserves environment settings, Hooks, policy and other hosts, accesses no credentials, and never executes the old launcher. Custom wrappers and missing or modified ownership records are rejected. Review such registrations locally; use the wrapper's secure environment or a separately reviewed standard registration. Do not edit or delete ownership records to bypass validation.
 
-If `launcher_migration_not_owned` refers to a preserved registration (`mcp_created: false`), this follow-up source build offers the explicit `--include-existing` opt-in. **npm 0.1.2 does not include this option.** Build from source as described above, then run:
+If `launcher_migration_not_owned` refers to a preserved registration (`mcp_created: false`), **Aptly 0.1.3 or later** offers the explicit `--include-existing` opt-in. Install 0.1.3 or later, then run:
 
 ```sh
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+aptly setup --client claude --migrate-launcher --include-existing --dry-run
+aptly setup --client claude --migrate-launcher --include-existing
 ```
 
 Review the local registration first. A valid existing Aptly ownership receipt and matching managed environment additions, Hook, and policy are required. Only an absolute Node path with a single standard server path is accepted; wrappers and registrations without a receipt remain unsupported. This does not make the entire MCP registration Aptly-owned: later removal preserves the migrated launcher and original user settings. The option applies only to explicit single-client migration, never automatic installation.

@@ -41,7 +41,7 @@ aptly setup --client all --mode defaults
 
 ### パッケージの更新
 
-`aptly update` はこの後続ソースビルドで追加したコマンドで、**npm 0.1.2 には含まれません**。確認済みの npm グローバルインストールが必要で、実行中のパッケージと一致する確認済み prefix に `aptly@latest` をインストールします。ローカルインストール・ソースチェックアウト・確認できないパスは拒否します。 npm の有効な設定が `dry-run=true` の場合は、インストール前に `update_dry_run_enabled` で拒否します。設定を確認できない場合は `update_configuration_unverified` で停止し、試行のみの実行を更新成功とは報告しません。
+`aptly update` は **Aptly 0.1.3 以降で利用できます**。確認済みの npm グローバルインストールが必要で、実行中のパッケージと一致する確認済み prefix に `aptly@latest` をインストールします。ローカルインストール・ソースチェックアウト・確認できないパスは拒否します。 npm の有効な設定が `dry-run=true` の場合は、インストール前に `update_dry_run_enabled` で拒否します。設定を確認できない場合は `update_configuration_unverified` で停止し、試行のみの実行を更新成功とは報告しません。
 
 更新前に、上記の台帳移行手順に従い、台帳を使用する他のホスト・MCP・CLI プロセスを停止してください。インストールスクリプトは実行しないため、更新後に明示的に設定し、ホストを再起動してください。
 
@@ -55,7 +55,7 @@ aptly --version
 
 ### 新しいバージョンの通知
 
-この後続ソースビルドでは、対話形式の通常 CLI コマンドで最新の安定版を確認し、新版があれば stderr に `aptly update` を案内します。**npm 0.1.2 にはこの通知は含まれません。** 標準入出力と標準エラー出力がすべてターミナルの場合のみ動作し、MCP サーバー・自動 setup・推薦や分類の経路・パイプ・CI では確認しません。JSON stdout と MCP・Hook の応答は変更しません。
+**Aptly 0.1.3 以降では**、対話形式の通常 CLI コマンドで最新の安定版を確認し、新版があれば stderr に `aptly update` を案内します。 標準入出力と標準エラー出力がすべてターミナルの場合のみ動作し、MCP サーバー・自動 setup・推薦や分類の経路・パイプ・CI では確認しません。JSON stdout と MCP・Hook の応答は変更しません。
 
 公開 npm レジストリから Aptly のバージョン情報のみを取得し、キー・タスク要約・ホスト設定は送信しません。ネットワークと応答読み取りは 800ms・16KiB に制限し、結果を `~/.cache/aptly/update-check.json` に 24 時間キャッシュします。失敗後は 1 時間待機し、通信・キャッシュエラーで元のコマンドを失敗させません。CLI の環境に `APTLY_NO_UPDATE_NOTIFIER=1` を設定すると確認を停止できます。この変数は `aptly set env` の対象ではありません。通知による自動更新は行いません。
 
@@ -110,11 +110,11 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` は変更しません。移行は所有記録と一致する Aptly の標準登録に限り、Node・サーバーパスを現在のビルドへ更新します。環境設定・Hook・ポリシー・他のホストを保持し、資格情報へのアクセスや古い起動プログラムの実行は行いません。独自ラッパー、所有記録のない登録、変更済みの登録は拒否します。その場合は登録をローカルで確認し、ラッパーの安全な環境変数受け渡しを使うか、別途確認した標準登録へ切り替えてください。検証を回避するために所有記録を編集・削除しないでください。
 
-`launcher_migration_not_owned` が既存の登録を保持した状態（`mcp_created: false`）を指す場合、この後続ソースビルドでは `--include-existing` を明示して移行できます。**npm 0.1.2 にはこのオプションは含まれません。** 上記の手順でソースからビルドし、次を実行してください。
+`launcher_migration_not_owned` が既存の登録を保持した状態（`mcp_created: false`）を指す場合、**Aptly 0.1.3 以降では** `--include-existing` を明示して移行できます。0.1.3 以降をインストールし、次を実行してください。
 
 ```sh
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
-node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+aptly setup --client claude --migrate-launcher --include-existing --dry-run
+aptly setup --client claude --migrate-launcher --include-existing
 ```
 
 実行前にローカルの登録を確認してください。有効な既存の Aptly 所有記録と、記録に一致する管理対象の環境変数・Hook・ポリシーが必要です。絶対 Node パスと単一の標準サーバーパスのみを許可し、ラッパーや記録のない登録は拒否します。MCP 登録全体を Aptly 所有には変更しないため、その後の削除でも移行後の起動パスと元のユーザー設定を保持します。明示的な単一ホストの移行専用で、自動インストールには適用されません。
