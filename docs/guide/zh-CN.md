@@ -39,6 +39,20 @@ aptly setup --client all --mode defaults
 
 无论安装脚本是否运行，都可以显式执行 `setup`。它会保留已有启动路径；旧路径错误请按下文恢复步骤处理。密钥配置、MCP 重启和 Codex `/hooks` 信任审核仍需单独完成。
 
+### 软件包更新
+
+`aptly update` 是本次后续源码构建新增的命令，**npm 0.1.2 不包含此命令**。仅支持已验证的全局 npm 安装，将 `aptly@latest` 安装到与当前运行软件包一致且已验证的 prefix。局部安装、源码检出和无法验证的路径会被拒绝。 如果 npm 的有效配置为 `dry-run=true`，命令会在开始安装前返回 `update_dry_run_enabled` 并拒绝更新。无法验证配置时返回 `update_configuration_unverified`。不会将试运行报告为更新成功。
+
+更新前，请按上文账本迁移步骤停止其他使用账本的宿主、MCP 和 CLI 进程。该命令跳过安装脚本，更新后请显式配置并重启宿主：
+
+```sh
+aptly update
+aptly setup --client all --mode defaults
+aptly --version
+```
+
+不会自动迁移现有 MCP 启动路径或用户包装程序。如仍有旧路径，请按下文启动路径恢复步骤处理。密钥配置和 Codex `/hooks` 信任审核仍是单独步骤。如遇 npm 认证、网络或权限错误，请使用手动安装说明。不会自动安装更新。
+
 ### 使用 CLI 设置
 
 `set` 命令需要 0.1.1 或更高版本。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。

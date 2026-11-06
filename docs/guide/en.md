@@ -39,6 +39,20 @@ aptly setup --client all --mode defaults
 
 Explicit `setup` works regardless of lifecycle execution. It preserves existing launchers; use the recovery steps below for stale paths. Key setup, MCP restart, and Codex `/hooks` trust review remain separate steps.
 
+### Package updates
+
+`aptly update` is added in this follow-up source build and is **absent from npm 0.1.2**. It requires a verified global npm installation and installs `aptly@latest` into the same verified prefix as the running package. Local installations, source checkouts, and unverified paths are rejected. If the effective npm configuration has `dry-run=true`, the command refuses with `update_dry_run_enabled` before starting installation. If configuration cannot be verified, it stops with `update_configuration_unverified`. A dry-run is never reported as a successful update.
+
+Stop other host, MCP, and CLI processes using the ledger before updating, following the transition steps above. The command skips lifecycle scripts; explicitly configure afterward and restart hosts:
+
+```sh
+aptly update
+aptly setup --client all --mode defaults
+aptly --version
+```
+
+Existing MCP launchers and user wrappers are not automatically migrated. Follow the launcher recovery instructions below if old paths remain. Key setup and Codex `/hooks` trust review remain separate. For npm authentication, network, or permission failures, use the manual installation instructions. Updates are never installed automatically.
+
 ### Configure with the CLI
 
 The `set` commands require 0.1.1 or later. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
