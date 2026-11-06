@@ -14,7 +14,7 @@ const userGuideFiles = ['docs/guide/ko.md', 'docs/guide/en.md', 'docs/guide/zh-C
 const rootFiles = new Set(['package.json', 'package-lock.json', ...readmeFiles, 'LICENSE', 'tsconfig.json', '.gitignore', '.gitattributes', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md', '.env.example']);
 const rootDirectories = new Set(['src', 'bin', 'examples', 'docs', 'test', 'test-support', 'scripts', '.github', 'dist']);
 const forbiddenSegments = new Set(['.local', '.poc', 'node_modules', '.worktree', '.release', '.git', 'AGENTS.md']);
-const packagedRootFiles = new Set([...readmeFiles, ...userGuideFiles, 'LICENSE', 'package.json', 'docs/ADVISORY_USAGE.md', 'docs/DRAFT_0_1_0.md']);
+const packagedRootFiles = new Set([...readmeFiles, ...userGuideFiles, 'LICENSE', 'package.json', 'docs/ADVISORY_USAGE.md', 'docs/SPAWN_CONTEXT.md', 'docs/DRAFT_0_1_0.md']);
 const packagedDirectories = new Set(['dist/src', 'dist/bin', 'examples', 'docs/guide']);
 const maximumSourceBytes = 2 * 1024 * 1024;
 

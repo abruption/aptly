@@ -64,3 +64,25 @@ for(const host of ['codex','claude'])test(`${host}: installed Hook reaches MCP b
   assert.equal((await call('get_spawn_routing_observation',{client:host,event:{...event,session_id:'unrelated'}})).preflight,'not_observed');
  }
 });
+
+test('MCP context handoff is explicit, opt-out aware, exact-event bound and revocable',async t=>{
+ const home=createTestTemp(t,'codex-context-server-');setupHosts({home,env:{},clients:['codex'],mode:'advisory'});
+ const policyPath=join(home,'.codex/aptly/auto-policy.json');
+ const server=createServer({env:{ROUTER_PROVIDER:'fixture',APTLY_HOOK_POLICY_PATH:policyPath}}),client=new Client({name:'context-test',version:'1'});
+ const [left,right]=InMemoryTransport.createLinkedPair();await server.connect(right);await client.connect(left);t.after(async()=>{await client.close();await server.close();});
+ const call=async(name,args)=>{const r=await client.callTool({name,arguments:args});assert.notEqual(r.isError,true);return r.structuredContent??JSON.parse(r.content[0].text);};
+ const event={hook_event_name:'PreToolUse',session_id:'synthetic-session',tool_use_id:'synthetic-call',tool_name:'spawn_agent',tool_input:{task_name:'brief',message:'gAAAAA'+'A'.repeat(96),fork_turns:'all'}};
+ const args={client:'codex',event},description='Review three synthetic merged worktrees. Return a plan; make no changes.';
+ assert.equal((await call('prepare_spawn_context',{...args,description})).status,'registered');
+ await call('route_spawn_hook',args);
+ const observed=await call('get_spawn_routing_observation',args);
+ assert.equal(observed.recommendation,'produced');assert.equal(observed.reason,'inherited_context_application_unverified');
+ const changed={...args,event:{...event,tool_input:{...event.tool_input,fork_turns:'none'}}};
+ await call('route_spawn_hook',changed);
+ assert.equal((await call('get_spawn_routing_observation',changed)).reason,'context_mismatch');
+ assert.equal((await call('cancel_spawn_context',args)).status,'cancelled');
+ await call('route_spawn_hook',args);
+ assert.equal((await call('get_spawn_routing_observation',args)).reason,'context_cancelled');
+ writeFileSync(policyPath,JSON.stringify({schema_version:1,kind:'aptly-auto-hook',mode:'advisory',issuer:'operator_installation',enabled:false,state_directory:join(home,'.codex/aptly/state')}));
+ assert.equal((await call('prepare_spawn_context',{...args,description})).reason,'automatic_policy_disabled');
+});

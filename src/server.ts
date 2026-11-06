@@ -10,6 +10,7 @@ import { hookInput, hookOutput } from './hook.ts';
 import { resolveProvenance } from './provenance.ts';
 import { loadConfiguration, loadHostContext } from './config.ts';
 import { automaticHook, loadAutomaticHookPolicy, initialHookObservation } from './automatic-hook.ts';
+import { SpawnContexts } from './spawn-context.ts';
 import { RoutingObservations } from './routing-observations.ts';
 
 const taskSchema=z.object({summary:z.string().min(1).max(4000),operation:z.enum(['read_only','write','review','analysis']),context_sufficient:z.boolean()}).strict();
@@ -20,6 +21,7 @@ const content=(result:Record<string,unknown>):CallToolResult=>({content:[{type:'
 export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  const {router,mode,modelInfo,credentialStatus,disabledClients}=runtime(env);
  const observations=new RoutingObservations();
+ const contexts=new SpawnContexts();
  const server=new McpServer({name:'aptly',version:VERSION});
  const annotations={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:mode==='decisions'};
  const evidence=(client:Client,event:Record<string,unknown>)=>{
@@ -34,12 +36,26 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
   credential_status:credentialStatus,
-  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported'},
+  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported'},
  }));
  server.registerTool('get_spawn_routing_observation',{
   description:'Look up one exact spawn event in this MCP process (128 calls, 10 minutes). No provider call. Missing records do not prove bypass; argument updates never prove native child execution.',
   annotations:{...annotations,openWorldHint:false},inputSchema:hookSchema
  },async({client,event})=>content(observations.lookup(client,event)));
+ server.registerTool('prepare_spawn_context',{
+  description:'Register a bounded untrusted description for an exact upcoming spawn event in this MCP process for five minutes. Requires enabled automatic policy. No provider call, file fetching, execution or permissions. The caller must know the real session/call IDs and exact original invocation; invented IDs do not connect to native Hooks.',
+  annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false},
+  inputSchema:{...hookSchema,description:z.string().max(4000)}
+ },async({client,event,description},extra)=>{
+  const policy=loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH);
+  if(!policy.policy?.enabled)return content({status:'rejected',reason:policy.reason});
+  if(extra.signal.aborted)return content({status:'rejected',reason:'context_cancelled'});
+  return content(contexts.register(client,event,description,router.policy.max_summary_bytes));
+ });
+ server.registerTool('cancel_spawn_context',{
+  description:'Revoke one exact registered spawn context in this process. Does not cancel native execution or undo a provider request.',
+  annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false},inputSchema:hookSchema
+ },async({client,event})=>content(contexts.cancel(client,event)));
  server.registerTool('recommend_agent',{
   description:'Recommend an allowlisted profile for a supplied task only; never inspects host settings, spawns, or authorizes an agent. Optional constraints describe caller-declared choices to preserve; omitted flags are not claims about current host settings. Decisions mode may incur a bounded classification request.',annotations,
   inputSchema:{request_id:z.string().min(1).max(96),client:z.enum(['codex','claude']),task:taskSchema,eligible_profile_ids:z.array(z.string()).min(1).max(20).optional(),constraints:constraintsSchema.optional()}
@@ -56,7 +72,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  },async ({client,event,task},extra)=>{
   observations.begin(client,event);
   if(env.APTLY_HOOK_POLICY_PATH!==undefined){
-   const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,onObservation:value=>observations.record(value)});
+   const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,context:()=>contexts.lookup(client,event),onObservation:value=>observations.record(value)});
    observations.record(result.observation);
    return {content:[{type:'text',text:JSON.stringify(result.output)}]};
   }

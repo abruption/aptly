@@ -38,6 +38,7 @@
     "LICENSE",
     "docs/guide/",
     "docs/ADVISORY_USAGE.md",
+    "docs/SPAWN_CONTEXT.md",
     "docs/DRAFT_0_1_0.md"
   ],
   "exports": {
