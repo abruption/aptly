@@ -25,6 +25,7 @@ Requires Node.js **24 or later** and Claude Code or Codex. Install the latest st
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
+aptly set env OPENAI_API_KEY
 aptly --version
 ```
 

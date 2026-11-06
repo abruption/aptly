@@ -25,6 +25,7 @@ Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐�
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
+aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
