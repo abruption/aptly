@@ -4,19 +4,19 @@
 
 [返回 README](../../README.zh-CN.md)
 
-韩语文档是正本。本指南以 Aptly 0.1.1 为准。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
+韩语文档是正本。本指南介绍 Aptly 的常规安装与使用方法。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
 
 ## 安装
 
-需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。如果 0.1.1 已发布到 npm，请使用以下全局安装命令：
+需要 Node.js 24 或更高版本，以及 Claude Code 或 Codex。请使用以下命令全局安装 npm 上的最新稳定版本：
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-确认 `aptly --version` 输出 `0.1.1`。切换 Node.js 环境后可能需要重新安装。
+请运行 `aptly --version` 确认已安装的版本。切换 Node.js 环境后可能需要重新安装。
 
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
 
@@ -129,7 +129,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### 跳过与移除
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
