@@ -203,7 +203,7 @@ aptly remove --client all
 
 ## 自动 Hook
 
-**以下行为面向下一版本，npm 0.1.3 尚不支持。** 已安装的 `PreToolUse` matcher 会在原生执行前，将 Codex 的 `spawn_agent` / `collaborationspawn_agent` / `Agent` 和 Claude Code 的 `Agent` 交给本地 `route_spawn_hook`。宿主必须加载并信任 Hook，且连接 MCP。Aptly 无法强制拦截未配置、不支持的宿主或 MCP 不可用的情况；执行仍由宿主负责。
+**以下预检、推荐和观测行为需要 Aptly 0.1.4 或更高版本。** 已安装的 `PreToolUse` matcher 会在原生执行前，将 Codex 的 `spawn_agent` / `collaborationspawn_agent` / `Agent` 和 Claude Code 的 `Agent` 交给本地 `route_spawn_hook`。宿主必须加载并信任 Hook，且连接 MCP。Aptly 无法强制拦截未配置、不支持的宿主或 MCP 不可用的情况；执行仍由宿主负责。
 
 本地预检评估显式字段、角色、resume、策略、缓存和预算。不是每次调用都需要新的付费 Decisions 请求。Codex 只指定模型或 effort 时，候选仅限于匹配的允许组合，只填写未指定字段。两者都指定、不支持的值、固定角色和 resume 均在本地保留，不进行分类。仅凭输入无法断定某个字段来自用户还是宿主默认值。
 
@@ -222,6 +222,8 @@ Codex 正文不透明时，`cleanup_merged_worktrees` 等具体的短任务名�
 | `get_routing_precedence` | 解释调用的保留依据与未确认的配置来源 |
 | `route_spawn_hook` | 根据已安装的策略选择目标调用的默认值，或仅传递推荐 |
 | `get_spawn_routing_observation` | 查询完全匹配的 Hook 调用，不证明原生执行 |
+| `prepare_spawn_context` | 为完全匹配的待执行调用注册受限说明 |
+| `cancel_spawn_context` | 撤销说明关联，不取消原生执行或已发送的请求 |
 
 ### 对外传输与关闭自动共享
 
@@ -237,11 +239,11 @@ Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context
 
 账本与 Hook 绑定保存请求元数据、哈希和缓存结果，不保存任务摘录。Aptly 诊断也不包含任务原文。但本地 Hook 的 `updatedInput` 会保留原任务，以便宿主继续执行。宿主自身的会话和日志保留不受 Aptly 控制。
 
-### 为不透明调用提供明确说明（尚未发布）
+### 为不透明调用提供明确说明（0.1.4 起）
 
 知道真实的待执行会话、调用 ID 和原始事件的集成，可在 Hook 前向同一 MCP 进程调用 `prepare_spawn_context({client, event, description})`。简述目的、范围、预期输出、约束和复杂度；不会抓取 URL 内容。只有受限说明和固定前缀替代任务摘录，不会发送历史、文件或不透明正文。使用 `cancel_spawn_context({client, event})` 撤销。必须启用自动策略；`enabled: false` 阻止共享。已知秘密模式检查并非完整保护。
 
-关联有效期为五分钟，不可修改，每个进程最多128项。输入变化、过期或撤销会阻止分类；不能通过修改说明对已评估调用进行付费重试。无法获取真实待执行事件的调用方不能使用此路径；默认 Hook 不生成说明或调用 ID。本地 `insufficient_context`、提供方 `provider_needs_context` 和应用阶段 `inherited_context_application_unverified` 是不同结果。尚未进行原生或付费验证。参见[交接契约与合成示例](../SPAWN_CONTEXT.md)。
+关联有效期为五分钟，不可修改，每个进程最多128项。输入变化、过期或撤销会阻止分类；不能通过修改说明对已评估调用进行付费重试。无法获取真实待执行事件的调用方不能使用此路径；默认 Hook 不生成说明或调用 ID。本地 `insufficient_context`、提供方 `provider_needs_context` 和应用阶段 `inherited_context_application_unverified` 是不同结果。有限的原生说明交接验证记录于[交接契约](../SPAWN_CONTEXT.md)。此验证不表示会自动生成说明或执行推荐的模型。
 
 ## 直接推荐
 
@@ -318,7 +320,7 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 
 ## 提供上下文
 
-在 Codex 将子代理 `message` 以密文传递给 Hook 的环境中，Aptly 不会读取或解密正文。此时只使用足够具体的明文 `task_name` 作为摘要，例如用 `sort_supplied_numbers_3_1_2_ascending_without_tools` 说明任务类型与范围。名称过短或含糊时保留原有模型。对于 Claude Code 或传递明文正文的调用，则使用所提供正文的摘要。
+在 Codex 将子代理 `message` 以密文传递给 Hook 的环境中，Aptly 不会读取或解密正文。此时只使用足够具体的明文 `task_name` 作为摘要，例如用 `sort_supplied_numbers_3_1_2_ascending_without_tools` 说明任务类型与范围。不受支持或含糊的任务名称会保留原有模型。对于 Claude Code 或传递明文正文的调用，则使用所提供正文的摘要。
 
 使用相同的 `client` 和原始 Hook `event` 调用 `get_spawn_routing_observation`，查询对应调用。它返回哈希关联 ID，并区分预检、分类/缓存结果、推荐、参数更新/应用受阻，以及 `execution: not_observed`。`arguments_updated` 只表示 Hook 输出的参数，不是实际子代理模型的观测。记录仅保留在当前 MCP 进程，最多 128 条、10 分钟。`not_observed` 也可能源于其他进程、重启、过期、淘汰或输入不匹配，不能证明全局绕过 Hook。进程级 `automatic_hook.last_result` 已移除，不返回原始任务、路径、会话 ID 或凭据。
 

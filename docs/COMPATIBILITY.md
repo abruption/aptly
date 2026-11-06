@@ -4,10 +4,10 @@
 
 ## 현재 두 Hook 경로
 
-다음 릴리스의 사전 검사 변경은 [자동 Hook 가이드](guide/ko.md#자동-hook)를 따릅니다. npm 0.1.3에는 없으며, 상속 호출의 추천과 실제 적용을 구분합니다. 입력 필드는 선택 출처를 증명하지 않습니다. 호스트 내부 패치·새 native 실행 검증은 포함하지 않습니다.
+Aptly 0.1.4부터의 사전 검사와 명시적 설명 전달은 [자동 Hook 가이드](guide/ko.md#자동-hook)를 따릅니다. 상속 호출의 추천과 실제 적용을 구분하며, 입력 필드는 선택 출처를 증명하지 않습니다. 제한된 맥미니 native 시험 근거는 [사전 라우팅](SPAWN_PREFLIGHT.md)과 [설명 전달](SPAWN_CONTEXT.md)에 기록합니다. 검증용 어댑터의 성공이 제품의 상속 모델 적용 차단을 해제하지는 않습니다.
 
 - `APTLY_HOOK_POLICY_PATH`로 운영자가 설치한 자동 정책은 `defaults`에서 명시적 선택이 없는 새 자식의 기본 모델을 선택해요. `advisory`에서는 입력을 재작성하지 않고 추천 문맥만 제공해요. 이는 전체 호스트 설정 출처가 검증됐다는 뜻이 아니며 `host_settings_verified`도 `false`예요.
-- 자동 정책 경로는 명시적 모델·effort, 고정 역할, fork 상속, resume을 보존해요. 정책·호출·카탈로그가 바뀌거나 추천에 실패하면 원래 호출을 유지해요. `defaults`는 fixture 추천을 적용하지 않아요. Codex의 native Hook 신뢰 승인과 기존 deny 결정도 유지해야 해요.
+- 자동 정책 경로는 명시적 모델·effort를 보존하면서 지원되는 미지정 필드만 선택하고, 고정 역할·resume·필요한 이력을 보존해요. 상속·생략 fork도 추천을 평가하지만 Codex의 상속 모델 적용은 계속 미검증 상태로 차단해요. 정책·호출·카탈로그가 바뀌거나 추천에 실패하면 원래 호출을 유지해요. `defaults`는 fixture 추천을 적용하지 않아요. Codex의 native Hook 신뢰 승인과 기존 deny 결정도 유지해야 해요.
 - `APTLY_HOOK_POLICY_PATH`가 설정되지 않은 기존 strict 경로는 private host evidence와 현재 호출의 결합을 검증하며 기본값은 shadow예요. 이 경로의 완전한 출처 검증 요건을 자동 정책 설치의 보장으로 해석하지 않아요. 경로가 설정됐지만 정책이 없거나 유효하지 않거나 비활성화됐다면 strict 경로로 우회하지 않고 원래 호출을 보존해요.
 
 제품 서버는 transcript를 읽지 않아요. `get_routing_precedence`는 strict 경로의 증거 상태이고, 자동 정책 상태는 capabilities의 `automatic_hook`으로 구분하며, 새 호출별 진단은 `get_spawn_routing_observation`으로 조회해요. 어느 상태도 실제 자식의 모델·effort·작업 품질을 단독으로 증명하지 않아요.

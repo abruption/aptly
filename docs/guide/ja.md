@@ -203,7 +203,7 @@ aptly remove --client all
 
 ## 自動 Hook
 
-**次のリリース向けの動作で、npm 0.1.3 にはありません。** インストールした `PreToolUse` matcher は Codex の `spawn_agent` / `collaborationspawn_agent` / `Agent` と Claude Code の `Agent` を、native 実行前にローカルの `route_spawn_hook` へ渡します。ホストによる Hook の読み込み・信頼承認と MCP 接続が必要です。未設定・未対応のホストや MCP 接続失敗時まで Aptly が介入を強制することはできず、実行はホストが担当します。
+**以下の事前確認・推薦・観測の動作は Aptly 0.1.4 以降で利用できます。** インストールした `PreToolUse` matcher は Codex の `spawn_agent` / `collaborationspawn_agent` / `Agent` と Claude Code の `Agent` を、native 実行前にローカルの `route_spawn_hook` へ渡します。ホストによる Hook の読み込み・信頼承認と MCP 接続が必要です。未設定・未対応のホストや MCP 接続失敗時まで Aptly が介入を強制することはできず、実行はホストが担当します。
 
 ローカルの事前確認で明示フィールド・ロール・resume・ポリシー・キャッシュ・予算を評価します。呼び出しごとに新しい有料 Decisions 要求が必要なわけではありません。Codex のモデルまたは effort だけが指定された場合は、一致する許可済みの組み合わせに候補を絞り、未指定フィールドだけを補います。両方の指定、未対応値、固定ロール、resume は分類せず保持します。入力だけからユーザー指定かホストのデフォルトかを断定しません。
 
@@ -222,6 +222,8 @@ Codex の本文が不透明な場合、`cleanup_merged_worktrees` のような�
 | `get_routing_precedence` | 呼び出しを保持する根拠と、未確認の設定元を説明します |
 | `route_spawn_hook` | インストールしたポリシーに応じて、対象呼び出しのデフォルト値を選択するか、推薦だけを伝えます |
 | `get_spawn_routing_observation` | 一致する Hook 呼び出しを照会し、native 実行を証明しません |
+| `prepare_spawn_context` | 正確に一致する予定呼び出しに上限付きの説明を登録します |
+| `cancel_spawn_context` | 説明の対応付けを取り消します。native 実行や送信済みリクエストは取り消しません |
 
 ### 外部送信と自動共有の無効化
 
@@ -237,11 +239,11 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 
 台帳と Hook バインディングにはリクエストのメタデータ・ハッシュ・キャッシュ結果を保存し、タスクの抜粋は保存しません。Aptly の診断にもタスク原文を含めません。ただし、ローカルの Hook の `updatedInput` は、ホストが実行を続けられるよう元のタスクを保持します。ホスト自身の会話やログの保存は Aptly の制御対象ではありません。
 
-### 不透明な呼び出しへの明示的な説明（未リリース）
+### 不透明な呼び出しへの明示的な説明（0.1.4 以降）
 
 実際の予定セッション・呼び出し ID と元のイベントを知る連携は、Hook の前に同じ MCP プロセスで `prepare_spawn_context({client, event, description})` を呼べます。目的・範囲・出力・制約・複雑さを短く記述してください。URL の内容は取得しません。上限付き説明と固定接頭文だけが抜粋を置き換え、履歴・ファイル・不透明な本文は送信しません。`cancel_spawn_context({client, event})` で取り消せます。有効な自動ポリシーが必要で、`enabled: false` は共有を止めます。既知の秘密パターン検査は完全ではありません。
 
-対応付けは5分間有効で変更不可、プロセスごとに最大128件です。入力変更・期限切れ・取消時は分類を止め、評価済みの呼び出しを説明変更で有料再試行しません。実際の予定イベントを取得できない呼び出し元は利用できません。標準 Hook は説明や呼び出し ID を作成しません。ローカルの `insufficient_context`、プロバイダーの `provider_needs_context`、適用時の `inherited_context_application_unverified` は別の結果です。ネイティブ・有料検証は未実施です。[契約と合成例](../SPAWN_CONTEXT.md)を参照してください。
+対応付けは5分間有効で変更不可、プロセスごとに最大128件です。入力変更・期限切れ・取消時は分類を止め、評価済みの呼び出しを説明変更で有料再試行しません。実際の予定イベントを取得できない呼び出し元は利用できません。標準 Hook は説明や呼び出し ID を作成しません。ローカルの `insufficient_context`、プロバイダーの `provider_needs_context`、適用時の `inherited_context_application_unverified` は別の結果です。限定的な native 説明受け渡しの検証は[契約](../SPAWN_CONTEXT.md)に記録しています。この検証は、説明の自動生成や推薦モデルの実行を証明するものではありません。
 
 ## 直接推薦
 
@@ -318,7 +320,7 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 
 ## コンテキストの提供
 
-Codex が子エージェントの `message` を暗号文として Hook に渡す環境では、本文を読み取ったり復号したりしません。この場合は、十分に具体的な平文の `task_name` だけを要約として使用します。たとえば `sort_supplied_numbers_3_1_2_ascending_without_tools` のように、タスクの種類と範囲を表します。短い名前や曖昧な名前の場合は、元のモデルを保持します。Claude Code と平文の本文が渡される呼び出しでは、提供された本文の要約を使用します。
+Codex が子エージェントの `message` を暗号文として Hook に渡す環境では、本文を読み取ったり復号したりしません。この場合は、十分に具体的な平文の `task_name` だけを要約として使用します。たとえば `sort_supplied_numbers_3_1_2_ascending_without_tools` のように、タスクの種類と範囲を表します。未対応または曖昧なタスク名の場合は、元のモデルを保持します。Claude Code と平文の本文が渡される呼び出しでは、提供された本文の要約を使用します。
 
 同じ `client` と元の Hook `event` を指定して `get_spawn_routing_observation` で対象呼び出しを照会します。ハッシュ化した相関 ID と、事前確認・分類/キャッシュ結果・推薦・引数更新/適用停止・`execution: not_observed` を区別して返します。`arguments_updated` は Hook が出力した引数だけを意味し、実際の子モデルの観測ではありません。記録は当該 MCP プロセスの直近 128 件・10 分に限られます。`not_observed` は別プロセス・再起動・期限切れ・削除・入力不一致でも発生し、全体の Hook 迂回を証明しません。プロセス共通の `automatic_hook.last_result` は削除します。タスク原文・パス・セッション ID・資格情報は返しません。
 

@@ -1,7 +1,9 @@
-# Explicit spawn context handoff (unreleased)
+# Explicit spawn context handoff (Aptly 0.1.4)
 
-This builds on PR #60 and is absent from npm 0.1.3. It does not decode opaque
-messages, inspect conversations or modify host internals.
+Available from Aptly 0.1.4, following the pre-spawn routing changes in #60.
+It does not decode opaque messages, inspect conversations or modify host
+internals. It provides an explicit caller protocol, not an automatic description
+producer for the shipped Hook templates.
 
 ## Supported caller contract
 
