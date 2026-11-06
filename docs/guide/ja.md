@@ -13,7 +13,7 @@ Node.js 24 以上と Claude Code または Codex が必要です。npm の最新
 **既存の永続台帳を 0.1.2 以降に更新する前に**、その台帳にアクセスする可能性があるすべてのホスト、MCP サーバー、単独 CLI、旧版プロセスを停止してください。新しい永続ロックは旧版の書き込み側と併用できません。新規インストールでは旧ロックの隔離は不要です。旧版の空のロックが残る場合は、[台帳の移行手順](#プロセス中断と台帳ロック)に従い、確認済みの旧ロックだけをオフラインで隔離し、JSON 台帳、`unknown` 記録、費用、完了済みキャッシュを保持してください。
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
@@ -23,6 +23,21 @@ aptly --version
 `postinstall` は、現在のユーザーの既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使う場合は、インストールプロセスにも同じ環境を渡してください。まだ存在しないホストディレクトリは自動登録ではスキップし、明示的な `setup` で作成できます。必要なホストだけを登録するには、`--client codex` または `--client claude` を使用してください。
 
 新規登録では `ROUTER_PROVIDER=decisions`、Hook の `defaults` ポリシー、ホストごとの非公開台帳を指定します。他の既存設定・Hook と、既存の Aptly のコマンド・環境・provider・台帳パスは保持します。既存の fixture 設定を自動で有料モードに切り替えることはありません。
+
+### npm インストールスクリプトの許可
+
+上記の `--allow-scripts=aptly` は、そのインストールで Aptly の `postinstall` を明示的に許可します。npm 11.19.1 で対応を確認しており、ユーザー全体の npm 許可設定は変更しません。[npm 公式ガイド](https://docs.npmjs.com/cli/v11/commands/npm-rebuild/#allow-scripts)を参照してください。
+
+`npm warn install-scripts ... not yet covered by allowScripts` は、許可ポリシーに未登録であることを示します。npm 11.19.1 では、この警告だけでスクリプトがブロックされたとは判断できません。npm のバージョン・厳格なポリシー・`ignore-scripts` によって挙動が異なり、インストール成功だけでは MCP・Hook の登録成功を確認できません。postinstall の出力は npm によって非表示になる場合があります。
+
+このオプションに未対応の npm を使う場合や、自動登録の代わりに手動設定する場合は、次を実行してください。
+
+```sh
+npm install -g aptly@latest --ignore-scripts
+aptly setup --client all --mode defaults
+```
+
+スクリプトの実行にかかわらず、明示的な `setup` を利用できます。既存の起動パスは保持するため、旧パスのエラーは以下の復旧手順に従ってください。キー設定・MCP の再起動と Codex の `/hooks` 信頼確認は別途必要です。
 
 ### パッケージの更新
 
@@ -94,6 +109,15 @@ aptly set env OPENAI_API_KEY --client claude
 ```
 
 `--dry-run` は変更しません。移行は所有記録と一致する Aptly の標準登録に限り、Node・サーバーパスを現在のビルドへ更新します。環境設定・Hook・ポリシー・他のホストを保持し、資格情報へのアクセスや古い起動プログラムの実行は行いません。独自ラッパー、所有記録のない登録、変更済みの登録は拒否します。その場合は登録をローカルで確認し、ラッパーの安全な環境変数受け渡しを使うか、別途確認した標準登録へ切り替えてください。検証を回避するために所有記録を編集・削除しないでください。
+
+`launcher_migration_not_owned` が既存の登録を保持した状態（`mcp_created: false`）を指す場合、この後続ソースビルドでは `--include-existing` を明示して移行できます。**npm 0.1.2 にはこのオプションは含まれません。** 上記の手順でソースからビルドし、次を実行してください。
+
+```sh
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+```
+
+実行前にローカルの登録を確認してください。有効な既存の Aptly 所有記録と、記録に一致する管理対象の環境変数・Hook・ポリシーが必要です。絶対 Node パスと単一の標準サーバーパスのみを許可し、ラッパーや記録のない登録は拒否します。MCP 登録全体を Aptly 所有には変更しないため、その後の削除でも移行後の起動パスと元のユーザー設定を保持します。明示的な単一ホストの移行専用で、自動インストールには適用されません。
 
 成功した Codex の再設定は不要です。失敗したホストだけを指定して再試行し、MCP を再起動してください。Codex では引き続き `/hooks` の信頼確認が必要です。診断後の設定変更は `concurrent_configuration_change` で中断します。復旧時に別のキーを検出した場合や現在値を読めない場合は上書きせず、`credential_rollback_failed` を返します。ファイルと OS ストアは原子的なトランザクションではないため、設定操作を同時に実行しないでください。
 

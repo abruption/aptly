@@ -23,12 +23,12 @@ Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し�
 Node.js **24 以上**と Claude Code または Codex が必要です。以下のコマンドで最新の安定版をグローバルインストールしてください。
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version` でインストール済みのバージョンを確認してください。
+`aptly --version` でインストール済みのバージョンを確認してください。対応する npm では、`--allow-scripts=aptly` で Aptly のインストールスクリプトを許可します。このオプションに対応していない npm では、[インストール案内](docs/guide/ja.md#インストール)の明示的なインストール・設定手順に従ってください。
 
 アップグレード前に、関連するホスト・MCP・CLI の全プロセスを停止し、[インストールとアップグレードの案内](docs/guide/ja.md#インストール)で台帳の移行手順を確認してください。
 

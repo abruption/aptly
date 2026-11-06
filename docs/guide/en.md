@@ -13,7 +13,7 @@ Requires Node.js 24 or later and Claude Code or Codex. Install the latest stable
 **Before upgrading an existing persistent ledger to 0.1.2 or later**, stop every host, MCP server, standalone CLI, and older process that can access it. The persistent gate cannot coexist with older writers. Fresh installations need no legacy-lock quarantine. If an old empty lock remains, follow the [ledger transition procedure](#interrupted-processes-and-ledger-locks): quarantine only a confirmed legacy lock while offline and preserve the JSON ledger, `unknown` records, costs, and completed cache.
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
@@ -23,6 +23,21 @@ Use `aptly --version` to check the installed version. Switching Node.js environm
 `postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
 
 New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy, and a private ledger for each host. Other settings and Hooks, and existing Aptly commands, environments, providers, and ledger paths, are preserved. Existing fixture settings are not automatically switched to paid mode.
+
+### npm install-script approval
+
+The installation command above uses `--allow-scripts=aptly` to explicitly allow Aptly's `postinstall` for that installation. Support was checked with npm 11.19.1; the command does not change user-wide npm approval settings. See the [official npm guidance](https://docs.npmjs.com/cli/v11/commands/npm-rebuild/#allow-scripts).
+
+`npm warn install-scripts ... not yet covered by allowScripts` reports an unreviewed policy entry. In npm 11.19.1, this warning alone does not mean scripts were blocked. Behavior depends on npm version, strict policy, and `ignore-scripts`; installation success alone does not verify MCP or Hook registration. npm may hide postinstall output.
+
+For npm versions without this option, or to configure explicitly instead of automatic registration, run:
+
+```sh
+npm install -g aptly@latest --ignore-scripts
+aptly setup --client all --mode defaults
+```
+
+Explicit `setup` works regardless of lifecycle execution. It preserves existing launchers; use the recovery steps below for stale paths. Key setup, MCP restart, and Codex `/hooks` trust review remain separate steps.
 
 ### Package updates
 
@@ -94,6 +109,15 @@ aptly set env OPENAI_API_KEY --client claude
 ```
 
 `--dry-run` makes no changes. Migration replaces the Node/server paths of a receipt-matching, Aptly-owned standard registration with the current build. It preserves environment settings, Hooks, policy and other hosts, accesses no credentials, and never executes the old launcher. Custom wrappers and missing or modified ownership records are rejected. Review such registrations locally; use the wrapper's secure environment or a separately reviewed standard registration. Do not edit or delete ownership records to bypass validation.
+
+If `launcher_migration_not_owned` refers to a preserved registration (`mcp_created: false`), this follow-up source build offers the explicit `--include-existing` opt-in. **npm 0.1.2 does not include this option.** Build from source as described above, then run:
+
+```sh
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+```
+
+Review the local registration first. A valid existing Aptly ownership receipt and matching managed environment additions, Hook, and policy are required. Only an absolute Node path with a single standard server path is accepted; wrappers and registrations without a receipt remain unsupported. This does not make the entire MCP registration Aptly-owned: later removal preserves the migrated launcher and original user settings. The option applies only to explicit single-client migration, never automatic installation.
 
 A successful Codex configuration needs no reset. Retry only the affected host and restart MCP. Codex still requires `/hooks` trust review. Changes after diagnosis stop with `concurrent_configuration_change`. If recovery observes another key or cannot read the current key, it leaves the store unchanged and reports `credential_rollback_failed`. Files and the OS store do not form an atomic transaction; avoid concurrent configuration operations.
 
