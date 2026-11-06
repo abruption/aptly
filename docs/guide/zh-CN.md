@@ -56,6 +56,25 @@ API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows C
 
 修改后请重启 MCP，并通过 `get_routing_capabilities` 查看 `provider`、候选和 `credential_status`。`os_store` 仅表示读到了密钥，不代表 API 已通过认证。默认设置和公开变量设置仍会保留自定义包装程序。API 密钥设置不会修改未经确认的启动路径所对应的宿主设置；如果已尝试保存，则会在可能时恢复该宿主的旧密钥。不要假定新密钥会通过现有包装程序自动生效。命令不会绕过 Codex 的 `/hooks` 信任批准或宿主权限。
 
+### 恢复不兼容的启动路径 — 下一版本功能
+
+npm 0.1.1 不包含以下选项。请使用包含此修复的构建。在源码目录运行 `npm ci --ignore-scripts` 和 `npm run build` 后，将下文的 `aptly` 替换为 `node bin/aptly.ts`。
+
+密钥设置会在输入和保存前诊断所选宿主。任一宿主失败时，不提示输入，也不修改任何宿主。`--check` 不访问密钥或凭据存储。`credential_node_mismatch`、`credential_server_mismatch` 和 `credential_runtime_unsupported` 分别表示 Node 路径、服务器路径及 OS 存储支持不兼容。
+
+如果只有 Claude 失败，按以下顺序诊断，仅在返回 `launcher_migration_available` 时考虑迁移：
+
+```sh
+aptly set env OPENAI_API_KEY --client claude --check
+aptly setup --client claude --migrate-launcher --dry-run
+aptly setup --client claude --migrate-launcher
+aptly set env OPENAI_API_KEY --client claude
+```
+
+`--dry-run` 不修改文件。迁移仅将与所有权记录一致的 Aptly 标准注册的 Node 和服务器路径更新到当前构建，保留环境设置、Hook、策略及其他宿主，不访问凭据，也不执行旧启动程序。自定义包装程序、缺少所有权记录或已修改的注册会被拒绝。请在本地检查此类注册，使用包装程序的安全环境传递方式，或切换到另行审核的标准注册。不要编辑或删除所有权记录以绕过验证。
+
+已成功的 Codex 无需重新设置。仅指定失败的宿主重试，然后重启 MCP。Codex 仍需通过 `/hooks` 审核信任。诊断后的配置变更会以 `concurrent_configuration_change` 中止。恢复时若发现其他密钥或无法读取当前值，不会覆盖存储，而是返回 `credential_rollback_failed`。文件与 OS 存储之间不是原子事务，请避免同时运行配置操作。
+
 ### 密钥与重启
 
 通过安全环境或凭据启动程序将分类用的 `OPENAI_API_KEY` 传递给 MCP 进程。它与宿主订阅登录无关。不要将密钥值写入命令参数、请求、配置文件、源码、日志或临时文件。
