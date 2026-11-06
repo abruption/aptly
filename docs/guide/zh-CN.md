@@ -75,6 +75,15 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` 不修改文件。迁移仅将与所有权记录一致的 Aptly 标准注册的 Node 和服务器路径更新到当前构建，保留环境设置、Hook、策略及其他宿主，不访问凭据，也不执行旧启动程序。自定义包装程序、缺少所有权记录或已修改的注册会被拒绝。请在本地检查此类注册，使用包装程序的安全环境传递方式，或切换到另行审核的标准注册。不要编辑或删除所有权记录以绕过验证。
 
+如果 `launcher_migration_not_owned` 对应的是保留的注册（`mcp_created: false`），本次后续源码构建提供显式选项 `--include-existing`。**npm 0.1.2 不包含此选项。** 请按上文从源码构建，然后运行：
+
+```sh
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+```
+
+请先在本地检查注册。必须已有有效的 Aptly 所有权记录，且受管理的环境变量、Hook 和策略与记录一致。仅接受绝对 Node 路径和单个标准服务器路径；包装程序或缺少记录的注册仍会被拒绝。此选项不会将整个 MCP 注册改为 Aptly 所有，后续移除仍会保留迁移后的启动路径和原有用户设置。仅可用于显式指定的单个宿主迁移，不适用于自动安装。
+
 已成功的 Codex 无需重新设置。仅指定失败的宿主重试，然后重启 MCP。Codex 仍需通过 `/hooks` 审核信任。诊断后的配置变更会以 `concurrent_configuration_change` 中止。恢复时若发现其他密钥或无法读取当前值，不会覆盖存储，而是返回 `credential_rollback_failed`。文件与 OS 存储之间不是原子事务，请避免同时运行配置操作。
 
 ### 密钥与重启
