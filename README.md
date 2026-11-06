@@ -20,21 +20,29 @@ Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허�
 
 ## 빠른 시작
 
-Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. 다음 명령으로 최신 안정 버전을 전역 설치하십시오.
+Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. 처음 설치할 때는 다음 명령으로 최신 안정 버전을 전역 설치하고 설정하십시오.
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
+aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
 `aptly --version`으로 설치된 버전을 확인하십시오. `--allow-scripts=aptly`는 지원하는 npm에서 Aptly의 설치 스크립트를 허용합니다. 이 옵션을 지원하지 않는 npm은 [설치 안내](docs/guide/ko.md#설치)의 명시적 설치·설정 절차를 따르십시오.
 
-업그레이드 전에는 관련 호스트·MCP·CLI 프로세스를 모두 중지하고 [설치·업그레이드 안내](docs/guide/ko.md#설치)의 원장 전환 절차를 확인하십시오.
-
 설치 시 `postinstall`은 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. 명시적인 `setup`은 자동 등록을 건너뛰었거나 아직 설정 디렉터리가 없는 호스트에도 사용할 수 있습니다. 기존 다른 설정·Hook과 기존 Aptly 실행 명령·환경은 보존합니다.
 
 분류용 `OPENAI_API_KEY`는 `aptly set env OPENAI_API_KEY`의 숨김 입력으로 OS 자격 저장소에 보관하거나 안전한 실행 환경에서 MCP 프로세스에 전달하십시오. 키를 명령행·요청·설정 JSON·저장소에 기록하지 마십시오. 호스트 또는 MCP를 재시작한 뒤, **Codex에서는 `/hooks`에서 새 Hook을 검토하고 신뢰를 승인하십시오.** [설치·키·등록 상세](docs/guide/ko.md#설치)를 참고하십시오.
+
+## 업데이트
+
+기존 전역 npm 설치의 Aptly 0.1.3 이상을 업데이트하려면 관련 호스트·MCP·CLI 쓰기 프로세스를 모두 중지하고 [설치·업그레이드 안내](docs/guide/ko.md#설치)의 원장 전환 및 수동 대체 절차를 확인하십시오. 기존 키 설정은 유지하므로 다시 입력할 필요가 없습니다. 명령 실행 후 재시작하십시오.
+
+```sh
+aptly update
+aptly setup --client all --mode defaults
+```
 
 ## 사용 방식
 
@@ -48,9 +56,8 @@ Aptly 0.1.4부터 상속 호출도 추천을 평가합니다. Codex의 적용은
 
 ## 문서
 
-- [CLI 설정](docs/guide/ko.md#cli로-설정하기)
 - [사용 가이드](docs/guide/ko.md): 설치·제거, 키, Hook, 직접 추천, 오류 복구
-- [설치·제거](docs/guide/ko.md#설치): npm 전역 설치, 호스트 등록, 재시작과 신뢰 승인
+- [설치·제거](docs/guide/ko.md#설치) 및 [CLI 설정](docs/guide/ko.md#cli로-설정하기): npm 전역 설치, 호스트 등록, 재시작과 신뢰 승인
 - [모델과 환경변수](docs/guide/ko.md#모델과-환경변수): 여섯 기본 프로필과 후보 설정
 - [맥락 전달](docs/guide/ko.md#맥락-전달): 암호화된 메시지와 저장소 URL의 한계
 - [비용 실측](docs/guide/ko.md#비용-실측): README 번역 검토의 토큰·환산 비용과 측정 범위
