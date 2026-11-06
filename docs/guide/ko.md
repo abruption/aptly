@@ -4,19 +4,19 @@
 
 [README로 돌아가기](../../README.md)
 
-한국어가 정본입니다. 이 안내는 Aptly 0.1.1을 기준으로 합니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
+한국어가 정본입니다. 이 안내는 Aptly의 일반적인 설치·사용 방법을 설명합니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
 
 ## 설치
 
-Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. 0.1.1이 npm에 게시된 경우 다음 전역 설치 명령을 사용하십시오:
+Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. npm의 최신 안정 버전을 전역 설치하려면 다음 명령을 사용하십시오:
 
 ```sh
-npm install -g aptly@0.1.1
+npm install -g aptly@latest
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version`의 출력은 `0.1.1`이어야 합니다. Node.js 환경을 바꾸면 재설치가 필요할 수 있습니다.
+`aptly --version`으로 설치된 버전을 확인하십시오. Node.js 환경을 바꾸면 재설치가 필요할 수 있습니다.
 
 `postinstall`은 현재 사용자의 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. `CODEX_HOME`·`CLAUDE_CONFIG_DIR`을 사용한다면 설치 프로세스에도 같은 환경을 전달하십시오. 아직 없는 호스트 디렉터리는 자동 등록에서 건너뛰고, 명시적인 `setup`으로 만들 수 있습니다. 필요한 호스트만 등록하려면 `--client codex` 또는 `--client claude`를 사용하십시오.
 
@@ -148,7 +148,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 ### 건너뛰기·제거
 
 ```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@0.1.1
+APTLY_SKIP_SETUP=1 npm install -g aptly@latest
 aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
