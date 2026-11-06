@@ -24,6 +24,20 @@ aptly --version
 
 新注册项会指定 `ROUTER_PROVIDER=decisions`、Hook 的 `defaults` 策略，以及各宿主独立的私有账本。其他现有配置与 Hook，以及 Aptly 原有的命令、环境、分类方式和账本路径都会保留。现有 fixture 配置不会自动切换为付费模式。
 
+### 软件包更新
+
+`aptly update` 是本次后续源码构建新增的命令，**npm 0.1.2 不包含此命令**。仅支持已验证的全局 npm 安装，将 `aptly@latest` 安装到与当前运行软件包一致且已验证的 prefix。局部安装、源码检出和无法验证的路径会被拒绝。
+
+更新前，请按上文账本迁移步骤停止其他使用账本的宿主、MCP 和 CLI 进程。该命令跳过安装脚本，更新后请显式配置并重启宿主：
+
+```sh
+aptly update
+aptly setup --client all --mode defaults
+aptly --version
+```
+
+不会自动迁移现有 MCP 启动路径或用户包装程序。如仍有旧路径，请按下文启动路径恢复步骤处理。密钥配置和 Codex `/hooks` 信任审核仍是单独步骤。如遇 npm 认证、网络或权限错误，请使用手动安装说明。不会自动安装更新。
+
 ### 使用 CLI 设置
 
 `set` 命令需要 0.1.1 或更高版本。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。

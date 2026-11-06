@@ -24,6 +24,20 @@ Use `aptly --version` to check the installed version. Switching Node.js environm
 
 New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy, and a private ledger for each host. Other settings and Hooks, and existing Aptly commands, environments, providers, and ledger paths, are preserved. Existing fixture settings are not automatically switched to paid mode.
 
+### Package updates
+
+`aptly update` is added in this follow-up source build and is **absent from npm 0.1.2**. It requires a verified global npm installation and installs `aptly@latest` into the same verified prefix as the running package. Local installations, source checkouts, and unverified paths are rejected.
+
+Stop other host, MCP, and CLI processes using the ledger before updating, following the transition steps above. The command skips lifecycle scripts; explicitly configure afterward and restart hosts:
+
+```sh
+aptly update
+aptly setup --client all --mode defaults
+aptly --version
+```
+
+Existing MCP launchers and user wrappers are not automatically migrated. Follow the launcher recovery instructions below if old paths remain. Key setup and Codex `/hooks` trust review remain separate. For npm authentication, network, or permission failures, use the manual installation instructions. Updates are never installed automatically.
+
 ### Configure with the CLI
 
 The `set` commands require 0.1.1 or later. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
