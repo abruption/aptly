@@ -1,14 +1,16 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.2 릴리즈 준비
+## 0.1.2 게시와 검증
 
-현재 소스의 패키지·lockfile·CLI 버전은 0.1.2입니다. 게시 완료를 뜻하지 않습니다. 준비 PR을 검토·병합하고 해당 main CI를 확인한 뒤 `v0.1.2` 태그를 push하면 기존 Actions OIDC 게시가 자동으로 시작됩니다. 준비 과정에서는 태그를 생성·push하거나 기존 태그를 이동하지 않습니다. 일반 설치 문서는 계속 `aptly@latest`를 사용합니다.
+2026-11-06에 `v0.1.2` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42151554506)를 실행하고, registry 파일·무결성과 인증서 기반 provenance를 검증했습니다. 확인 당시 npm `latest`는 0.1.2입니다. source SHA·run·attempt·digest·검증 결과는 [0.1.2 릴리즈 근거](releases/0.1.2.md)에 기록했습니다. 이후 버전도 준비 PR 병합과 main CI 확인 후 태그를 push하면 실제 게시가 시작됩니다. 일반 설치 문서는 계속 `aptly@latest`를 사용합니다.
 
 이 버전은 실행 경로 사전 진단·명시적 갱신, 설정 중 충돌 감지와 조건부 키 복구, 프로세스 수명 원장 잠금, 분류 전송 필드 제한과 공유 안내를 포함합니다. 기본 confidence·공유 정책을 변경한 릴리즈는 아니며 #14·#15는 별도 결정 사항입니다. 상세 변경은 [Changelog](../CHANGELOG.md), 잠금 이전 경계는 [원장 잠금 안내](LEDGER_LOCKING.md)를 확인하십시오.
 
-영속 원장 사용자는 설치 전에 관련 호스트·MCP·CLI writer를 모두 정지하고 함께 업그레이드해야 합니다. 구형 writer와 새 영구 SQLite `.lock`의 혼합 운영은 지원하지 않습니다. 기존 빈/미확인 잠금은 자동 복구하지 않으며, 원장·비용·`unknown`·완료 캐시를 보존한 보수적 오프라인 전환만 안내합니다. 준비·시험 과정에서 실제 운영 원장을 이전하거나 키를 수집하지 않습니다.
+영속 원장 사용자는 설치 전에 관련 호스트·MCP·CLI writer를 모두 정지하고 함께 업그레이드해야 합니다. 구형 writer와 새 영구 SQLite `.lock`의 혼합 운영은 지원하지 않습니다. 기존 빈/미확인 잠금은 자동 복구하지 않으며, 원장·비용·`unknown`·완료 캐시를 보존한 보수적 오프라인 전환만 안내합니다. 이번 게시·검증에서는 실제 운영 원장을 이전하거나 키를 수집하지 않았습니다.
 
-배포 워크플로의 일회성 설치 시험과 새 runner의 패키징을 분리한 경계는 유지합니다. 게시 후에는 **그 실행에서 새로 만든 artifact**를 기준으로 registry 파일·무결성과 인증서 기반 provenance identity를 검증합니다. 이전 0.1.1의 archive digest·실행 번호·검증 성공을 0.1.2의 결과로 재사용하지 않습니다. 아래 재현 절차의 버전·태그·source SHA·run·attempt를 실제 0.1.2 게시 값으로 바꿔 사용하십시오.
+배포 워크플로의 일회성 설치 시험과 새 runner의 패키징을 분리한 경계는 유지합니다. 이번 실행에서 새로 만든 artifact와 registry 파일을 독립적으로 비교하고 npm 서명 검증·GitHub CLI 인증서 정책 검증을 통과했습니다. 이전 0.1.1의 archive digest·실행 번호·검증 성공을 0.1.2의 결과로 재사용하지 않았습니다. 아래 재현 절차의 버전·태그·source SHA·run·attempt는 검증할 릴리즈의 실제 값으로 바꿔 사용하십시오.
+
+0.1.2 게시 전 GitHub `npm` environment의 `v*` 태그 제한은 조회로 재확인했습니다. 로컬 npm 관리자 세션 만료로 Trusted Publisher 설정 목록의 새 조회는 불가능했으므로, 이를 새로 확인했다고 기록하지 않습니다. 로컬 npm 로그인은 Actions 배포에 사용하지 않았으며, 기존 OIDC 경로의 실제 게시 성공과 검증된 인증서 identity로 이번 실행을 확인했습니다.
 
 ## 0.1.1 게시와 Issue #18
 
@@ -102,6 +104,29 @@ npm trust github aptly --file publish.yml --repo abruption/aptly --env npm --all
 4. `npm` environment의 보호 절차를 거쳐 게시합니다. 실패·시간 초과 뒤에는 해당 실행과 registry 결과를 먼저 확인하고 새 버전이나 새 실행으로 무작정 재게시하지 마십시오.
 
 실제 GitHub 원격 실행과 npm OIDC 교환은 로컬 검증만으로 확인할 수 없습니다. 최신 원격 CI 상태는 [GitHub Actions](https://github.com/abruption/aptly/actions)에서 확인하십시오. 소스 공개, CI 성공, npm 게시 성공은 각각 별도로 확인해야 합니다.
+
+## 버전별 GitHub Release 노트
+
+버전별 노트 원본은 `docs/release-notes/`에 보관하고, GitHub Release 본문에도 같은 내용을 게시합니다. npm 게시와 출처 검증 기록인 `docs/releases/`와 구분하여 사용자에게 필요한 변경 내용을 먼저 보여 줍니다.
+
+노트에는 다음 항목을 포함합니다.
+
+- **주요 변경:** 이전 태그 대비 추가·수정된 동작을 설명합니다.
+- **해결한 이슈·PR:** 실제 해당 태그에 포함된 수정만 연결합니다. 부분 구현은 상위 이슈가 완료됐다고 쓰지 않습니다.
+- **업그레이드 주의사항:** 호환성, 필요한 사용자 조치와 지원하지 않는 경우를 명시합니다.
+- **배포·검증:** npm 버전과 실제 Actions 실행·출처 검증 상태를 구분합니다. 과거 초기 게시의 검증 한계도 그대로 남깁니다.
+- **전체 변경:** 이전 태그와의 compare 및 정확한 npm 버전·소스 태그 링크를 제공합니다.
+
+새 버전은 실제 npm 게시와 provenance 검증 후 Release를 게시합니다. 기존 태그를 확인하는 `--verify-tag`를 사용하며 태그를 새로 만들거나 이동하지 않습니다. 예시의 버전은 실제 대상 버전으로 바꿉니다.
+
+```sh
+aptly_release_version=X.Y.Z
+gh release create "v${aptly_release_version}" --repo abruption/aptly --verify-tag \
+  --title "Aptly ${aptly_release_version}" \
+  --notes-file "docs/release-notes/${aptly_release_version}.md" --latest
+```
+
+이미 Release가 있으면 내용을 확인한 후 `gh release edit`로 노트만 갱신합니다. 과거 버전의 사후 기록은 `--latest=false`로 등록하고, npm 최초 게시 시점과 사후 노트 작성임을 구분합니다. 현재 워크플로는 태그 push 또는 명시적 dispatch에서만 npm을 게시하므로, 기존 태그의 GitHub Release 노트 작성은 npm 재게시가 아닙니다.
 
 ## 게시 후 provenance 검증
 
