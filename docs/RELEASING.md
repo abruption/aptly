@@ -107,7 +107,7 @@ npm trust github aptly --file publish.yml --repo abruption/aptly --env npm --all
 
 ## 버전별 GitHub Release 노트
 
-버전별 노트 원본은 `docs/release-notes/`에 보관하고, GitHub Release 본문에도 같은 내용을 게시합니다. npm 게시와 출처 검증 기록인 `docs/releases/`와 구분하여 사용자에게 필요한 변경 내용을 먼저 보여 줍니다.
+버전별 노트는 **영어로 작성**하고 원본을 `docs/release-notes/`에 보관하며, GitHub Release 본문에도 같은 내용을 게시합니다. npm 게시와 출처 검증 기록인 `docs/releases/`와 구분하여 사용자에게 필요한 변경 내용을 먼저 보여 줍니다.
 
 노트에는 다음 항목을 포함합니다.
 
