@@ -23,12 +23,12 @@ Aptly 使用 OpenAI Decisions API 对简要任务摘要进行分类，并推荐�
 需要 Node.js **24 或更高版本**以及 Claude Code 或 Codex。请使用以下命令全局安装最新稳定版。
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-请使用 `aptly --version` 确认已安装的版本。
+请使用 `aptly --version` 确认已安装的版本。在支持此选项的 npm 中，`--allow-scripts=aptly` 允许执行 Aptly 的安装脚本。如果 npm 不支持此选项，请按照[安装指南](docs/guide/zh-CN.md#安装)中的显式安装与配置步骤操作。
 
 升级前，请停止所有相关宿主、MCP 和 CLI 进程，并查看[安装与升级指南](docs/guide/zh-CN.md#安装)中的账本迁移步骤。
 

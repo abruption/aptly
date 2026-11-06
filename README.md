@@ -23,12 +23,12 @@ Aptly는 최소한의 작업 요약을 OpenAI Decisions API로 분류하고 허�
 Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. 다음 명령으로 최신 안정 버전을 전역 설치하십시오.
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-`aptly --version`으로 설치된 버전을 확인하십시오.
+`aptly --version`으로 설치된 버전을 확인하십시오. `--allow-scripts=aptly`는 지원하는 npm에서 Aptly의 설치 스크립트를 허용합니다. 이 옵션을 지원하지 않는 npm은 [설치 안내](docs/guide/ko.md#설치)의 명시적 설치·설정 절차를 따르십시오.
 
 업그레이드 전에는 관련 호스트·MCP·CLI 프로세스를 모두 중지하고 [설치·업그레이드 안내](docs/guide/ko.md#설치)의 원장 전환 절차를 확인하십시오.
 

@@ -13,7 +13,7 @@
 **将现有持久化账本升级到 0.1.2 或更高版本前**，请停止所有可能访问该账本的宿主、MCP 服务器、独立 CLI 和旧版进程。新的持久锁不能与旧版写入进程并用。全新安装无需隔离旧锁。如果仍有旧版空锁，请遵循[账本迁移步骤](#进程中断与账本锁定)，仅在离线状态下隔离已确认的旧锁，并保留 JSON 账本、`unknown` 记录、成本和已完成缓存。
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
@@ -23,6 +23,21 @@ aptly --version
 `postinstall` 会在当前用户现有的宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请向安装进程传递相同的环境。自动注册会跳过尚不存在的宿主目录；显式运行 `setup` 可以创建这些目录。若只需注册某个宿主，请使用 `--client codex` 或 `--client claude`。
 
 新注册项会指定 `ROUTER_PROVIDER=decisions`、Hook 的 `defaults` 策略，以及各宿主独立的私有账本。其他现有配置与 Hook，以及 Aptly 原有的命令、环境、分类方式和账本路径都会保留。现有 fixture 配置不会自动切换为付费模式。
+
+### npm 安装脚本许可
+
+上面的安装命令通过 `--allow-scripts=aptly` 显式允许本次安装运行 Aptly 的 `postinstall`。已在 npm 11.19.1 中确认支持，不会修改用户级 npm 许可配置。请参阅 [npm 官方说明](https://docs.npmjs.com/cli/v11/commands/npm-rebuild/#allow-scripts)。
+
+`npm warn install-scripts ... not yet covered by allowScripts` 表示许可策略尚未记录此项。在 npm 11.19.1 中，仅凭此警告不能判断脚本被阻止。实际行为取决于 npm 版本、严格策略和 `ignore-scripts`；安装成功也不等于 MCP 或 Hook 注册成功。npm 可能隐藏 postinstall 输出。
+
+如果 npm 不支持此选项，或希望手动配置而非自动注册，请运行：
+
+```sh
+npm install -g aptly@latest --ignore-scripts
+aptly setup --client all --mode defaults
+```
+
+无论安装脚本是否运行，都可以显式执行 `setup`。它会保留已有启动路径；旧路径错误请按下文恢复步骤处理。密钥配置、MCP 重启和 Codex `/hooks` 信任审核仍需单独完成。
 
 ### 使用 CLI 设置
 
