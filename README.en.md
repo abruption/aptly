@@ -23,12 +23,12 @@ Our own tests showed **about 52–58% lower API-equivalent costs**. See the [tes
 Requires Node.js **24 or later** and Claude Code or Codex. Install the latest stable version globally with these commands.
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
 
-Check the installed version with `aptly --version`.
+Check the installed version with `aptly --version`. On supported npm versions, `--allow-scripts=aptly` allows Aptly’s installation script. If your npm does not support this option, follow the explicit installation and setup steps in the [installation guide](docs/guide/en.md#installation).
 
 Before upgrading, stop all related host, MCP, and CLI processes and review the ledger transition in the [installation and upgrade guide](docs/guide/en.md#installation).
 

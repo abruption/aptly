@@ -13,7 +13,7 @@ Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. npm의 최신 
 **기존 영속 원장을 0.1.2 이상으로 업그레이드하기 전에**, 해당 원장을 사용하는 모든 호스트·MCP 서버·별도 CLI와 구버전 프로세스를 정지하십시오. 새 영구 잠금은 구버전 writer와 함께 사용할 수 없습니다. 새 설치에는 기존 잠금 격리가 필요하지 않습니다. 이전 빈 잠금이 남았다면 [원장 잠금 전환 절차](#중단된-프로세스와-원장-잠금)를 따라 확인된 기존 잠금만 오프라인으로 격리하고, JSON 원장·`unknown`·비용·완료 캐시는 보존하십시오.
 
 ```sh
-npm install -g aptly@latest
+npm install -g aptly@latest --allow-scripts=aptly
 aptly setup --client all --mode defaults
 aptly --version
 ```
@@ -23,6 +23,21 @@ aptly --version
 `postinstall`은 현재 사용자의 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. `CODEX_HOME`·`CLAUDE_CONFIG_DIR`을 사용한다면 설치 프로세스에도 같은 환경을 전달하십시오. 아직 없는 호스트 디렉터리는 자동 등록에서 건너뛰고, 명시적인 `setup`으로 만들 수 있습니다. 필요한 호스트만 등록하려면 `--client codex` 또는 `--client claude`를 사용하십시오.
 
 새 등록은 `ROUTER_PROVIDER=decisions`, Hook `defaults` 정책과 호스트별 비공개 원장을 지정합니다. 기존 다른 설정·Hook, 기존 Aptly의 실행 명령·환경·분류 방식·원장 경로는 보존합니다. 기존 fixture 설정을 자동으로 유료 모드로 바꾸지 않습니다.
+
+### npm 설치 스크립트 허용
+
+위 설치 명령의 `--allow-scripts=aptly`는 해당 설치에서 Aptly의 `postinstall`을 명시적으로 허용합니다. npm 11.19.1에서 지원을 확인했으며, 사용자 전체의 npm 허용 설정은 변경하지 않습니다. [npm 공식 안내](https://docs.npmjs.com/cli/v11/commands/npm-rebuild/#allow-scripts)를 참고하십시오.
+
+`npm warn install-scripts ... not yet covered by allowScripts`는 허용 정책에 아직 등록되지 않았다는 안내입니다. npm 11.19.1에서는 이 경고만으로 스크립트가 차단됐다고 판단할 수 없습니다. npm 버전·엄격 정책·`ignore-scripts`에 따라 동작이 달라지며, 설치 성공만으로 MCP·Hook 등록 성공을 확인할 수는 없습니다. `postinstall`은 npm 출력에 표시되지 않을 수도 있습니다.
+
+옵션을 지원하지 않는 npm이거나 자동 등록 대신 직접 설정하려면 다음 명령을 사용하십시오:
+
+```sh
+npm install -g aptly@latest --ignore-scripts
+aptly setup --client all --mode defaults
+```
+
+명시적 `setup`은 설치 스크립트 실행 여부와 관계없이 사용할 수 있습니다. 기존 실행 경로는 보존하므로 구버전 경로 오류는 아래 복구 절차를 따르십시오. 키 설정·MCP 재시작과 Codex의 `/hooks` 신뢰 승인은 별도로 필요합니다.
 
 ### CLI로 설정하기
 
