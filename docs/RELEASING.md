@@ -1,10 +1,14 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.3 릴리즈 준비
+## 0.1.3 게시와 검증
 
-현재 소스의 게시 후보 버전은 `0.1.3`입니다. 기존 표준 MCP 등록의 명시적 이전(`--include-existing`), 검증된 전역 설치의 `aptly update`와 npm dry-run 거절, 대화형 CLI의 신규 버전 알림, npm 설치 스크립트 허용 안내를 포함합니다. [한국어 릴리즈 노트 초안](release-notes/0.1.3.md)과 [Changelog](../CHANGELOG.md)를 확인하십시오.
+2026-11-06에 `v0.1.3` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42162474877)를 실행했습니다. 설치 시험·새 runner 패키징·게시의 세 job이 모두 성공했으며, 확인 당시 npm `latest`는 0.1.3입니다. [한국어 릴리즈 노트](release-notes/0.1.3.md)와 [0.1.3 실제 검증 기록](releases/0.1.3.md)에 변경 이슈·업그레이드 순서·source SHA·run·attempt·digest와 검증 결과를 기록합니다.
 
-이 항목은 **게시 준비 상태**를 기록합니다. `v0.1.3` 태그·npm 게시·0.1.3 provenance 검증은 아직 수행하지 않았습니다. 준비 PR 병합과 해당 main CI 성공 후, 별도 게시 지시를 받고 태그를 push해야 합니다. 이전 버전의 artifact·digest·OIDC 실행 결과를 0.1.3의 검증 근거로 재사용하지 않습니다. 실제 게시 후 이 문서와 릴리즈 노트를 결과에 맞게 갱신하십시오.
+이번 버전은 보존된 표준 등록의 명시적 이전(`--include-existing`), 검증된 전역 설치의 `aptly update`와 npm dry-run 거절, 대화형 CLI의 신규 버전 알림, npm 설치 스크립트 허용 안내를 포함합니다. 0.1.2에는 업데이트 명령이 없으므로 최초 전환은 npm 설치로 수행해야 합니다. 일반 설치 명령은 `npm install -g aptly@latest --allow-scripts=aptly`입니다. 관련 writer 중지·원장 보존과 호스트 재시작·신뢰 검토 경계는 유지합니다.
+
+새 실행의 artifact와 registry archive가 SHA-256·SHA-512 SRI에서 일치했고, npm의 정확한 SLSA v1 bundle과 GitHub CLI 인증서 검증을 통과했습니다. 소스·태그·workflow·실행 identity 및 SAN을 대조했으며 이전 버전의 검증 결과를 재사용하지 않았습니다. registry 전파 지연은 읽기 전용 조회로 기다렸고 게시를 재실행하지 않았습니다.
+
+게시 전 GitHub `npm` environment의 `v*` 태그 제한을 조회했습니다. 로컬 npm 관리자 Trusted Publisher 목록은 이번에 조회하지 않았으므로 새로 확인했다고 기록하지 않습니다. 실제 Actions OIDC 게시 성공과 인증서 기반 provenance로 배포 결과를 확인했습니다. 전역 설치·실제 호스트 설정·운영 원장·자격 저장소는 이번 게시·검증에서 변경하지 않았습니다.
 
 ## 0.1.2 게시와 검증
 
