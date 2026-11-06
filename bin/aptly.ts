@@ -55,12 +55,13 @@ try {
   }
  }
  else if(['setup','remove'].includes(command)){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly setup [--client codex|claude|all] [--mode defaults|advisory] [--automatic]\n       aptly setup --client codex|claude --migrate-launcher [--dry-run]\n       aptly remove [--client codex|claude|all]\nSetup merges MCP and PreToolUse registration. Codex requires native /hooks trust review.\nAutomatic setup skips CI, APTLY_SKIP_SETUP=1, and absent host directories. No keys are stored.\n');
+  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly setup [--client codex|claude|all] [--mode defaults|advisory] [--automatic]\n       aptly setup --client codex|claude --migrate-launcher [--include-existing] [--dry-run]\n       aptly remove [--client codex|claude|all]\nSetup merges MCP and PreToolUse registration. Codex requires native /hooks trust review.\nAutomatic setup skips CI, APTLY_SKIP_SETUP=1, and absent host directories. No keys are stored.\n');
   else {
-   let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'='defaults';let automatic=false;let migrate=false;let dryRun=false;const seen=new Set<string>();
+   let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'='defaults';let automatic=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
    for(let i=0;i<args.length;i++){
     const flag=args[i];if(seen.has(flag))throw new Error('setup_invalid_options');seen.add(flag);
     if(flag==='--migrate-launcher'&&command==='setup'){migrate=true;continue;}
+    if(flag==='--include-existing'&&command==='setup'){includeExisting=true;continue;}
     if(flag==='--dry-run'&&command==='setup'){dryRun=true;continue;}
     if(flag==='--automatic'&&command==='setup'){automatic=true;continue;}
     const value=args[++i];
@@ -69,8 +70,8 @@ try {
     else throw new Error('setup_invalid_options');
    }
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   if((migrate&&(clients.length!==1||automatic||seen.has('--mode')))||(dryRun&&!migrate))throw new Error('setup_invalid_options');
-   const result=migrate?migrateLauncher({clients,packageRoot},dryRun):command==='setup'?setupHosts({clients,mode,automatic,packageRoot}):removeSetup({clients});output(result);
+   if((migrate&&(clients.length!==1||automatic||seen.has('--mode')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
+   const result=migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot}):removeSetup({clients});output(result);
    if(result.status==='partial'&&!automatic)process.exitCode=1;
   }
  }

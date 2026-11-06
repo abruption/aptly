@@ -105,7 +105,7 @@ function removeTomlEnv(text: string, additions: Record<string, string>): string 
   if (!isDeepStrictEqual(toml(text), target)) fail('managed_entry_changed'); return text;
 }
 export const configurableEnvironmentKeys: readonly string[] = Object.freeze(['ROUTER_PROVIDER', 'APTLY_CLAUDE_MODELS', 'APTLY_CODEX_MODELS', 'CLAUDE_MODELS', 'CODEX_MODELS', 'APTLY_MODEL_INFO_PATH'] as const);
-type EnvironmentEdit = { defaults: true } | { key: string; value: string } | { credential: true } | { migrate: true };
+type EnvironmentEdit = { defaults: true } | { key: string; value: string } | { credential: true } | { migrate: true; includeExisting?: boolean };
 const defaultEnvironment = { ROUTER_PROVIDER: 'decisions', APTLY_CLAUDE_MODELS: '["haiku","sonnet","opus"]', APTLY_CODEX_MODELS: '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]' };
 function validateEnvironmentValue(key: string, value: string) {
   if (!(configurableEnvironmentKeys as readonly string[]).includes(key)) fail(/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL/i.test(key) ? 'environment_secret_key_unsupported' : 'environment_key_unsupported');
@@ -150,6 +150,26 @@ function updateTomlEnv(text: string, updates: Record<string,string>): string {
   }
   text = addTomlEnv(text,Object.fromEntries(Object.entries(updates).filter(([key]) => existing[key] === undefined)));
   if (!isDeepStrictEqual(toml(text),expected)) fail('unsupported_toml_layout'); return text;
+}
+/** Replace only unambiguous single-line launcher assignments in an existing table. */
+function updateTomlLauncher(text: string, entry: ObjectValue): string {
+  const original = toml(text), expected = structuredClone(original);
+  expected.mcp_servers.aptly.command = entry.command;
+  expected.mcp_servers.aptly.args = entry.args;
+  const headers = [...text.matchAll(/^\s*\[([^\n]+)\][ \t]*(?:#[^\n]*)?\r?$/gm)];
+  const header = headers.find(h => { try { return toml(h[0]+'\naptly_probe = true\n').mcp_servers?.aptly?.aptly_probe === true; } catch { return false; } });
+  if (!header) fail('unsupported_toml_layout');
+  const start = header!.index! + header![0].length, end = headers.find(h => h.index! > header!.index!)?.index ?? text.length;
+  let body = text.slice(start,end);
+  for (const key of ['command','args']) {
+    const assignment = new RegExp('^[ \\t]*'+key+'[ \\t]*=[^\\n]*(?:\\n|$)','gm');
+    const matches = [...body.matchAll(assignment)];
+    if (matches.length !== 1 || !isDeepStrictEqual(toml(matches[0][0])[key],original.mcp_servers.aptly[key])) fail('unsupported_toml_layout');
+    body = body.replace(assignment, () => key+' = '+JSON.stringify(entry[key])+(matches[0][0].endsWith('\r\n')?'\r\n':matches[0][0].endsWith('\n')?'\n':''));
+  }
+  const rendered = text.slice(0,start)+body+text.slice(end);
+  if (!isDeepStrictEqual(toml(rendered),expected)) fail('unsupported_toml_layout');
+  return rendered;
 }
 function resolved(options: SetupOptions, client: Client) {
   const home = resolve(options.home ?? homedir()), env = options.env ?? process.env;
@@ -225,10 +245,11 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     const additions = { APTLY_HOOK_POLICY_PATH: policyPath, ROUTER_LEDGER_PATH: join(stateDir, 'ledger.json') };
     let created = false, tomlBlock: string | undefined;
     if (edit && 'migrate' in edit) {
-      if (!oldOwner?.mcp_created || !object(servers.aptly) || !isDeepStrictEqual(servers.aptly, oldOwner.mcp)) fail('launcher_migration_not_owned');
+      if (!oldOwner || !object(servers.aptly) || (oldOwner.mcp_created ? !isDeepStrictEqual(servers.aptly, oldOwner.mcp) : !edit.includeExisting)) fail('launcher_migration_not_owned');
       const entry = servers.aptly;
       if (typeof entry.command !== 'string' || !isAbsolute(entry.command) || !['node','node.exe'].includes(basename(entry.command).toLowerCase()) || !Array.isArray(entry.args) || entry.args.length !== 1 || typeof entry.args[0] !== 'string' || !isAbsolute(entry.args[0]) || !/(?:^|[\\/])(?:dist[\\/]src[\\/]server\.js|src[\\/]server\.ts)$/.test(entry.args[0])) fail('launcher_migration_not_standard');
       if (!entries.some(entry => isDeepStrictEqual(entry,oldOwner!.hook)) || !isDeepStrictEqual(json(policy.before),oldOwner!.policy)) fail('managed_entry_changed');
+      for (const [key,value] of Object.entries(oldOwner!.env_added)) if (entry.env?.[key] !== value) fail('managed_entry_changed');
     }
     if (servers.aptly === undefined) {
       created = true;
@@ -253,7 +274,10 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     if (created) {
       if (client === 'codex') { tomlBlock = newTomlBlock(servers.aptly); mcp.after = (mcp.before ?? '') + ((mcp.before ?? '').endsWith('\n') || !mcp.before ? '\n' : '\n\n') + tomlBlock; }
       else mcp.after = stringify(config);
-    } else if (edit) mcp.after = client === 'codex' ? updateTomlEnv(mcp.after!,updates) : stringify(config);
+    } else if (edit) {
+      mcp.after = client === 'codex' ? updateTomlEnv(mcp.after!,updates) : stringify(config);
+      if (client === 'codex' && 'migrate' in edit && !oldOwner?.mcp_created) mcp.after = updateTomlLauncher(mcp.after!,servers.aptly);
+    }
     const existingRoute = entries.filter(routeHook);
     if (existingRoute.some(entry => !isDeepStrictEqual(entry, hookValue))) fail('existing_routing_hook_conflict');
     if (existingRoute.length === 0) entries.push(hookValue);
@@ -410,14 +434,15 @@ export function prepareCredentialReference(options: SetupOptions, client: Client
     return execute({...options,clients:[client]},false,{credential:true},[plan]).clients[0];
   }};
 }
-/** Only an explicitly selected, receipt-matching standard registration is eligible. */
-export function migrateLauncher(options: SetupOptions, dryRun = false): SetupResult {
+/** Preserved standard registrations require a separate explicit opt-in; ownership stays unchanged. */
+export function migrateLauncher(options: SetupOptions, dryRun = false, includeExisting = false): SetupResult {
   const client=options.clients?.[0];
   if (options.clients?.length!==1 || !client || !['codex','claude'].includes(client) || options.automatic || options.mode) return {status:'partial',clients:[]};
   try {
-    const plan=prepare(options,client,false,{migrate:true});
+    const edit = {migrate:true as const,includeExisting};
+    const plan=prepare(options,client,false,edit);
     if(dryRun) return {status:'complete',clients:[{client,status:'unchanged',codes:[plan.changes.length?'launcher_migration_available':'launcher_current'],requires_hook_review:client==='codex'}]};
-    const result=execute(options,false,{migrate:true},[plan]);
+    const result=execute(options,false,edit,[plan]);
     if(result.status==='complete') result.clients[0].codes.push('launcher_migrated','mcp_restart_required');
     return result;
   } catch(error) { return {status:'partial',clients:[{client,status:'error',codes:[safeCode(error)]}]}; }

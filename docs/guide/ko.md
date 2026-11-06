@@ -89,6 +89,15 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run`은 변경하지 않습니다. 이전 명령은 소유 기록과 일치하는 Aptly 표준 등록의 Node·서버 경로를 현재 빌드로 바꿉니다. 기존 환경·Hook·정책·다른 호스트는 보존하며 키를 읽거나 저장하지 않습니다. 오래된 실행 파일을 실행하지 않습니다. 사용자 래퍼, 소유 기록이 없거나 수정된 등록은 거절합니다. 이 경우 로컬에서 등록을 검토하고 래퍼의 안전한 환경 전달을 사용하거나 별도로 검토한 표준 등록으로 전환하십시오. 소유 기록을 삭제하거나 편집해 검증을 우회하지 마십시오.
 
+`launcher_migration_not_owned`가 나오고 기존 등록을 보존한 상태(`mcp_created: false`)라면, 이 후속 소스 빌드의 `--include-existing`으로 명시적으로 이전할 수 있습니다. **npm 0.1.2에는 이 옵션이 없습니다.** 위의 소스 빌드 절차를 사용하고 다음 명령을 실행하십시오:
+
+```sh
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing --dry-run
+node bin/aptly.ts setup --client claude --migrate-launcher --include-existing
+```
+
+실행 전에 로컬 등록을 검토하십시오. 유효한 기존 Aptly 소유 기록과 일치하는 관리 환경변수·Hook·정책이 필요하며, 절대 Node 경로와 단일 표준 서버 경로만 허용합니다. 사용자 래퍼나 기록이 없는 등록은 이 옵션으로도 이전하지 않습니다. 기존 MCP 전체를 Aptly 소유로 바꾸지 않으므로, 이후 `remove`도 이전한 MCP 실행 경로와 원래 사용자 설정을 보존합니다. 이 옵션은 단일 호스트의 명시적 이전에만 사용할 수 있고 자동 설치에는 적용되지 않습니다.
+
 이미 성공한 Codex는 재설정할 필요가 없습니다. 실패한 호스트만 지정해 재시도하고 MCP를 재시작하십시오. Codex를 대상으로 하면 `/hooks` 신뢰 검토가 계속 필요합니다. 진단 이후 설정 변경은 `concurrent_configuration_change`로 중단합니다. 저장 실패 후 다른 키가 관찰되거나 현재 키를 읽지 못하면 덮어쓰지 않고 `credential_rollback_failed`를 반환합니다. 파일과 OS 저장소 사이의 원자적 트랜잭션은 아니므로 다른 설정 작업을 동시에 실행하지 마십시오.
 
 ### 키와 재시작
