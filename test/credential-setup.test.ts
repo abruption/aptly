@@ -45,11 +45,11 @@ test('failed or unverifiable recovery reports both the original error and recove
 });
 test('configuration rollback is attempted once and retains the configuration error', t => {
  const home=createTestTemp(t,'codex-config-recovery-'),b=backend(),account='codex:OPENAI_API_KEY';
- setDefaults({home,env:{},clients:['codex']});writeFileSync(join(home,'.codex/config.toml'),'invalid = [');
+ setDefaults({home,env:{},clients:['codex']});
  b.data.set(account,'previous-synthetic');let writes=0;
- b.storeSecret=(key,options)=>{writes++;if(key===value)b.data.set(options.account,key);else throw Error('secure_store_denied');};
+ b.storeSecret=(key,options)=>{writes++;if(key===value){b.data.set(options.account,key);writeFileSync(join(home,'.codex/config.toml'),'invalid = [');}else throw Error('secure_store_denied');};
  const r=setApiKey(value,{home,env:{},clients:['codex']},b);
- assert.equal(writes,2);assert.ok(r.clients[0].codes.includes('invalid_toml'));
+ assert.equal(writes,2);assert.ok(r.clients[0].codes.includes('concurrent_configuration_change'));
  assert.ok(r.clients[0].codes.includes('credential_rollback_failed'));
 });
 test('recovery acknowledgement failure is resolved by readback, but failed readback is uncertain', t => {
@@ -59,7 +59,7 @@ test('recovery acknowledgement failure is resolved by readback, but failed readb
   b.storeSecret=(key,options)=>{store(key,options);throw Error('secure_store_timeout');};
   b.loadSecret=options=>{if(++reads>1&&!readable)throw Error('synthetic-read-failed');return load(options);};
   const r=setApiKey(value,{home,env:{},clients:['codex']},b);
-  assert.equal(b.data.get(account),'previous-synthetic');
+  assert.equal(b.data.get(account),readable?'previous-synthetic':value);
   assert.deepEqual(r.clients[0].codes,['secure_store_timeout',...(readable?[]:['credential_rollback_failed'])]);
  }
 });

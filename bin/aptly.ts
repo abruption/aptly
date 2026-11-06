@@ -9,9 +9,9 @@ import { collectDiagnostics } from '../src/diagnostics.ts';
 import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
-import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys } from '../src/setup.ts';
+import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher } from '../src/setup.ts';
 import { readEnvironmentValue } from '../src/cli-input.ts';
-import { setApiKey } from '../src/credential-setup.ts';
+import { prepareApiKey } from '../src/credential-setup.ts';
 const [command='serve',...args]=process.argv.slice(2);
 const output=(value:unknown)=>process.stdout.write(JSON.stringify(value,null,2)+'\n');
 try {
@@ -28,27 +28,32 @@ try {
   output(exportDiagnosticReport({diagnostic:collectDiagnostics(),...options}));
  }
  else if(command==='set'){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly set default [--client codex|claude|all]\n       aptly set env ENV_KEY [--client codex|claude|all] [--stdin]\nValues are entered interactively with hidden input; --stdin explicitly reads a value from standard input. Existing defaults and launchers are preserved. OPENAI_API_KEY is stored in the OS credential store; host files contain references only. Restart MCP after changes.\n');
+  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly set default [--client codex|claude|all]\n       aptly set env ENV_KEY [--client codex|claude|all] [--stdin | --check]\n--check diagnoses OPENAI_API_KEY registration without reading or storing a key.\nValues are entered interactively with hidden input; --stdin explicitly reads a value from standard input. Existing defaults and launchers are preserved. OPENAI_API_KEY is stored in the OS credential store; host files contain references only. Restart MCP after changes.\n');
   else {
    const action=args[0];let key:string|undefined;let start=1;
    if(action==='env'){key=args[1];start=2;if(!key||(key!=='OPENAI_API_KEY'&&!configurableEnvironmentKeys.includes(key)))throw new Error('set_environment_key_unsupported');}
    else if(action!=='default')throw new Error('set_invalid_options');
-   let clients:('codex'|'claude')[]=['codex','claude'];let fromStdin=false;const seen=new Set<string>();
-   for(let i=start;i<args.length;i++){const flag=args[i];if(seen.has(flag))throw new Error('set_invalid_options');seen.add(flag);if(flag==='--stdin'&&action==='env'){fromStdin=true;continue;}if(flag==='--client'&&['codex','claude','all'].includes(args[i+1])){const v=args[++i];clients=v==='all'?['codex','claude']:[v as 'codex'|'claude'];}else throw new Error('set_invalid_options');}
+   let clients:('codex'|'claude')[]=['codex','claude'];let fromStdin=false;let checkOnly=false;const seen=new Set<string>();
+   for(let i=start;i<args.length;i++){const flag=args[i];if(seen.has(flag))throw new Error('set_invalid_options');seen.add(flag);if(flag==='--check'&&action==='env'&&key==='OPENAI_API_KEY'){checkOnly=true;continue;}if(flag==='--stdin'&&action==='env'){fromStdin=true;continue;}if(flag==='--client'&&['codex','claude','all'].includes(args[i+1])){const v=args[++i];clients=v==='all'?['codex','claude']:[v as 'codex'|'claude'];}else throw new Error('set_invalid_options');}
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
+   if(checkOnly&&fromStdin)throw new Error('set_invalid_options');
+   const credential=key==='OPENAI_API_KEY'?prepareApiKey({clients,packageRoot}):undefined;
    let value='';
-   try{
+   if(credential&&(checkOnly||credential.result.status==='partial')){output(credential.result);if(credential.result.status==='partial')process.exitCode=1;}
+   else try{
     if(action==='env')value=await readEnvironmentValue({key:key!,fromStdin});
-    const result=action==='default'?setDefaults({clients,packageRoot}):key==='OPENAI_API_KEY'?setApiKey(value,{clients,packageRoot}):setEnvironment(key!,value,{clients,packageRoot});output(result);if(result.status==='partial')process.exitCode=1;
+    const result=action==='default'?setDefaults({clients,packageRoot}):key==='OPENAI_API_KEY'?credential!.apply(value):setEnvironment(key!,value,{clients,packageRoot});output(result);if(result.status==='partial')process.exitCode=1;
    }finally{value='';}
   }
  }
  else if(['setup','remove'].includes(command)){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly setup [--client codex|claude|all] [--mode defaults|advisory] [--automatic]\n       aptly remove [--client codex|claude|all]\nSetup merges MCP and PreToolUse registration. Codex requires native /hooks trust review.\nAutomatic setup skips CI, APTLY_SKIP_SETUP=1, and absent host directories. No keys are stored.\n');
+  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly setup [--client codex|claude|all] [--mode defaults|advisory] [--automatic]\n       aptly setup --client codex|claude --migrate-launcher [--dry-run]\n       aptly remove [--client codex|claude|all]\nSetup merges MCP and PreToolUse registration. Codex requires native /hooks trust review.\nAutomatic setup skips CI, APTLY_SKIP_SETUP=1, and absent host directories. No keys are stored.\n');
   else {
-   let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'='defaults';let automatic=false;const seen=new Set<string>();
+   let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'='defaults';let automatic=false;let migrate=false;let dryRun=false;const seen=new Set<string>();
    for(let i=0;i<args.length;i++){
     const flag=args[i];if(seen.has(flag))throw new Error('setup_invalid_options');seen.add(flag);
+    if(flag==='--migrate-launcher'&&command==='setup'){migrate=true;continue;}
+    if(flag==='--dry-run'&&command==='setup'){dryRun=true;continue;}
     if(flag==='--automatic'&&command==='setup'){automatic=true;continue;}
     const value=args[++i];
     if(flag==='--client'&&['codex','claude','all'].includes(value))clients=value==='all'?['codex','claude']:[value as 'codex'|'claude'];
@@ -56,7 +61,8 @@ try {
     else throw new Error('setup_invalid_options');
    }
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   const result=command==='setup'?setupHosts({clients,mode,automatic,packageRoot}):removeSetup({clients});output(result);
+   if((migrate&&(clients.length!==1||automatic||seen.has('--mode')))||(dryRun&&!migrate))throw new Error('setup_invalid_options');
+   const result=migrate?migrateLauncher({clients,packageRoot},dryRun):command==='setup'?setupHosts({clients,mode,automatic,packageRoot}):removeSetup({clients});output(result);
    if(result.status==='partial'&&!automatic)process.exitCode=1;
   }
  }

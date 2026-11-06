@@ -7,8 +7,8 @@ import {readFileSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {parse} from 'smol-toml';
 import {createTestTemp} from './temp.ts';
-import {setDefaults,setEnvironment,removeSetup} from '../src/setup.ts';
-import {setApiKey} from '../src/credential-setup.ts';
+import {setDefaults,setEnvironment,removeSetup,migrateLauncher} from '../src/setup.ts';
+import {setApiKey,prepareApiKey} from '../src/credential-setup.ts';
 import {runtime} from '../src/runtime.ts';
 import {protectNewWindowsPrivateDirectory} from '../src/windows-private.ts';
 if(process.env.CI!=='true'||process.env.APTLY_TEST_CREDENTIAL_STORE!=='1'||process.platform!=='win32')throw new Error('native_credential_probe_not_enabled');
@@ -46,12 +46,19 @@ try{
  if(loadSecret(options)!==value+'-updated')throw Error('native_credential_update_failed');
  deleteSecret(options);
  if(loadSecret(options)!==null)throw Error('native_credential_delete_failed');
- const defaults=setDefaults({home,env:{}});
+ const defaults=setDefaults({home,env:{},packageRoot:join(home,'retired-install')});
  if(defaults.status!=='complete'){console.log(JSON.stringify(defaults));throw Error('native_windows_defaults_failed');}
  const configPath=join(home,'.codex','config.toml');
  const originalAcl=fileAcl(configPath,true);
  if(setEnvironment('ROUTER_PROVIDER','decisions',{home,env:{},clients:['codex']}).status!=='complete')throw Error('native_windows_environment_failed');
  if(fileAcl(configPath)!==originalAcl)throw Error('native_windows_file_acl_changed');
+ const preflight=prepareApiKey({home,env:{}});
+ if(preflight.result.status!=='partial'||!preflight.result.clients.every(c=>c.codes.includes('launcher_migration_available')))throw Error('native_windows_preflight_failed');
+ for(const client of ['codex','claude'] as const){
+  if(migrateLauncher({home,env:{},clients:[client]},true).status!=='complete')throw Error('native_windows_migration_preview_failed');
+  if(migrateLauncher({home,env:{},clients:[client]}).status!=='complete')throw Error('native_windows_migration_failed');
+ }
+ if(fileAcl(configPath)!==originalAcl)throw Error('native_windows_migration_acl_changed');
  const syntheticKey='sk-synthetic-'+randomUUID();
  const configuredKey=setApiKey(syntheticKey,{home,env:{}},backend);
  if(configuredKey.status!=='complete'){console.log(JSON.stringify(configuredKey));throw Error('native_windows_key_setup_failed');}
@@ -64,4 +71,4 @@ try{
  try{deleteSecret(options);for(const account of ['codex:OPENAI_API_KEY','claude:OPENAI_API_KEY'])deleteSecret({...options,account});cleanup=true;}
  finally{cleanupDirectory();}
 }
-console.log(JSON.stringify({native_windows_credential_store:true,roundtrip:true,update:true,delete:true,isolated_host_defaults:true,environment:true,os_reference_runtime:true,remove:true,synthetic_item_only:true,cleanup}));
+console.log(JSON.stringify({native_windows_credential_store:true,roundtrip:true,update:true,delete:true,isolated_host_defaults:true,launcher_preflight:true,explicit_launcher_migration:true,environment:true,os_reference_runtime:true,remove:true,synthetic_item_only:true,cleanup}));
