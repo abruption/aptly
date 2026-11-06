@@ -41,6 +41,12 @@ export function updateGlobalInstallation(options:{packageRoot:string},dependenci
     const target=join(root,'aptly');
     if(lstatSync(target).isSymbolicLink()||!lstatSync(target).isDirectory()||canonical(target)!==canonical(options.packageRoot))failed(stage);
     verifyPackage(target);
+    // Query the same effective global npm configuration used for installation.
+    // A successful dry-run does not prove the on-disk package was updated.
+    stage='update_configuration_unverified';
+    const dryRun=invoke(['config','get','dry-run','--global','--prefix',prefix]).trim();
+    if(dryRun==='true')failed('update_dry_run_enabled');
+    if(dryRun!=='false')failed(stage);
     // Explicit prefix pins the operation to the verified installation, including custom prefixes.
     // Lifecycle scripts remain disabled: updating code must not rewrite host registration or trust.
     stage='update_install_failed';
@@ -50,7 +56,7 @@ export function updateGlobalInstallation(options:{packageRoot:string},dependenci
     const version=verifyPackage(target);
     return {status:'complete',codes:['package_updated','host_configuration_preserved','setup_required','mcp_restart_required'],version};
   } catch(error) {
-    const code=error instanceof Error&&['update_global_install_unverified','update_npm_unsupported'].includes(error.message)?error.message:stage;
+    const code=error instanceof Error&&['update_global_install_unverified','update_npm_unsupported','update_dry_run_enabled'].includes(error.message)?error.message:stage;
     return {status:'error',codes:[code]};
   }
 }

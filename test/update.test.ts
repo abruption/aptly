@@ -20,6 +20,7 @@ function fixture(t){
   if(args[1]==='--version')return config.version+'\n';
   if(args[1]==='prefix')return config.prefix+'\n';
   if(args[1]==='root')return config.root+'\n';
+  if(args[1]==='config'){assert.deepEqual(args.slice(1),['config','get','dry-run','--global','--prefix',prefix]);return 'false\n';}
   assert.equal(args[1],'install');if(config.installError)throw Error('private synthetic error with credential-like data');
   write(join(target,'package.json'),JSON.stringify({...packageData,version:'0.1.3'}));return 'ignored npm output';
  };
@@ -29,7 +30,7 @@ test('global updater pins latest Aptly to verified custom prefix through sibling
  const f=fixture(t),settings=join(f.home,'settings.json');f.write(settings,'preserved configuration');
  const r=f.update();assert.deepEqual(r,{status:'complete',codes:['package_updated','host_configuration_preserved','setup_required','mcp_restart_required'],version:'0.1.3'});
  assert.equal(readFileSync(settings,'utf8'),'preserved configuration');
- assert.deepEqual(f.calls.map(c=>c.args.slice(1)),[['--version'],['prefix','--global'],['root','--global'],['install','-g','aptly@latest','--ignore-scripts','--prefix',f.prefix]]);
+ assert.deepEqual(f.calls.map(c=>c.args.slice(1)),[['--version'],['prefix','--global'],['root','--global'],['config','get','dry-run','--global','--prefix',f.prefix],['install','-g','aptly@latest','--ignore-scripts','--prefix',f.prefix]]);
  assert.ok(f.calls.every(c=>c.exe===f.node&&c.timeout>0&&c.timeout<=120000));assert.ok(f.calls.every(c=>!c.args.includes('setup')));
 });
 test('source and local package roots are rejected without an install',t=>{
