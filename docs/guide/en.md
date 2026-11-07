@@ -224,6 +224,7 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 | `get_spawn_routing_observation` | Looks up one exact Hook invocation; never proves native execution |
 | `prepare_spawn_context` | Registers a bounded description for one exact upcoming invocation |
 | `cancel_spawn_context` | Revokes the description association, not native execution or a request already sent |
+| `retry_spawn_recommendation` | Accepts one task-description supplement using a Hook-issued retry_id |
 
 ### Outbound data and disabling automatic sharing
 
@@ -244,6 +245,12 @@ The ledger and Hook bindings store request metadata, hashes, and cached results,
 An integration that knows the real upcoming session/call IDs and exact original event can call `prepare_spawn_context({client, event, description})` on the same MCP process before the Hook. Describe purpose, scope, expected output, constraints and complexity; URLs alone do not fetch content. Only the bounded description and fixed prefix replace the task excerpt, not history, files or the opaque body. `cancel_spawn_context({client, event})` revokes it. Registration needs enabled automatic policy; `enabled: false` prevents sharing. Known-secret filters are incomplete.
 
 Associations last five minutes, are immutable, and are limited to 128 per process. Changed, expired or cancelled associations block routing; an already evaluated call cannot acquire a richer-summary retry or new paid identity. A caller unable to obtain the actual upcoming event cannot use this handoff; shipped Hooks do not create descriptions or call IDs. Local `insufficient_context`, provider `provider_needs_context`, and native `inherited_context_application_unverified` are distinct. The [handoff contract](../SPAWN_CONTEXT.md) records a bounded native description-handoff check. It does not establish automatic description production or execution of the recommended model.
+
+### Retry with additional context (unreleased)
+
+When the automatic Hook returns `insufficient_context` or `provider_needs_context`, it provides a `retry_id` and recovery instructions. In `defaults` mode it denies that spawn; in `advisory` mode it only supplies feedback. The parent should describe purpose, scope, expected output and complexity using context it already has, then call `retry_spawn_recommendation({retry_id, description})` on the same MCP process within five minutes. No future native call ID is needed. Ask the user only for genuinely missing information.
+
+One supplement is allowed per original call. Duplicate input reuses the cache; changed descriptions conflict. Stop if the retry still needs context or fails; never replace an uncertain paid request with a new ID. If `spawn_application` is `blocked`, report the constraint without applying the profile. Otherwise the parent must preserve explicit choices, history, roles and permissions when passing only unspecified model/effort to a new compatible native call. The Hook does not itself perform the parent's retry or native execution. The original `prepare_spawn_context` association stays immutable. See the [limits, costs and validation contract](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased).
 
 ## Direct recommendations
 

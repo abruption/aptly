@@ -22,7 +22,7 @@ const data=response=>response.structuredContent??JSON.parse(response.content[0].
 test('public server has no PoC bypasses, denial tools or transcript reader',async t=>{
  const client=await connect(t,{ROUTER_POC_APPLY:'1',ROUTER_POC_VERIFIED:'1',ROUTER_POC_DENY:'1'});
  const names=(await client.listTools()).tools.map(x=>x.name);
- assert.deepEqual(names.sort(),['cancel_spawn_context','prepare_spawn_context','get_routing_capabilities','get_routing_precedence','get_spawn_routing_observation','recommend_agent','route_spawn_hook'].sort());
+ assert.deepEqual(names.sort(),['cancel_spawn_context','prepare_spawn_context','get_routing_capabilities','get_routing_precedence','get_spawn_routing_observation','recommend_agent','retry_spawn_recommendation','route_spawn_hook'].sort());
  const ev=event();
  const diagnostic=data(await call(client,'get_routing_precedence',{client:'codex',event:ev,context:{evidence_verified:true}}));
  assert.equal(diagnostic.status,'unknown');assert.equal(diagnostic.reason,'context_missing');
