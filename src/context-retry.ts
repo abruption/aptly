@@ -31,7 +31,7 @@ export class ContextRetries {
  }
  async retry(retry_id:string,description:string,signal?:AbortSignal):Promise<Record<string,unknown>> {
   const entry=this.entries.get(retry_id);
-  const unavailable=(reason:string)=>({status:'unavailable',reason,application:'advisory_only',retry_id,retry_allowed:false});
+  const unavailable=(reason:string)=>({status:'unavailable',reason,application:'advisory_only',retry_id,context_retry_allowed:false});
   if(!entry)return unavailable('context_retry_not_found');
   const check=()=>{
    if(entry.cancelled||signal?.aborted)return 'context_retry_cancelled';
@@ -76,12 +76,16 @@ export class ContextRetries {
     task:{summary,operation:'analysis',context_sufficient:true},eligible_profile_ids:entry.seed.eligible_profile_ids,
     constraints:{model_pinned:false,effort_pinned:false,role_pinned:false,fork_inherits:false}});
    const after=check();if(after)return unavailable(after);
-   return {...result,retry_id,request_id,retry_allowed:false,
+   const defaults=result.status==='recommended'&&result.profile&&!entry.seed.application_blocked?{
+    ...(entry.seed.fill_model!==false?{model:result.profile.model}:{}),
+    ...(entry.seed.client==='codex'&&entry.seed.fill_effort!==false&&result.profile.reasoning_effort?{reasoning_effort:result.profile.reasoning_effort}:{})}:undefined;
+   return {...result,retry_id,request_id,context_retry_allowed:false,
     spawn_application:{status:entry.seed.application_blocked?'blocked':'caller_review_required',
      reason:entry.seed.application_blocked??'native_execution_not_observed'},
+    ...(defaults?{next_call:{tool:entry.seed.client==='claude'?'Agent':'spawn_agent',set_if_unspecified:defaults,preserve:'all_other_arguments_and_history'}}:{}),
     next_step:result.status==='recommended'
      ? entry.seed.application_blocked?'Report the application constraint and preserve original history and arguments. This profile is advice only.'
-       :'Review the allowlisted profile and supply only unspecified model/effort to a new compatible native call. Preserve all explicit choices, history, roles and permissions.'
+       :`Context supplementation is complete; do not call retry_spawn_recommendation again. Caller review means the parent checks arguments, not a request for new user approval. To perform the already requested delegation, on the next native ${entry.seed.client==='claude'?'Agent':'spawn_agent'} call, include these previously unspecified fields: ${JSON.stringify(defaults)}. Do not submit another model/effort-omitted call: it will be blocked again. Preserve all other arguments, explicit choices, history, roles and permissions. This response does not execute a child.`
      :'Stop this recovery attempt. Report the outcome; do not create another retry ID or spawn with an unresolved recommendation.'};
   }finally{entry.active=false;signal?.removeEventListener('abort',cancel);}
  }

@@ -1,5 +1,11 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.5 준비
+
+[Issue #73](https://github.com/abruption/aptly/issues/73)에서 0.1.5를 준비합니다. [한국어 릴리즈 노트 초안](release-notes/0.1.5.md)에 변경 이슈·업데이트 절차·지원 경계를 기록했습니다. PR #72는 `fix/70-context-retry`에 병합되어 main에 없었으므로, 준비 브랜치에서 승인된 해당 소스를 main 계보와 통합합니다. 패키지·lockfile·CLI 버전을 0.1.5로 맞춥니다.
+
+이 단계는 준비 PR과 로컬·원격 검증이며 실제 게시가 아닙니다. 준비 PR 병합과 정확한 main SHA의 CI 성공을 확인한 뒤 별도 게시 지시에 따라 `v0.1.5` 태그를 생성·push하십시오. 태그 push는 Actions OIDC 게시를 시작합니다. 태그·게시 실행·registry 파일·서명·provenance는 새 실행의 실제 값으로 각각 확인해야 하며, 이전 버전의 성공을 재사용하지 않습니다. 이번 준비는 전역 설치·운영 원장·호스트 설정·키를 변경하지 않습니다.
+
 ## 0.1.4 게시와 검증
 
 2026-11-06에 `v0.1.4` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42203064758)를 실행했습니다. 설치 시험·새 runner 패키징·게시의 세 job이 모두 성공했고, 확인 당시 npm `latest`는 0.1.4입니다. [한국어 릴리즈 노트](release-notes/0.1.4.md)와 [실제 검증 기록](releases/0.1.4.md)에 변경·source SHA·run·attempt·digest와 검증 결과를 기록합니다.

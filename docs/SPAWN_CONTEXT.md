@@ -1,6 +1,8 @@
 # Spawn context handoff and recovery
 
-Available from Aptly 0.1.4, following the pre-spawn routing changes in #60.
+The original exact-event handoff is available from Aptly 0.1.4, following the
+pre-spawn routing changes in #60. Context recovery and visible routing outcomes
+are available from Aptly 0.1.5.
 It does not decode opaque messages, inspect conversations or modify host
 internals. It provides an explicit caller protocol, not an automatic description
 producer for the shipped Hook templates.
@@ -76,7 +78,7 @@ The original prepare_spawn_context handoff is immutable. Register before the
 first evaluation. If a label-only or description-bound evaluation already
 started, adding/changing the description fails closed (`call_conflict`);
 unknown paid outcomes remain unknown. Do not change IDs to bypass this guard.
-The unreleased recovery protocol below provides a separate, bounded supplement;
+The 0.1.5 recovery protocol below provides a separate, bounded supplement;
 it never rebinds this original association.
 
 ## Outcomes and evidence
@@ -126,7 +128,9 @@ history/model application acceptance and merge order must be resolved before
 merging this dependent change. That historical test did not exercise the later recovery protocol below.
 
 
-## One context supplement after a Hook response (unreleased)
+## One context supplement after a Hook response
+
+Available from Aptly 0.1.5.
 
 When the enabled automatic Hook encounters local `insufficient_context` or a
 completed provider `provider_needs_context`, it issues a `retry_id`. In
@@ -157,7 +161,7 @@ provider preflight; text is not persisted by Aptly. Duplicate input reuses the
 ledger/cache. Changed input conflicts, including after process recreation.
 Timeout/network/unknown outcomes never issue replacement identities. A second
 `needs_context`, a budget failure or an unavailable result ends this recovery:
-`retry_allowed` is false and no further recovery ticket is created. Each process
+`context_retry_allowed` is false and no further recovery ticket is created. Each process
 holds at most 128 tickets without eviction; duplicates do not extend expiry.
 Restart loses ticket lookup, although persistent bindings and the ledger still
 prevent a recreated original Hook event from creating another paid retry.
@@ -165,7 +169,12 @@ prevent a recreated original Hook event from creating another paid retry.
 The retry tool returns advice, not a rewritten original Hook response or a native
 spawn. For a recommendation, inspect `spawn_application`: `caller_review_required`
 requires the parent to review and explicitly supply only unspecified model/effort
-fields to a new compatible native call. `blocked` requires reporting the original
+fields to a new compatible native call. Caller review means argument review,
+not a request for new user approval. Existing delegation authorization and host
+permission checks still apply; this advisory result grants neither.
+The response supplies concrete fields in
+`next_call.set_if_unspecified`, excluding original explicit choices. Claude
+receives model only, never an effort field. Blocked results omit `next_call`. `blocked` requires reporting the original
 history/application constraint. Never change `all` or omitted fork to `none`,
 discard history, alter explicit choices or bypass permissions to apply advice.
 If no recommendation is available, stop and report the result.
@@ -182,7 +191,7 @@ parent model follows the instructions, and inherited application remains blocked
 
 ### Bounded native recovery verification — 2026-11-07
 
-A local Codex CLI 0.167.0 trial exercised this unreleased implementation with
+A local Codex CLI 0.167.0 trial exercised the pre-release recovery implementation with
 its existing trusted Hook and ephemeral MCP command/environment overrides.
 The parent was instructed to attempt one fresh child (`fork_turns: "none"`)
 with no model/effort, a short synthetic task name and a message that the Hook
@@ -212,3 +221,106 @@ will retry automatically. It does not validate inherited model application,
 Claude Code native recovery, model quality or cost savings. Claude recovery,
 provider abstention, duplicate/unknown outcomes and revocation are covered by
 separate offline tests; they are not native execution evidence.
+
+
+## Visible routing outcomes and correlated recovery
+
+Available from Aptly 0.1.5.
+
+After establishing a valid enabled policy, a supported unpinned/default-selection
+call and eligible profiles, `defaults` denies application incompatibilities and
+classification failures instead of silently continuing with the original model.
+The safe reason is model-visible. Budget exhaustion, unknown results and provider
+errors do not authorize retrying with another identity. Cancellation of the host
+request suppresses output; an operator-disabled policy stays disabled.
+
+In particular, omitted or inherited Codex history still cannot apply a recommended
+profile under the current verified contract. Defaults mode stops the spawn and
+asks the parent to report that constraint. It does not silently rewrite history,
+create a fresh child or execute the parent's defaults. Advisory mode remains
+nonblocking feedback. Fully specified tuples, fixed roles and resumed agents
+retain intentional local preservation without unnecessary paid classification.
+
+The guarantee is limited to an enabled, trusted, connected and supported Hook.
+The MCP server cannot intercept calls when the host does not invoke it. The
+`automatic_hook.guarantee` capability describes this boundary and does not certify
+installation, trust or dispatch. Missing/untrusted/unavailable Hooks remain a host
+fallback condition, not a server-enforced block. See the official
+[Codex Hook limitations](https://learn.chatgpt.com/docs/hooks) and
+[Claude Code Hook reference](https://code.claude.com/docs/en/hooks).
+
+A parent with a Hook-issued retry ID can query the existing observation tool:
+
+```text
+get_spawn_routing_observation({retry_id})
+```
+
+This is an alternative to `{client, event}`; the two forms are mutually exclusive
+and partial forms are rejected. Both look up the same bounded process-local
+record. Original preflight remains `awaiting_context`; `context_retry.outcome`
+records the separately classified recovery and `context_retry.last_attempt`
+records the latest retrieval/rejection. A conflicting or concurrent duplicate
+does not erase an earlier classification. Only safe status/reason, classification,
+recommendation/application state and allowlisted profile identity are retained in
+this view, never the description, original event, policy or raw provider output.
+Lookups make no paid calls or retention renewal. Missing/expired records do not
+prove bypass, and execution remains `not_observed` throughout.
+
+
+### Ordinary Codex follow-through verification — 2026-11-07
+
+A bounded native Codex CLI 0.167.0 trial used the existing trusted Hook with an
+ephemeral product-server override and a transparent observer. The user prompt
+requested a sorting delegation, a short synthetic task name and omitted model,
+effort, fork and role fields. It did not describe the recovery tool, provide a
+retry sequence or tell the parent how to supply a description after a denial.
+
+The real opaque-body Hook invocation was denied for local context shortage.
+The parent followed the Hook feedback and supplied a bounded description through
+MCP. Exactly one real Decisions classification produced a recommendation, while
+the original omitted-fork history constraint was returned as application blocked.
+The parent reported the constraint without creating a child, switching to a
+fresh fork or supplying a model to bypass it. The HTTP boundary recorder checked
+that only the labelled description was shared as task text, without opaque body
+or native event metadata. Persistent host configuration/trust stayed unchanged;
+temporary files were removed.
+
+This verifies one ordinary follow-through and a stopped inherited application,
+not inherited-model compatibility, unconditional model compliance, a benchmark
+or successful child execution. It does not recover evidence for the historical
+reported session. The earlier fresh-child recovery verification is a separate
+scenario and must not be substituted for this omitted-fork result.
+
+
+### Claude Code recovery and child verification — 2026-11-07
+
+A native Claude Code 2.1.314 trial used an ephemeral copy of the installed Hook
+settings, a temporary MCP server override and normal permission checks. The
+parent received an ordinary sorting-delegation request with a short initial
+Agent prompt and no initial model. The request explicitly distinguished that
+initial unpinned omission from a user prohibition on later model selection. It
+did not provide recovery tool names or an MCP retry sequence.
+
+The first real Agent call was denied for insufficient context. The parent
+supplied a description through MCP; exactly one real Decisions request selected
+`claude-simple` / `haiku`. The retry returned concrete missing defaults under
+`next_call.set_if_unspecified`. The parent submitted a second Agent call with
+`model: "haiku"`. One actual child produced `[1, 2, 3]`; forwarded child messages
+with parent-tool linkage recorded `claude-haiku-5-5`, also present in model usage.
+The transparent observer did not modify Hook responses. Persistent settings and
+MCP registration were unchanged, permission bypass was not used, and temporary
+files were removed.
+
+Earlier native attempts remain failures, not successes. Two stopped before any
+Agent/classification under the previous login context. Four authenticated trials
+reached recommendation but did not create a child: one resubmitted omitted
+defaults, one answered inline, and two stopped without a second Agent call. The final retained assistant
+report attributed its stop to interpreting the test's model-omission wording as
+a user constraint. The contract was clarified with concrete missing
+fields and `context_retry_allowed` (ending supplementation, not authorizing or
+forbidding native execution), while the final prompt clarified only the initial
+unpinned state. These trials are not a model-quality or cost comparison.
+
+This verifies one caller-driven Claude recovery under explicit unpinned task
+semantics. It does not guarantee every parent model follows feedback, change
+host permission decisions, or establish inherited Codex application support.
