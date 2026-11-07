@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, openSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { Router } from './core.ts';
+import { hasSufficientTaskText } from './context-sufficiency.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
 import { hookInput, hookOutput, validatedHookProfile, profilePreservesChoices, effortKeys } from './hook.ts';
 import type { HookOutput } from './hook.ts';
@@ -163,7 +164,7 @@ function boundedSummary(call: NativeCall, maxBytes: number): { summary?: string;
     return { summary };
   }
   const first = body.trim().split(/\r?\n\s*\r?\n/, 1)[0];
-  if (first.length < 12 || first.trim().split(/\s+/u).length < 3 || (typeof label === 'string' && first.trim() === label.trim())) return { reason: 'insufficient_context' };
+  if (!hasSufficientTaskText(first) || (typeof label === 'string' && first.trim() === label.trim())) return { reason: 'insufficient_context' };
   const prefix = safeText(label, 512) ? `Task: ${label.trim()}\n` : '';
   const budget = Math.min(4000, maxBytes) - Buffer.byteLength(prefix);
   if (budget < 64) return { reason: 'insufficient_context' };

@@ -419,3 +419,17 @@ test('concurrent context calls classify once; changed event context is rejected 
  assert.equal((await f.run('codex',changed,{context:()=>contexts.lookup('codex',changed)})).observation.reason,'context_mismatch');
  assert.equal(f.calls.length,1);
 });
+
+test('local task screening supports descriptive multilingual text and rejects padded vagueness', async t => {
+ const {descriptiveTasks, vagueTasks} = await import('../test-support/language-context.ts');
+ for (const text of descriptiveTasks) {
+  const f = fixture(t), ev = event('codex'); ev.tool_input.message = text;
+  const result = await f.run('codex', ev);
+  assert.equal(result.observation.status, 'arguments_updated'); assert.equal(f.calls.length, 1);
+  assert.ok(f.calls[0].input.task.summary.includes(text));
+ }
+ for (const text of vagueTasks) {
+  const f = fixture(t), ev = event('codex'); ev.tool_input.message = text;
+  assert.equal((await f.run('codex', ev)).observation.reason, 'insufficient_context'); assert.equal(f.calls.length, 0);
+ }
+});
