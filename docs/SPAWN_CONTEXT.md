@@ -324,3 +324,64 @@ unpinned state. These trials are not a model-quality or cost comparison.
 This verifies one caller-driven Claude recovery under explicit unpinned task
 semantics. It does not guarantee every parent model follows feedback, change
 host permission decisions, or establish inherited Codex application support.
+
+
+## Intentional fresh delegation (unreleased)
+
+`prepare_fresh_delegation` is a caller protocol for a separate Codex invocation,
+not a rewrite of the original inherited invocation. An enabled defaults Hook can
+provide a routing reference named `retry_id` after direct completed inherited
+advice, or the caller can use the existing context-retry reference after a
+completed recommendation. Direct-advice references cannot request another paid
+context supplement. Advisory paths are excluded because the original invocation
+may already execute.
+
+The caller supplies `task_name`, a bounded `standalone_task`, and a declaration:
+`independent_task: true`, `same_task: true`, `history_requirement: "not_required"`,
+`standalone_context_complete: true`. Required/unknown history, undeclared
+independence, incomplete context and changed scope reject without preparing a
+call. These declarations are not verified user-intent provenance. The caller
+must not make them when the user explicitly requires inheritance.
+
+Only original native inputs with the supported task/model/effort/fork fields
+qualify. Unknown additional execution fields are rejected rather than silently
+dropped. Fixed roles/resume remain locally preserved before advice. Explicit
+partial model/effort choices still constrain the completed allowlisted profile.
+The current policy/catalog, original event/context and completed ledger result
+are revalidated. Unknown results and missing/abstaining recommendations cannot
+prepare a child. No new classification occurs.
+
+A successful response provides separate `next_call.arguments` including explicit
+`fork_turns: "none"`, the validated profile and the caller's standalone task.
+The original remains blocked and unchanged. The caller reviews and submits a
+new native call under unchanged host permissions and existing delegation
+authorization. Neither preparation nor argument output proves dispatch/execution.
+The process does not own native spawn or guarantee caller compliance.
+
+The original five-minute lifetime and process/capacity boundaries apply. One
+immutable preparation digest binds task, declaration, profile and original
+reference; text/history are not persisted. Duplicate identical preparation is
+idempotent; changed input conflicts. Expiry, cancellation, original-event or
+policy/catalog changes prevent preparation. `fresh_delegation` observations
+separate the prepared outcome from the latest rejected attempt and always keep
+execution `not_observed`. The eventual new native call has its own identity;
+server evidence does not automatically certify its relationship to this plan.
+
+
+### Bounded native fresh-delegation verification — 2026-11-07
+
+Codex CLI 0.167.0 used its existing trusted Hook with an ephemeral product-server
+override. One standalone sorting task specified an initial inherited caller
+default while explicitly requiring no inherited history. The original opaque
+call stayed blocked; the parent supplied context, obtained one real Decisions
+recommendation, declared independent same-task intent and called the preparation
+API. It then submitted a separate native call with `fork_turns: "none"` and the
+returned Luna/max profile. The actual linked child recorded `gpt-6-luna` / `max`,
+returned the expected list and contained no copied parent message payloads.
+Approval/sandbox constraints matched the parent. Preparation added no paid call.
+
+A separate two-turn test explicitly required inherited history. It obtained one
+real recommendation, preserved `fork_turns: "all"`, made no fresh preparation and
+created no child. Both tests preserved persistent configuration/trust, used no
+response-modifying adapter and removed their temporary files. These are bounded
+caller-driven checks, not universal model compliance or verified user provenance.

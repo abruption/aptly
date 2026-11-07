@@ -225,6 +225,7 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 | `prepare_spawn_context` | 정확한 예정 호출에 제한된 설명을 등록합니다 |
 | `cancel_spawn_context` | 등록한 설명의 연결을 취소하며 native 실행이나 이미 전송된 요청을 취소하지 않습니다 |
 | `retry_spawn_recommendation` | Hook의 `retry_id`로 작업 설명을 한 번 보충해 재추천합니다 |
+| `prepare_fresh_delegation` | 완료된 상속 추천으로 별도의 독립 Codex 호출 인자를 준비하며 실행하지 않습니다 |
 
 ### 외부 전송과 자동 공유 끄기
 
@@ -263,6 +264,12 @@ Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_suffic
 유효한 활성 정책과 지원 대상이 확인된 뒤, `defaults`는 추천 적용 불가·예산 초과·분류 실패·결과 불명 등을 `deny`와 안전한 사유 코드로 알립니다. 원래 인자와 제약은 유지하지만 해당 스폰은 진행하지 않습니다. 상속 이력이 미검증이면 부모 모델로 조용히 실행하거나 `none`으로 변경하지 말고 제약을 보고하십시오. `advisory`는 차단 없이 같은 한계를 설명합니다. 정책 미설정·비활성화, 명시 튜플·고정 역할·resume은 의도적인 로컬 보존 경로이며 일괄 차단하지 않습니다.
 
 복구 ID가 있으면 `get_spawn_routing_observation({retry_id})`로 같은 MCP 프로세스의 관측을 조회할 수 있습니다. 또는 기존 `{client, event}`를 사용하십시오. 두 형식을 섞거나 일부만 보내면 거부합니다. 원래 `awaiting_context`와 `context_retry.outcome`은 별개이며, 거부된 중복 요청은 `last_attempt`에 표시해 이전 분류 결과를 덮어쓰지 않습니다. 조회는 유료 요청을 만들지 않고 보관 시간을 연장하지 않습니다. 실행은 항상 `not_observed`이므로 추천이나 인자 갱신을 실제 자식 실행으로 표현하지 마십시오.
+
+### 상속 추천에서 별도 독립 위임 준비 (미출시)
+
+`defaults`가 상속 적용을 차단한 뒤에도 호출자가 **같은 독립 작업이며 사용자에게 필요한 상속 이력이 없고 완전한 독립 지시를 제공할 수 있음**을 선언하면, 같은 프로세스에서 `prepare_fresh_delegation`을 호출할 수 있습니다. Hook 또는 재추천에서 받은 `retry_id`, `task_name`, `standalone_task`와 `declaration: {independent_task:true, same_task:true, history_requirement:"not_required", standalone_context_complete:true}`를 전달하십시오. API는 이미 완료된 허용 프로필을 재검증하고 분류를 추가 호출하지 않습니다.
+
+원래 상속 호출은 차단된 채 유지됩니다. 응답의 별도 `next_call.arguments`를 검토한 뒤 기존 위임 권한과 호스트 권한 검사에 따라 새 호출을 제출하십시오. `fork_turns: "none"`과 기존 선택을 보존한 모델·effort를 포함합니다. 이 API가 사용자 의도나 실제 실행을 확인한 것은 아닙니다. 이력이 필요하거나 불명확한 경우, 역할·resume·검증하지 않은 추가 실행 인자가 있는 경우에는 사용하지 마십시오. 같은 참조는 같은 작업에만 재사용할 수 있으며 5분 만료·취소·정책/후보 변경과 원래 호출 변경은 준비를 막습니다. `advisory`처럼 원래 실행을 허용한 경로에는 제공하지 않습니다. [계약과 한계](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased)를 확인하십시오.
 
 ## 직접 추천
 

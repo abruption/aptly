@@ -225,6 +225,7 @@ Codex の本文が不透明な場合、`cleanup_merged_worktrees` のような�
 | `prepare_spawn_context` | 正確に一致する予定呼び出しに上限付きの説明を登録します |
 | `cancel_spawn_context` | 説明の対応付けを取り消します。native 実行や送信済みリクエストは取り消しません |
 | `retry_spawn_recommendation` | Hook が返す retry_id を使い、タスク説明を一度補って再推薦します |
+| `prepare_fresh_delegation` | 完了済みの継承推薦から別の独立 Codex 呼び出し引数を準備し、実行はしません |
 
 ### 外部送信と自動共有の無効化
 
@@ -263,6 +264,12 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 有効なポリシーと対象呼び出しを確認した後、`defaults` は適用不能・予算超過・分類失敗・結果不明を `deny` と安全な理由コードで返します。元の引数と制約は保持しますが、その生成は実行しません。継承履歴の互換性が未検証なら、親のデフォルトで黙って実行したり `none` に切り替えたりせず、制約を報告してください。`advisory` は拒否せず同じ制限を説明します。ポリシー未設定・無効、明示タプル・固定役割・resume は意図的なローカル保持経路であり、一律には拒否しません。
 
 復旧 ID があれば、同じ MCP プロセスで `get_spawn_routing_observation({retry_id})` を呼べます。従来の `{client, event}` 形式も使えますが、混在や不完全な入力は拒否します。元の `awaiting_context` と `context_retry.outcome` は別の段階です。拒否した重複要求は `last_attempt` に記録し、以前の分類結果を上書きしません。照会は有料要求を発行せず、保持期限も延長しません。実行は常に `not_observed` であり、推薦や引数更新は実際の子の実行証拠ではありません。
+
+### 別の独立した委任を準備する（未リリース）
+
+defaults Hook が継承呼び出しへの適用を拒否した後、呼び出し元が**同じ独立タスクであり、ユーザーが継承履歴を要求せず、完全な独立指示を渡せる**と宣言できる場合だけ `prepare_fresh_delegation` を使えます。同じプロセスで Hook または再推薦の `retry_id`、`task_name`、`standalone_task` と `declaration: {independent_task:true, same_task:true, history_requirement:"not_required", standalone_context_complete:true}` を渡してください。完了済みの許可プロファイルを再確認し、分類を追加で呼びません。
+
+元の継承呼び出しは拒否されたままです。別の `next_call.arguments` を確認し、既存の委任権限と通常のホスト権限確認の下で新しい呼び出しを送ってください。`fork_turns: "none"` と、元の選択を保つモデル・effort を含みます。呼び出し元の宣言であり、ユーザー意図や実行を検証するものではありません。履歴が必要・不明、固定役割、resume、未検証の追加実行引数がある場合は使わないでください。参照は一つのタスクだけに結び付き、5分の期限・取消・ポリシー/候補/元の呼び出しの変更で準備を止めます。元の実行を許す advisory 経路には提供しません。[契約と制限](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased)を確認してください。
 
 ## 直接推薦
 

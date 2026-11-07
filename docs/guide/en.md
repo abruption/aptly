@@ -225,6 +225,7 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 | `prepare_spawn_context` | Registers a bounded description for one exact upcoming invocation |
 | `cancel_spawn_context` | Revokes the description association, not native execution or a request already sent |
 | `retry_spawn_recommendation` | Accepts one task-description supplement using a Hook-issued retry_id |
+| `prepare_fresh_delegation` | Prepares a separate independent Codex call from completed inherited advice; never executes it |
 
 ### Outbound data and disabling automatic sharing
 
@@ -263,6 +264,12 @@ The guarantee covers supported calls handled by an enabled, trusted Hook on a co
 After a valid enabled policy and eligible call are established, `defaults` returns a deny decision and a safe reason for incompatible application, budget exhaustion, classification failure or unknown outcomes. Original arguments and constraints remain intact, but that spawn does not proceed. For unverified inherited history, report the constraint instead of silently running parent defaults or switching to `none`. `advisory` describes the limit without blocking. Missing/disabled policy, explicit tuples, fixed roles and resume remain intentional local preservation paths rather than blanket denials.
 
 With a recovery ID, use `get_spawn_routing_observation({retry_id})` on the same MCP process, or use the existing `{client, event}` form. Mixed or partial forms are rejected. Original `awaiting_context` and `context_retry.outcome` are separate stages; rejected duplicates appear under `last_attempt` without replacing an earlier classification outcome. Lookups incur no paid request and do not renew retention. Execution always remains `not_observed`; neither advice nor argument updates establish actual child execution.
+
+### Prepare a separate independent delegation (unreleased)
+
+After a defaults Hook blocks inherited application, the caller may use `prepare_fresh_delegation` only when it can declare **the same independent task, no user-required inherited history, and complete standalone instructions**. Supply the Hook/retry `retry_id`, `task_name`, `standalone_task`, and `declaration: {independent_task:true, same_task:true, history_requirement:"not_required", standalone_context_complete:true}` on the same process. It revalidates completed allowlisted advice without another classification.
+
+The original inherited invocation stays blocked. Review the separate `next_call.arguments` and submit it under existing delegation authorization and normal host permission checks. It includes `fork_turns: "none"` and preserves model/effort choices. This is caller-declared intent, not verified user intent or execution evidence. Do not use it for required/unknown history, fixed roles, resume or unverified additional execution arguments. A reference binds one task; five-minute expiry, cancellation, policy/catalog changes and changes to the original invocation block preparation. It is not offered for nonblocking advisory paths. See the [contract and limits](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased).
 
 ## Direct recommendations
 
