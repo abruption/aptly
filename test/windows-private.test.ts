@@ -96,3 +96,25 @@ test('existing Windows file DACL is copied to stage with its protected inheritan
  for(const execute of [()=> 'rejected',()=>{throw new Error('raw-acl-private-source');}])
   assert.throws(()=>copyWindowsFilePermissions(source,target,{execute}),error=>error.message==='windows_private_permissions');
 });
+
+
+test('ACL failures carry bounded categories without exposing process output or retrying', () => {
+ const cases = [
+  [{code:'ETIMEDOUT',stderr:'secret'}, 'timeout'],
+  [{code:'ENOENT',stderr:'secret'}, 'launch'],
+  [{status:1,stdout:'rejected',stderr:'secret'}, 'rejected'],
+  [{status:1,stdout:'secret',stderr:'secret'}, 'process'],
+ ];
+ for (const [failure,category] of cases) {
+  let calls=0;
+  assert.throws(() => protectNewWindowsPrivateDirectory('C:\\private',{execute:()=>{calls++;throw failure;}}), error => {
+   assert.equal(error.message,'windows_private_permissions');
+   assert.equal(error.category,category);
+   assert.ok(Number.isFinite(error.elapsed_ms) && error.elapsed_ms >= 0);
+   assert.equal(JSON.stringify(error).includes('secret'),false);
+   return true;
+  });
+  assert.equal(calls,1);
+ }
+ assert.throws(() => assertWindowsPrivatePath('C:\\private',{execute:()=> 'unexpected secret'}),error=>error.category==='unexpected_output' && !JSON.stringify(error).includes('secret'));
+});

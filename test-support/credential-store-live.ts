@@ -5,6 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {storeSecret,loadSecret,deleteSecret} from '../src/secret-store.ts';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';
+import {release} from 'node:os';
 import {parse} from 'smol-toml';
 import {createTestTemp} from './temp.ts';
 import {setDefaults,setEnvironment,removeSetup,migrateLauncher} from '../src/setup.ts';
@@ -38,8 +39,21 @@ function fileAcl(path:string,restrict=false):string{
  return execFileSync(windowsPowerShellPath(),['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify({path,restrict}),encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});
 }
 try{
- const aclProbe=join(home,'acl-probe');mkdirSync(aclProbe);
- protectNewWindowsPrivateDirectory(aclProbe);
+ console.log(JSON.stringify({phase:'runtime',node:process.version,platform:process.platform,arch:process.arch,os_release:release()}));
+ // Exercise two fresh directories sequentially: first without explicit warm-up,
+ // then a warm invocation. Never retry an ACL mutation after failure.
+ for (const phase of ['cold_preflight','warm_preflight']) {
+  const aclProbe=join(home,phase);mkdirSync(aclProbe);
+  const started=Date.now();
+  try {
+   protectNewWindowsPrivateDirectory(aclProbe);
+   console.log(JSON.stringify({phase,elapsed_ms:Date.now()-started,result:'pass'}));
+  } catch (error) {
+   const failure=error as Error & {category?: string; elapsed_ms?: number};
+   console.error(JSON.stringify({phase,elapsed_ms:failure.elapsed_ms ?? Date.now()-started,category:failure.category ?? 'unknown',result:'fail'}));
+   throw new Error('native_windows_acl_preflight_failed');
+  }
+ }
  storeSecret(value,options);
  if(loadSecret(options)!==value)throw Error('native_credential_roundtrip_failed');
  storeSecret(value+'-updated',options);

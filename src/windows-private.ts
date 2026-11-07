@@ -41,7 +41,7 @@ try {
 type Runner = (executable: string, args: readonly string[], input: string) => string;
 interface WindowsPrivateOptions { execute?: Runner }
 const run: Runner = (executable,args,input) => execFileSync(executable,[...args],{
- input, encoding:'utf8', windowsHide:true, timeout:10000, maxBuffer:4096, stdio:['pipe','pipe','pipe']
+ input, encoding:'utf8', windowsHide:true, timeout:30000, maxBuffer:4096, stdio:['pipe','pipe','pipe']
 });
 const copyScript = String.raw`
 $ErrorActionPreference = 'Stop'
@@ -73,12 +73,26 @@ try {
  [Console]::Out.Write('private')
 } catch { [Console]::Out.Write('rejected'); exit 1 }
 `;
+type FailureCategory = 'timeout' | 'launch' | 'rejected' | 'process' | 'unexpected_output';
 function runScript(scriptText: string, input: object, options: WindowsPrivateOptions) {
+ const started = Date.now();
+ let category: FailureCategory = 'process';
  try {
   const executable = windowsPowerShellPath();
   const result = (options.execute ?? run)(executable,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(scriptText,'utf16le').toString('base64')],JSON.stringify(input));
-  if (result !== 'private') throw new Error();
- } catch { throw new Error('windows_private_permissions'); }
+  if (result === 'private') return;
+  category = result === 'rejected' ? 'rejected' : 'unexpected_output';
+ } catch (error) {
+  // Inspect only bounded process metadata; never propagate stderr or input.
+  const failure = error as {code?: unknown; stdout?: unknown; status?: unknown};
+  if (failure?.code === 'ETIMEDOUT') category = 'timeout';
+  else if (failure?.stdout === 'rejected') category = 'rejected';
+  else if (typeof failure?.code === 'string' && failure?.status == null) category = 'launch';
+ }
+ const failure = new Error('windows_private_permissions') as Error & {category: FailureCategory; elapsed_ms: number};
+ failure.category = category;
+ failure.elapsed_ms = Math.max(0, Date.now() - started);
+ throw failure;
 }
 function invoke(path: string, action: 'assert-private' | 'protect-new-directory', options: WindowsPrivateOptions) {
  if (typeof path !== 'string' || !path || path.includes('\0')) throw new Error('windows_private_permissions');
