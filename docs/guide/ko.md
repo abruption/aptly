@@ -265,11 +265,11 @@ Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_suffic
 
 복구 ID가 있으면 `get_spawn_routing_observation({retry_id})`로 같은 MCP 프로세스의 관측을 조회할 수 있습니다. 또는 기존 `{client, event}`를 사용하십시오. 두 형식을 섞거나 일부만 보내면 거부합니다. 원래 `awaiting_context`와 `context_retry.outcome`은 별개이며, 거부된 중복 요청은 `last_attempt`에 표시해 이전 분류 결과를 덮어쓰지 않습니다. 조회는 유료 요청을 만들지 않고 보관 시간을 연장하지 않습니다. 실행은 항상 `not_observed`이므로 추천이나 인자 갱신을 실제 자식 실행으로 표현하지 마십시오.
 
-### 상속 추천에서 별도 독립 위임 준비 (미출시)
+### 상속 추천에서 별도 독립 위임 준비 (0.1.6부터)
 
 `defaults`가 상속 적용을 차단한 뒤에도 호출자가 **같은 독립 작업이며 사용자에게 필요한 상속 이력이 없고 완전한 독립 지시를 제공할 수 있음**을 선언하면, 같은 프로세스에서 `prepare_fresh_delegation`을 호출할 수 있습니다. Hook 또는 재추천에서 받은 `retry_id`, `task_name`, `standalone_task`와 `declaration: {independent_task:true, same_task:true, original_call_outcome:"blocked", history_requirement:"not_required", standalone_context_complete:true}`를 전달하십시오. API는 이미 완료된 허용 프로필을 재검증하고 분류를 추가 호출하지 않습니다.
 
-원래 상속 호출은 차단된 채 유지됩니다. 응답의 별도 `next_call.arguments`를 검토한 뒤 기존 위임 권한과 호스트 권한 검사에 따라 새 호출을 제출하십시오. `fork_turns: "none"`과 기존 선택을 보존한 모델·effort를 포함합니다. 이 API가 사용자 의도나 실제 실행을 확인한 것은 아닙니다. 이력이 필요하거나 불명확한 경우, 역할·resume·검증하지 않은 추가 실행 인자가 있는 경우에는 사용하지 마십시오. 같은 참조는 같은 작업에만 재사용할 수 있으며 5분 만료·취소·정책/후보 변경과 원래 호출 변경은 준비를 막습니다. `advisory`처럼 원래 실행을 허용한 경로에는 제공하지 않습니다. [계약과 한계](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased)를 확인하십시오.
+원래 상속 호출은 차단된 채 유지됩니다. 응답의 별도 `next_call.arguments`를 검토한 뒤 기존 위임 권한과 호스트 권한 검사에 따라 새 호출을 제출하십시오. `fork_turns: "none"`과 기존 선택을 보존한 모델·effort를 포함합니다. 이 API가 사용자 의도나 실제 실행을 확인한 것은 아닙니다. 이력이 필요하거나 불명확한 경우, 역할·resume·검증하지 않은 추가 실행 인자가 있는 경우에는 사용하지 마십시오. 같은 참조는 같은 작업에만 재사용할 수 있으며 5분 만료·취소·정책/후보 변경과 원래 호출 변경은 준비를 막습니다. `advisory`처럼 원래 실행을 허용한 경로에는 제공하지 않습니다. [계약과 한계](../SPAWN_CONTEXT.md#intentional-fresh-delegation)를 확인하십시오.
 
 이 경로는 호스트가 원래 호출의 차단 결과를 돌려준 뒤에만 사용하십시오. `original_call_outcome`이 `executed` 또는 `unknown`이면 준비를 거절합니다. 이는 호출자 선언이며 서버의 실행 관측이 아닙니다. 동일 준비 응답을 여러 번 받는 것이 자식 실행 1회를 보장하지 않으며, 프로필은 원래 분류 요약을 기준으로 선택됐으므로 다른 작업에 재사용하면 안 됩니다.
 

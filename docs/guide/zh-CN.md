@@ -265,11 +265,11 @@ Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context
 
 获得恢复 ID 后，可在同一 MCP 进程调用 `get_spawn_routing_observation({retry_id})`，或使用原有 `{client, event}` 格式。混用或不完整的输入会被拒绝。原始 `awaiting_context` 与 `context_retry.outcome` 是独立阶段；被拒绝的重复请求记录在 `last_attempt`，不会覆盖已有分类结果。查询不产生付费请求，也不延长保留时间。执行始终为 `not_observed`，推荐或参数更新都不能证明子代理已实际执行。
 
-### 准备单独的独立委派（尚未发布）
+### 准备单独的独立委派（0.1.6 起）
 
 当 defaults Hook 阻止继承调用的推荐应用后，仅当调用方能声明**这是同一项独立任务、用户不要求继承历史且可提供完整独立指令**时，才可调用 `prepare_fresh_delegation`。请在同一进程传入 Hook 或重新推荐返回的 `retry_id`、`task_name`、`standalone_task`，以及 `declaration: {independent_task:true, same_task:true, original_call_outcome:"blocked", history_requirement:"not_required", standalone_context_complete:true}`。它重新验证已完成的允许配置，不额外调用分类。
 
-原始继承调用仍被阻止。请检查独立的 `next_call.arguments`，按现有委派授权和宿主权限检查提交新调用，其中包含 `fork_turns: "none"` 并保留模型与 effort 选择。这是调用方声明，不是已验证的用户意图或执行证据。历史必需或不明确、固定角色、resume 或含未验证额外执行参数时，请勿使用。每个引用仅绑定一项任务；五分钟到期、取消、策略或候选变化及原调用变化都会阻止准备。不会为不阻止原执行的 advisory 路径提供此功能。请参阅[契约与限制](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased)。
+原始继承调用仍被阻止。请检查独立的 `next_call.arguments`，按现有委派授权和宿主权限检查提交新调用，其中包含 `fork_turns: "none"` 并保留模型与 effort 选择。这是调用方声明，不是已验证的用户意图或执行证据。历史必需或不明确、固定角色、resume 或含未验证额外执行参数时，请勿使用。每个引用仅绑定一项任务；五分钟到期、取消、策略或候选变化及原调用变化都会阻止准备。不会为不阻止原执行的 advisory 路径提供此功能。请参阅[契约与限制](../SPAWN_CONTEXT.md#intentional-fresh-delegation)。
 
 仅在宿主报告原调用已被阻止后使用。`original_call_outcome` 为 `executed` 或 `unknown` 时拒绝准备。这是调用方声明，并非服务器对执行的观测。重复获得相同准备响应不能保证只执行一次子代理。配置依据原始分类摘要选择，不得用于其他任务。
 

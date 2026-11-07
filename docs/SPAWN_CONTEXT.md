@@ -2,7 +2,8 @@
 
 The original exact-event handoff is available from Aptly 0.1.4, following the
 pre-spawn routing changes in #60. Context recovery and visible routing outcomes
-are available from Aptly 0.1.5.
+are available from Aptly 0.1.5. Intentional fresh-delegation preparation is
+available from Aptly 0.1.6.
 It does not decode opaque messages, inspect conversations or modify host
 internals. It provides an explicit caller protocol, not an automatic description
 producer for the shipped Hook templates.
@@ -326,7 +327,9 @@ semantics. It does not guarantee every parent model follows feedback, change
 host permission decisions, or establish inherited Codex application support.
 
 
-## Intentional fresh delegation (unreleased)
+## Intentional fresh delegation
+
+Available from Aptly 0.1.6.
 
 `prepare_fresh_delegation` is a caller protocol for a separate Codex invocation,
 not a rewrite of the original inherited invocation. An enabled defaults Hook can
