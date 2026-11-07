@@ -3,14 +3,15 @@ import { windowsPowerShellPath } from '../src/windows-powershell.ts';
 import {randomUUID} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {storeSecret,loadSecret,deleteSecret} from '../src/secret-store.ts';
-import {readFileSync,mkdirSync} from 'node:fs';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {release} from 'node:os';
 import {parse} from 'smol-toml';
 import {createTestTemp} from './temp.ts';
 import {setDefaults,setEnvironment,removeSetup,migrateLauncher} from '../src/setup.ts';
 import {setApiKey,prepareApiKey} from '../src/credential-setup.ts';
 import {runtime} from '../src/runtime.ts';
-import {protectNewWindowsPrivateDirectory} from '../src/windows-private.ts';
+import {assertWindowsPrivatePath,protectNewWindowsPrivateDirectory} from '../src/windows-private.ts';
 if(process.env.CI!=='true'||process.env.APTLY_TEST_CREDENTIAL_STORE!=='1'||process.platform!=='win32')throw new Error('native_credential_probe_not_enabled');
 const options={service:'dev.aptly.ci.'+randomUUID(),account:'synthetic'};
 const value='synthetic-not-an-api-key-'+randomUUID();
@@ -38,8 +39,37 @@ function fileAcl(path:string,restrict=false):string{
  return execFileSync(windowsPowerShellPath(),['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify({path,restrict}),encoding:'utf8',timeout:15000,stdio:['pipe','pipe','pipe']});
 }
 try{
- const aclProbe=join(home,'acl-probe');mkdirSync(aclProbe);
- protectNewWindowsPrivateDirectory(aclProbe);
+ console.log(JSON.stringify({phase:'runtime',node:process.version,platform:process.platform,arch:process.arch,os_release:release()}));
+ // Exercise two fresh directories sequentially: first without explicit warm-up,
+ // then a warm invocation. Never retry an ACL mutation after failure.
+ for (const phase of ['cold_preflight','warm_preflight']) {
+  const aclProbe=join(home,phase);mkdirSync(aclProbe);
+  const started=Date.now();
+  try {
+   protectNewWindowsPrivateDirectory(aclProbe,{timeoutMs:30000});
+   console.log(JSON.stringify({phase,elapsed_ms:Date.now()-started,result:'pass'}));
+  } catch (error) {
+   const failure=error as Error & {category?: string; elapsed_ms?: number};
+   console.error(JSON.stringify({phase,elapsed_ms:failure.elapsed_ms ?? Date.now()-started,category:failure.category ?? 'unknown',result:'fail'}));
+   throw new Error('native_windows_acl_preflight_failed');
+  }
+ }
+ // Validate fixed native outcome tokens after the cold and warm probes.
+ const regularFile=join(home,'acl-validation-file');
+ writeFileSync(regularFile,'',{flag:'wx'});
+ for (const [phase, expected, probe] of [
+  ['policy_rejection','rejected',()=>protectNewWindowsPrivateDirectory(regularFile)],
+  ['script_exception','process',()=>assertWindowsPrivatePath(join(home,'missing-acl-path'))],
+ ] as const) {
+  const started=Date.now();
+  let category='accepted';
+  try { probe(); } catch (error) {
+   const failure=error as Error & {category?: string};
+   category=failure.category === expected ? expected : 'unexpected';
+  }
+  console.log(JSON.stringify({phase,category,elapsed_ms:Date.now()-started}));
+  if (category !== expected) throw new Error('native_windows_acl_diagnostic_failed');
+ }
  storeSecret(value,options);
  if(loadSecret(options)!==value)throw Error('native_credential_roundtrip_failed');
  storeSecret(value+'-updated',options);
