@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, openSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { Router } from './core.ts';
+import { hasSufficientTaskText } from './context-sufficiency.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
 import { hookInput, hookOutput, validatedHookProfile, profilePreservesChoices, effortKeys } from './hook.ts';
 import type { HookOutput } from './hook.ts';
@@ -34,6 +35,7 @@ export interface AutomaticHookObservation {
     outcome?: {status:string;reason:string;classification:string;recommendation:'produced'|'not_produced';application:'blocked'|'not_attempted';request_id:string;profile_id?:string};
     last_attempt:{status:string;reason:string};
   };
+  fresh_delegation?:{outcome?:{preparation_id:string;profile_id:string};last_attempt:{status:string;reason:string};execution:'not_observed'};
 }
 export interface ContextRetrySeed {
   request_id: string;
@@ -43,6 +45,7 @@ export interface ContextRetrySeed {
   application_blocked?: string;
   fill_model?: boolean;
   fill_effort?: boolean;
+  fresh_eligible?: boolean;
 }
 export interface AutomaticHookResult {
   output: HookOutput | { hookSpecificOutput: { hookEventName: 'PreToolUse'; additionalContext: string; permissionDecision?: 'deny'; permissionDecisionReason?: string } };
@@ -61,6 +64,7 @@ export interface AutomaticHookOptions {
   onObservation?: (observation: AutomaticHookObservation) => void;
   /** Internal bounded recovery issuer; never supplied by native arguments. */
   onNeedsContext?: (seed: ContextRetrySeed, current:()=>string|undefined) => { retry_id?: string; reason?: string };
+  onBlockedAdvice?: (seed: ContextRetrySeed, current:()=>string|undefined) => { retry_id?: string; reason?: string };
   /** A caller may revoke the pending event; absence does not certify native dispatch. */
   stillCurrent?: () => boolean | Promise<boolean>;
 }
@@ -163,7 +167,7 @@ function boundedSummary(call: NativeCall, maxBytes: number): { summary?: string;
     return { summary };
   }
   const first = body.trim().split(/\r?\n\s*\r?\n/, 1)[0];
-  if (first.length < 12 || first.trim().split(/\s+/u).length < 3 || (typeof label === 'string' && first.trim() === label.trim())) return { reason: 'insufficient_context' };
+  if (!hasSufficientTaskText(first) || (typeof label === 'string' && first.trim() === label.trim())) return { reason: 'insufficient_context' };
   const prefix = safeText(label, 512) ? `Task: ${label.trim()}\n` : '';
   const budget = Math.min(4000, maxBytes) - Buffer.byteLength(prefix);
   if (budget < 64) return { reason: 'insufficient_context' };
@@ -197,7 +201,7 @@ function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: strin
 }
 
 /** Operator default selection only. No provenance_verified/evidence_verified host claim. */
-export async function automaticHook({ client, event, router, policyPath, signal, context, stillCurrent, onObservation, onNeedsContext }: AutomaticHookOptions): Promise<AutomaticHookResult> {
+export async function automaticHook({ client, event, router, policyPath, signal, context, stillCurrent, onObservation, onNeedsContext, onBlockedAdvice }: AutomaticHookOptions): Promise<AutomaticHookResult> {
   const observation=initialHookObservation(client,event);
   let activeMode:'defaults'|'advisory'|undefined;
   const preserve = (reason: string, request_id?: string): AutomaticHookResult => {
@@ -226,23 +230,28 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     // Synthetic fixture output must never select a native child's defaults.
     if (loaded.policy.mode === 'defaults' && router.policy.provider_id !== 'decisions') return preserve('synthetic_provider');
     activeMode=loaded.policy.mode;
-    const needsContext = (reason: string, request_id: string): AutomaticHookResult => {
-      if (!onNeedsContext) return preserve(reason, request_id);
-      if(signal?.aborted)return preserve('call_cancelled',request_id);
-      const currentPolicy=loadAutomaticHookPolicy(policyPath);
-      if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed',request_id);
+    const freshEligible=loaded.policy.mode==='defaults'&&call.client==='codex'&&(call.input.fork_turns===undefined||call.input.fork_turns==='all')&&Object.keys(call.input).every(key=>['task_name','message','fork_turns','model','reasoning_effort'].includes(key));
+    const reference=(request_id:string,issue:NonNullable<AutomaticHookOptions['onNeedsContext']>)=>{
       const expectedContext=context?.();
-      const recovery=onNeedsContext({request_id,client:call.client,eligible_profile_ids:profiles.map(profile=>profile.id),
+      return issue({request_id,client:call.client,eligible_profile_ids:profiles.map(profile=>profile.id),
         policy_fingerprint:loaded.fingerprint!,application_blocked:applicationConstraint(call)??undefined,
-        fill_model:!hasModel,fill_effort:!hasEffort},()=>{
+        fill_model:!hasModel,fill_effort:!hasEffort,
+        ...(freshEligible?{fresh_eligible:true}:{})},()=>{
           const latest=context?.();
           if(latest?.reason)return latest.reason;
           if(latest?.fingerprint!==expectedContext?.fingerprint)return 'context_changed';
           const latestCall=readCall(client,event);
           return latestCall?.payloadDigest===call.payloadDigest?undefined:'call_changed';
         });
+    };
+    const needsContext = (reason: string, request_id: string): AutomaticHookResult => {
+      if (!onNeedsContext) return preserve(reason, request_id);
+      if(signal?.aborted)return preserve('call_cancelled',request_id);
+      const currentPolicy=loadAutomaticHookPolicy(policyPath);
+      if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed',request_id);
+      const recovery=reference(request_id,onNeedsContext);
       const instruction=recovery.retry_id
-        ? `Call Aptly retry_spawn_recommendation with retry_id "${recovery.retry_id}" and a short description of task purpose, scope, expected output and complexity. Use context you already have; ask the user only for genuinely missing information. One supplementation is allowed. Do not decode the opaque body or invent native call IDs. A recommendation is advice only: preserve explicit choices, roles, permissions and history; never change fork semantics to apply it. If application is blocked, report that limitation. Do not spawn while the retry still needs context or is unavailable.`
+        ? `Call Aptly retry_spawn_recommendation with retry_id "${recovery.retry_id}" and a short description of task purpose, scope, expected output and complexity. Use context you already have; ask the user only for genuinely missing information. One supplementation is allowed. Do not decode the opaque body or invent native call IDs. A recommendation is advice only: preserve all explicit user choices, roles, permissions and required history. Never rewrite the ORIGINAL invocation in place or resubmit it with changed history semantics to apply advice. If application is blocked, report that limitation. ${freshEligible?'A separate NEW invocation for the SAME independent task is supported ONLY through prepare_fresh_delegation if a later response offers it, under all of that response\'s conditions; do not invent a direct fresh call. This protocol does not change the original invocation or grant permissions.':'Do not create a fresh child to bypass this constraint.'} Do not spawn while the retry still needs context or is unavailable.`
         : `Context recovery is unavailable (${recovery.reason??'context_retry_unavailable'}). Report the limitation; do not repeat the spawn unchanged.`;
       const feedback=`Aptly needs additional task context (${reason}). ${instruction}`;
       return {output:{hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:feedback,
@@ -313,7 +322,10 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if(blocked){
       const kept=preserve(blocked,request_id);
       const next=blocked==='effort_argument_unsupported'?'The caller must review the native reasoning_effort argument spelling; Aptly never rewrites an explicit choice.':'Inherited model/effort updates are not verified for this host. Verify the host version and native contract before enabling them; task arguments cannot certify support. Aptly never changes history automatically.';
-      const message=`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next} Report this constraint and stop this spawn; do not discard history or create a fresh child merely to apply the recommendation.`;
+      const fresh=blocked==='inherited_context_application_unverified'&&onBlockedAdvice?reference(request_id,onBlockedAdvice):undefined;
+      if(fresh?.retry_id)kept.observation.retry_id=fresh.retry_id;
+      const continuation=fresh?.retry_id?` Only after the host reports this tool call blocked, if the task is independently declared, inherited history is not required by the user, and complete standalone instructions are available, prepare a SEPARATE fresh delegation with prepare_fresh_delegation using retry_id \"${fresh.retry_id}\". Never do this for required or unknown history, or unknown original execution.`:' Do not create a fresh child merely to apply the recommendation.';
+      const message=`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next} ${activeMode==='defaults'?'Report this constraint and stop this ORIGINAL spawn.':'The host may still execute this original call under advisory policy; do not submit an additional call solely to apply the recommendation.'} Do not discard required history merely to apply the recommendation.${continuation}`;
       kept.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:message,
         ...(activeMode==='defaults'?{permissionDecision:'deny',permissionDecisionReason:message}:{})}};
       kept.observation.status=activeMode==='defaults'?'blocked':'preserved';

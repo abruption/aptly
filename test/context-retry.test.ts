@@ -214,3 +214,17 @@ test('real MCP transport exposes recovery without future call IDs and returns co
  assert.equal(after.context_retry.outcome.status,'recommended');assert.equal(after.context_retry.last_attempt.reason,'context_retry_unavailable');assert.equal(requests,1);
  assert.equal((await call('get_spawn_routing_observation',args)).execution,'not_observed');
 });
+
+test('supplement screening accepts descriptive multilingual text and rejects padded vagueness without provider calls', async t => {
+ const {descriptiveTasks, vagueTasks} = await import('../test-support/language-context.ts');
+ for (const text of descriptiveTasks) {
+  const f=fixture(t),first=await f.run(); assert.equal(f.calls.length,0);
+  assert.equal((await f.retries.retry(first.observation.retry_id,text)).status,'recommended');
+  assert.equal(f.calls.length,1); assert.ok(f.calls[0].input.task.summary.includes(text));
+ }
+ for (const text of vagueTasks) {
+  const f=fixture(t),first=await f.run();
+  assert.equal((await f.retries.retry(first.observation.retry_id,text)).reason,'insufficient_context');
+  assert.equal(f.calls.length,0);
+ }
+});

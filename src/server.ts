@@ -42,7 +42,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
   credential_status:credentialStatus,
-  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported',
+  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,fresh_delegation_tool:'prepare_fresh_delegation',fresh_delegation_intent:'caller_declared_not_verified',observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported',
    guarantee:{scope:'enabled_trusted_connected_supported_hook_only',missing_hook_detectable:false,unavailable_host_hook:'host_controls_fallback',eligible_defaults_failure:'deny',inherited_application:'defaults_deny_advisory_feedback',caller_recovery:'model_driven_not_guaranteed'}},
  }));
  server.registerTool('get_spawn_routing_observation',{
@@ -77,6 +77,14 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   observations.recordRetry(retry_id,result);
   return content(result);
  });
+ server.registerTool('prepare_fresh_delegation',{
+  description:'Prepare a SEPARATE intentional Codex fresh-child call from a completed inherited recommendation. No classification or spawn. Use the original Hook retry_id on this process within five minutes. Only when the caller can declare independent work, no user-required inherited history, and complete standalone instructions. Never use for required/unknown history or to bypass permissions. Explicit choices and the original blocked invocation remain intact. Same task is idempotent; changed task conflicts.',
+  annotations:{...annotations,openWorldHint:false},inputSchema:{retry_id:z.string().regex(/^[a-f0-9]{64}$/),task_name:z.string().min(1).max(128),standalone_task:z.string().min(1).max(12000),
+   declaration:z.object({independent_task:z.boolean(),same_task:z.boolean(),original_call_outcome:z.enum(['blocked','executed','unknown']),history_requirement:z.enum(['not_required','required','unknown']),standalone_context_complete:z.boolean()}).strict()}
+ },async({retry_id,task_name,standalone_task,declaration},extra)=>{
+  const result=retries.prepareFresh(retry_id,task_name,standalone_task,declaration,extra.signal);
+  observations.recordFresh(retry_id,result);return content(result);
+ });
  server.registerTool('get_routing_precedence',{
   description:'Explain preserved choices and unknown effective setting sources. Never classifies, reads a transcript, or changes permissions.',annotations:{...annotations,openWorldHint:false},inputSchema:hookSchema
  },async({client,event})=>{
@@ -89,7 +97,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  },async ({client,event,task},extra)=>{
   observations.begin(client,event);
   if(env.APTLY_HOOK_POLICY_PATH!==undefined){
-   const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,context:()=>contexts.lookup(client,event),onObservation:value=>observations.record(value),onNeedsContext:(seed,current)=>retries.register(seed,current)});
+   const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,context:()=>contexts.lookup(client,event),onObservation:value=>observations.record(value),onNeedsContext:(seed,current)=>retries.register(seed,current),onBlockedAdvice:(seed,current)=>retries.registerAdvice(seed,current)});
    observations.record(result.observation);
    return {content:[{type:'text',text:JSON.stringify(result.output)}]};
   }

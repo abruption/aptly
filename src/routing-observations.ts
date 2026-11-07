@@ -14,12 +14,20 @@ export class RoutingObservations {
     if(!value.correlation_id)return;
     const previous=this.entries.get(value.correlation_id);
     const recovery=previous?.value.context_retry;
+    const fresh=previous?.value.fresh_delegation;
     this.entries.delete(value.correlation_id);
     this.entries.set(value.correlation_id,{at:previous?.at??this.now(),value:structuredClone({...value,
-      ...(recovery?{retry_id:previous!.value.retry_id,context_retry:recovery}:{})})});
+      ...(recovery?{retry_id:previous!.value.retry_id,context_retry:recovery}:{}),...(fresh?{retry_id:previous!.value.retry_id,fresh_delegation:fresh}:{})})});
     while(this.entries.size>128)this.entries.delete(this.entries.keys().next().value!);
   }
   begin(client:unknown,event:unknown) { this.record(initialHookObservation(client,event)); }
+  recordFresh(retry_id:string,result:Record<string,unknown>) {
+    this.prune();const entry=[...this.entries.values()].find(entry=>entry.value.retry_id===retry_id);if(!entry)return;
+    const status=result.status==='prepared'?'prepared':'rejected';
+    const reason=typeof result.reason==='string'&&/^[a-z_]{1,64}$/.test(result.reason)?result.reason:'invalid_response';
+    const outcome=status==='prepared'&&typeof result.preparation_id==='string'&&/^[a-f0-9]{64}$/.test(result.preparation_id)&&typeof result.profile_id==='string'&&/^codex-(simple|routine|deep)$/.test(result.profile_id)?{preparation_id:result.preparation_id,profile_id:result.profile_id}:entry.value.fresh_delegation?.outcome;
+    entry.value={...entry.value,fresh_delegation:{...(outcome?{outcome}:{}),last_attempt:{status,reason},execution:'not_observed'}};
+  }
   recordRetry(retry_id:string,result:Record<string,unknown>) {
     this.prune();
     const entry=[...this.entries.values()].find(entry=>entry.value.retry_id===retry_id);
