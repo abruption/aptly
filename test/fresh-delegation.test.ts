@@ -43,6 +43,23 @@ test('required/unknown history, changed scope and incomplete or undeclared indep
  }
  assert.equal(f.calls(),1);assert.equal(readdirSync(f.state).some(p=>p.startsWith('hook-fresh-')),false);
 });
+test('recovery guidance forbids changed-history resubmission and offers the separate protocol only when eligible',async t=>{
+ for(const variant of ['eligible','advisory','extra','none','claude']){
+  const f=fixture(t,{mode:variant==='advisory'?'advisory':'defaults'}),ev=native();
+  if(variant==='extra')ev.tool_input.inherit_history=true;if(variant==='none')ev.tool_input.fork_turns='none';
+  let result;
+  if(variant==='claude')result=await automaticHook({client:'claude',event:{...ev,tool_name:'Agent',tool_input:{description:'Review',prompt:'Do it',subagent_type:'general-purpose'}},router:f.router,policyPath:f.policyPath,onNeedsContext:(s,c)=>f.retries.register(s,c)});
+  else result=await f.run(ev);
+  const message=result.output.hookSpecificOutput.additionalContext;
+  assert.match(message,/Never rewrite the ORIGINAL invocation in place or resubmit it with changed history semantics/);
+  assert.equal(message.includes('prepare_fresh_delegation'),variant==='eligible');
+  if(variant==='eligible')assert.match(message,/supported ONLY through prepare_fresh_delegation/);
+ }
+ const f=fixture(t,{mode:'advisory'}),ev=native();ev.tool_input.message=description;
+ const result=await f.run(ev);assert.equal(result.output.hookSpecificOutput.permissionDecision,undefined);
+ assert.match(result.output.hookSpecificOutput.additionalContext,/host may still execute/);
+ assert.doesNotMatch(result.output.hookSpecificOutput.additionalContext,/stop this ORIGINAL spawn/);
+});
 test('direct completed inherited advice also supplies a fresh reference, never another paid supplement',async t=>{
  const f=fixture(t),ev=native();ev.tool_input.message=description;
  const {id,first}=await f.ready(ev);assert.equal(first.observation.reason,'inherited_context_application_unverified');

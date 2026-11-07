@@ -230,13 +230,13 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     // Synthetic fixture output must never select a native child's defaults.
     if (loaded.policy.mode === 'defaults' && router.policy.provider_id !== 'decisions') return preserve('synthetic_provider');
     activeMode=loaded.policy.mode;
+    const freshEligible=loaded.policy.mode==='defaults'&&call.client==='codex'&&(call.input.fork_turns===undefined||call.input.fork_turns==='all')&&Object.keys(call.input).every(key=>['task_name','message','fork_turns','model','reasoning_effort'].includes(key));
     const reference=(request_id:string,issue:NonNullable<AutomaticHookOptions['onNeedsContext']>)=>{
       const expectedContext=context?.();
       return issue({request_id,client:call.client,eligible_profile_ids:profiles.map(profile=>profile.id),
         policy_fingerprint:loaded.fingerprint!,application_blocked:applicationConstraint(call)??undefined,
         fill_model:!hasModel,fill_effort:!hasEffort,
-        ...(loaded.policy!.mode==='defaults'&&call.client==='codex'&&(call.input.fork_turns===undefined||call.input.fork_turns==='all')&&
-          Object.keys(call.input).every(key=>['task_name','message','fork_turns','model','reasoning_effort'].includes(key))?{fresh_eligible:true}:{})},()=>{
+        ...(freshEligible?{fresh_eligible:true}:{})},()=>{
           const latest=context?.();
           if(latest?.reason)return latest.reason;
           if(latest?.fingerprint!==expectedContext?.fingerprint)return 'context_changed';
@@ -251,7 +251,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed',request_id);
       const recovery=reference(request_id,onNeedsContext);
       const instruction=recovery.retry_id
-        ? `Call Aptly retry_spawn_recommendation with retry_id "${recovery.retry_id}" and a short description of task purpose, scope, expected output and complexity. Use context you already have; ask the user only for genuinely missing information. One supplementation is allowed. Do not decode the opaque body or invent native call IDs. A recommendation is advice only: preserve the ORIGINAL invocation’s explicit choices, roles, permissions and history; never rewrite its fork in place. If application is blocked, report that limitation. A later response may offer prepare_fresh_delegation for a separately declared independent NEW invocation; that protocol does not alter this original invocation or grant permissions. Do not spawn while the retry still needs context or is unavailable.`
+        ? `Call Aptly retry_spawn_recommendation with retry_id "${recovery.retry_id}" and a short description of task purpose, scope, expected output and complexity. Use context you already have; ask the user only for genuinely missing information. One supplementation is allowed. Do not decode the opaque body or invent native call IDs. A recommendation is advice only: preserve all explicit user choices, roles, permissions and required history. Never rewrite the ORIGINAL invocation in place or resubmit it with changed history semantics to apply advice. If application is blocked, report that limitation. ${freshEligible?'A separate NEW invocation for the SAME independent task is supported ONLY through prepare_fresh_delegation if a later response offers it, under all of that response\'s conditions; do not invent a direct fresh call. This protocol does not change the original invocation or grant permissions.':'Do not create a fresh child to bypass this constraint.'} Do not spawn while the retry still needs context or is unavailable.`
         : `Context recovery is unavailable (${recovery.reason??'context_retry_unavailable'}). Report the limitation; do not repeat the spawn unchanged.`;
       const feedback=`Aptly needs additional task context (${reason}). ${instruction}`;
       return {output:{hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:feedback,
@@ -325,7 +325,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       const fresh=blocked==='inherited_context_application_unverified'&&onBlockedAdvice?reference(request_id,onBlockedAdvice):undefined;
       if(fresh?.retry_id)kept.observation.retry_id=fresh.retry_id;
       const continuation=fresh?.retry_id?` Only after the host reports this tool call blocked, if the task is independently declared, inherited history is not required by the user, and complete standalone instructions are available, prepare a SEPARATE fresh delegation with prepare_fresh_delegation using retry_id \"${fresh.retry_id}\". Never do this for required or unknown history, or unknown original execution.`:' Do not create a fresh child merely to apply the recommendation.';
-      const message=`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next} Report this constraint and stop this ORIGINAL spawn; do not discard its history merely to apply the recommendation.${continuation}`;
+      const message=`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next} ${activeMode==='defaults'?'Report this constraint and stop this ORIGINAL spawn.':'The host may still execute this original call under advisory policy; do not submit an additional call solely to apply the recommendation.'} Do not discard required history merely to apply the recommendation.${continuation}`;
       kept.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:message,
         ...(activeMode==='defaults'?{permissionDecision:'deny',permissionDecisionReason:message}:{})}};
       kept.observation.status=activeMode==='defaults'?'blocked':'preserved';
