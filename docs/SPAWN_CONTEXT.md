@@ -1,6 +1,8 @@
 # Spawn context handoff and recovery
 
-Available from Aptly 0.1.4, following the pre-spawn routing changes in #60.
+The original exact-event handoff is available from Aptly 0.1.4, following the
+pre-spawn routing changes in #60. Context recovery and visible routing outcomes
+are available from Aptly 0.1.5.
 It does not decode opaque messages, inspect conversations or modify host
 internals. It provides an explicit caller protocol, not an automatic description
 producer for the shipped Hook templates.
@@ -76,7 +78,7 @@ The original prepare_spawn_context handoff is immutable. Register before the
 first evaluation. If a label-only or description-bound evaluation already
 started, adding/changing the description fails closed (`call_conflict`);
 unknown paid outcomes remain unknown. Do not change IDs to bypass this guard.
-The unreleased recovery protocol below provides a separate, bounded supplement;
+The 0.1.5 recovery protocol below provides a separate, bounded supplement;
 it never rebinds this original association.
 
 ## Outcomes and evidence
@@ -126,7 +128,9 @@ history/model application acceptance and merge order must be resolved before
 merging this dependent change. That historical test did not exercise the later recovery protocol below.
 
 
-## One context supplement after a Hook response (unreleased)
+## One context supplement after a Hook response
+
+Available from Aptly 0.1.5.
 
 When the enabled automatic Hook encounters local `insufficient_context` or a
 completed provider `provider_needs_context`, it issues a `retry_id`. In
@@ -187,7 +191,7 @@ parent model follows the instructions, and inherited application remains blocked
 
 ### Bounded native recovery verification — 2026-11-07
 
-A local Codex CLI 0.167.0 trial exercised this unreleased implementation with
+A local Codex CLI 0.167.0 trial exercised the pre-release recovery implementation with
 its existing trusted Hook and ephemeral MCP command/environment overrides.
 The parent was instructed to attempt one fresh child (`fork_turns: "none"`)
 with no model/effort, a short synthetic task name and a message that the Hook
@@ -219,7 +223,9 @@ provider abstention, duplicate/unknown outcomes and revocation are covered by
 separate offline tests; they are not native execution evidence.
 
 
-## Visible routing outcomes and correlated recovery (unreleased)
+## Visible routing outcomes and correlated recovery
+
+Available from Aptly 0.1.5.
 
 After establishing a valid enabled policy, a supported unpinned/default-selection
 call and eligible profiles, `defaults` denies application incompatibilities and

@@ -246,17 +246,17 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 
 対応付けは5分間有効で変更不可、プロセスごとに最大128件です。入力変更・期限切れ・取消時は分類を止め、評価済みの呼び出しを説明変更で有料再試行しません。実際の予定イベントを取得できない呼び出し元は利用できません。標準 Hook は説明や呼び出し ID を作成しません。ローカルの `insufficient_context`、プロバイダーの `provider_needs_context`、適用時の `inherited_context_application_unverified` は別の結果です。限定的な native 説明受け渡しの検証は[契約](../SPAWN_CONTEXT.md)に記録しています。この検証は、説明の自動生成や推薦モデルの実行を証明するものではありません。
 
-### 文脈を補って再推薦する（未リリース）
+### 文脈を補って再推薦する（0.1.5 以降）
 
 自動 Hook が `insufficient_context` または `provider_needs_context` を返すと、`retry_id` と補足手順を提示します。`defaults` ではその生成呼び出しを拒否し、`advisory` では案内だけを返します。親エージェントは既知の情報から目的・範囲・期待する出力・複雑さを短く説明し、5分以内に同じ MCP プロセスで `retry_spawn_recommendation({retry_id, description})` を呼んでください。将来の native 呼び出し ID は不要です。本当に情報が不足する場合だけユーザーに質問してください。
 
-元の呼び出しごとに補足は一度だけです。同じ入力はキャッシュを再利用し、説明の変更は競合として拒否します。再推薦も文脈不足または失敗なら終了し、結果不明の有料要求を新しい ID で繰り返さないでください。`spawn_application` が `blocked` なら推薦を適用せず制約を報告してください。それ以外も親は明示的な選択・履歴・役割・権限を保ち、新しい互換 native 呼び出しに未指定のモデル・effort だけを渡す必要があります。Hook 自体が親の再要求や native 実行を行うわけではありません。元の `prepare_spawn_context` の対応付けは変更不可のままです。[制限・費用・検証契約](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased)を参照してください。
+元の呼び出しごとに補足は一度だけです。同じ入力はキャッシュを再利用し、説明の変更は競合として拒否します。再推薦も文脈不足または失敗なら終了し、結果不明の有料要求を新しい ID で繰り返さないでください。`spawn_application` が `blocked` なら推薦を適用せず制約を報告してください。それ以外も親は明示的な選択・履歴・役割・権限を保ち、新しい互換 native 呼び出しに未指定のモデル・effort だけを渡す必要があります。Hook 自体が親の再要求や native 実行を行うわけではありません。元の `prepare_spawn_context` の対応付けは変更不可のままです。[制限・費用・検証契約](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response)を参照してください。
 
 再推薦の応答は `next_call.set_if_unspecified` に次の native 呼び出しで補う具体的な未指定フィールドを返します。明示済みのモデル・effort は含めず、Claude に effort を追加しません。履歴などで適用できない結果には `next_call` を返しません。実行証拠や権限承認ではありません。
 
 `context_retry_allowed: false` は追加の文脈補足を終了する意味です。互換性のある推薦の `caller_review_required` は親が引数を確認する意味であり、新しいユーザー承認の要求ではありません。既存の委任権限とホストの権限確認は引き続き適用されます。
 
-### 自動ルーティングの保証範囲と拒否結果（未リリース）
+### 自動ルーティングの保証範囲と拒否結果（0.1.5 以降）
 
 保証は、有効かつ信頼済みの Hook が接続中の MCP で処理する対応呼び出しに限ります。`get_routing_capabilities.automatic_hook.guarantee` で範囲を確認してください。サーバーは未登録・未信頼・切断・ホスト側で失敗した Hook を検出したり強制したりできず、その後の処理はホストが決めます。MCP の接続表示だけでは個別呼び出しの経由を証明できません。
 
