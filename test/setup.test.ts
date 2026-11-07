@@ -158,6 +158,38 @@ test('commit failure rolls back only unchanged owned writes and removes atomic s
   } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
 });
 
+test('a newly created config is removed when a later hook write fails', t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); save(join(dir, 'unrelated'), 'preserve');
+  const rename = fs.renameSync; let committed = false;
+  try {
+    fs.renameSync = (from, to) => {
+      if (String(to).endsWith('hooks.json')) { assert.equal(committed, true); assert.equal(existsSync(config), true); throw new Error('synthetic hook failure'); }
+      const result = rename(from, to); if (to === config) committed = true; return result;
+    };
+    syncBuiltinESMExports();
+    assert.deepEqual(setupHosts(options).clients[0].codes, ['configuration_io_error']);
+    assert.equal(existsSync(config), false);
+    assert.deepEqual(readdirSync(dir), ['unrelated']);
+    assert.equal(readFileSync(join(dir, 'unrelated'), 'utf8'), 'preserve');
+  } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
+});
+
+test('rollback preserves another writer replacing a newly created config', t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); const rename = fs.renameSync;
+  try {
+    fs.renameSync = (from, to) => {
+      if (String(to).endsWith('hooks.json')) { assert.equal(existsSync(config), true); save(config, 'model = "concurrent"\n'); throw new Error('synthetic hook failure'); }
+      return rename(from, to);
+    };
+    syncBuiltinESMExports();
+    assert.deepEqual(setupHosts(options).clients[0].codes, ['configuration_io_error', 'rollback_concurrent_change']);
+    assert.equal(readFileSync(config, 'utf8'), 'model = "concurrent"\n');
+    assert.deepEqual(readdirSync(dir), ['config.toml']);
+  } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
+});
+
 test('POSIX permissions are prepared before replacement, including the former target chmod failure', { skip: process.platform === 'win32' }, t => {
   const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
   mkdirSync(dir); save(config, 'model = "synthetic-original"\n'); chmodSync(config, 0o644);
