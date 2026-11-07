@@ -406,3 +406,17 @@ and is not deleted to permit a different-task retry. The advisory read-only hint
 means no user file, host configuration or native execution is changed; like the
 existing recommendation/cache tools, private query bookkeeping is still written.
 It is not a statelessness or permission-approval claim.
+
+
+The final instruction-contract candidate was also checked with explicit session
+owner authorization for Aptly to choose model/effort defaults for the independent
+task. The original caller-default all was denied, the caller used the declared
+preparation API, and a separate none invocation ran the recommended Luna/max
+child with the expected output. Exactly one Decisions request was forwarded.
+A final explicit-history case preserved all and created no child. Persistent
+configuration/trust stayed unchanged. An intervening candidate stopped after
+recommendation when the parent treated original-fork preservation as a blanket
+ban; that run remains a failed caller-follow-through observation, not successful
+execution. This motivated the stricter instruction distinguishing original-call
+resubmission from the only supported separate preparation protocol. These results
+remain bounded and do not guarantee arbitrary parent-model compliance.
