@@ -1,10 +1,14 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.5 준비
+## 0.1.5 게시와 검증
 
-[Issue #73](https://github.com/abruption/aptly/issues/73)에서 0.1.5를 준비합니다. [한국어 릴리즈 노트 초안](release-notes/0.1.5.md)에 변경 이슈·업데이트 절차·지원 경계를 기록했습니다. PR #72는 `fix/70-context-retry`에 병합되어 main에 없었으므로, 준비 브랜치에서 승인된 해당 소스를 main 계보와 통합합니다. 패키지·lockfile·CLI 버전을 0.1.5로 맞춥니다.
+2026-11-07에 `v0.1.5` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42329906551)를 실행했습니다. 설치 시험·새 runner 패키징·게시의 세 job이 모두 성공했고, 확인 당시 npm `latest`는 0.1.5입니다. [한국어 릴리즈 노트](release-notes/0.1.5.md)와 [실제 검증 기록](releases/0.1.5.md)에 변경·source SHA·run·attempt·digest와 검증 결과를 기록합니다.
 
-이 단계는 준비 PR과 로컬·원격 검증이며 실제 게시가 아닙니다. 준비 PR 병합과 정확한 main SHA의 CI 성공을 확인한 뒤 별도 게시 지시에 따라 `v0.1.5` 태그를 생성·push하십시오. 태그 push는 Actions OIDC 게시를 시작합니다. 태그·게시 실행·registry 파일·서명·provenance는 새 실행의 실제 값으로 각각 확인해야 하며, 이전 버전의 성공을 재사용하지 않습니다. 이번 준비는 전역 설치·운영 원장·호스트 설정·키를 변경하지 않습니다.
+PR #74가 스택 브랜치의 PR #72까지 main에 통합한 `eb283ab1394a777c572c89a75c5436f4c95af302`를 사용했습니다. 정확한 main CI 7개 성공 후 태그를 push했고 새 실행의 artifact와 registry archive가 SHA-256·SHA-512 SRI에서 일치했습니다. npm의 정확한 SLSA v1 bundle과 GitHub 인증서 SAN·소스·태그·workflow·실행 identity 검증을 통과했습니다.
+
+초기 두 번의 npm 서명 검증 `E404`와 별도 provenance URL의 404→200 응답을 보존하고, 동일 게시 실행의 읽기 전용 검증을 완료했습니다. 태그나 게시 job은 재실행하지 않았습니다. 실제 OIDC 게시와 인증서를 확인했으며 로컬 npm 관리자의 Trusted Publisher 목록을 새로 조회했다고 주장하지 않습니다.
+
+한 번의 맥락 보충·명확한 defaults 차단·복구 관측·호환 기본값을 포함합니다. 상속 적용 차단과 호출자 주도 복구 경계는 유지합니다. 전역 설치·운영 원장·호스트 설정·키는 변경하지 않았습니다.
 
 ## 0.1.4 게시와 검증
 
