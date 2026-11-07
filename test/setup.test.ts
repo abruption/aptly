@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs, { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, chmodSync, symlinkSync, readdirSync } from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { parse } from 'smol-toml';
 import { setupHosts, removeSetup, setDefaults, setEnvironment, setCredentialReference, migrateLauncher, configurableEnvironmentKeys } from '../src/setup.ts';
 import { createTestTemp } from '../test-support/temp.ts';
@@ -214,6 +216,34 @@ test('POSIX stage permission failure leaves the original content and mode intact
     assert.equal(readFileSync(config, 'utf8'), source); assert.equal(statSync(config).mode & 0o777, 0o644);
     assert.deepEqual(readdirSync(dir), ['config.toml']);
   } finally { fs.chmodSync = chmod; syncBuiltinESMExports(); }
+});
+
+test('restrictive umask preserves mode and rollback after a later failure', { skip: process.platform === 'win32' }, t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir, { mode: 0o700 }); mkdirSync(join(dir, 'aptly'), { mode: 0o700 }); mkdirSync(join(dir, 'aptly', 'state'), { mode: 0o700 });
+  save(config, 'model = "original"\n'); chmodSync(config, 0o600);
+  const script = `
+    import fs from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    import { setupHosts } from ${JSON.stringify(pathToFileURL(resolve('src/setup.ts')).href)};
+    const [home, config] = process.argv.slice(1);
+    const rename = fs.renameSync; let committedMode;
+    fs.renameSync = (from, to) => {
+      if (String(to).endsWith('hooks.json')) throw new Error('synthetic later failure');
+      const result = rename(from, to);
+      if (to === config) committedMode = fs.statSync(config).mode & 0o777;
+      return result;
+    };
+    syncBuiltinESMExports(); process.umask(0o277);
+    const result = setupHosts({ home, env: {}, clients: ['codex'], packageRoot: home });
+    process.stdout.write(JSON.stringify({ result, committedMode, mode: fs.statSync(config).mode & 0o777, content: fs.readFileSync(config, 'utf8') }));
+  `;
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', script, options.home, config], { encoding: 'utf8' });
+  assert.equal(child.status, 0, child.stderr);
+  const actual = JSON.parse(child.stdout);
+  assert.deepEqual(actual.result.clients[0].codes, ['configuration_io_error']);
+  assert.equal(actual.committedMode, 0o600); assert.equal(actual.mode, 0o600);
+  assert.equal(actual.content, 'model = "original"\n'); assert.deepEqual(readdirSync(dir).sort(), ['aptly', 'config.toml']);
 });
 
 for (const operation of ['setup', 'defaults', 'environment', 'migration', 'removal']) test(`${operation} rolls back a committed file with its POSIX mode after a later write fails`, { skip: process.platform === 'win32' }, t => {

@@ -342,7 +342,7 @@ function replace(snapshot: Snapshot, forward: boolean) {
       try { copyWindowsFilePermissions(snapshot.path, stage); } catch { fail('private_file_permissions'); }
     }
     writeFileSync(fd, next); closeSync(fd); fd = undefined;
-    if (process.platform !== 'win32' && snapshot.mode !== 0o600) chmodSync(stage, snapshot.mode);
+    if (process.platform !== 'win32') chmodSync(stage, snapshot.mode);
     check();
     renameSync(stage, snapshot.path);
     staged = false;
