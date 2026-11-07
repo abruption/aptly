@@ -328,20 +328,25 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
 /** Secure sibling staging is short-lived and never a backup; original settings stay in memory. */
 function replace(snapshot: Snapshot, forward: boolean) {
   const expected = forward ? snapshot.before : snapshot.after, next = forward ? snapshot.after : snapshot.before;
-  if (read(snapshot.path).text !== expected) fail('concurrent_configuration_change');
+  const check = () => {
+    const current = read(snapshot.path);
+    if (current.text !== expected || (process.platform !== 'win32' && expected !== null && current.mode !== snapshot.mode)) fail('concurrent_configuration_change');
+  };
+  check();
   if (next === null) { if (expected !== null) unlinkSync(snapshot.path); return; }
   const stage = join(dirname(snapshot.path), `.aptly-stage-${randomUUID()}`);
-  let fd: number | undefined;
+  let fd: number | undefined, staged = true;
   try {
     fd = openSync(stage, 'wx', 0o600);
     if (process.platform === 'win32' && expected !== null) {
       try { copyWindowsFilePermissions(snapshot.path, stage); } catch { fail('private_file_permissions'); }
     }
     writeFileSync(fd, next); closeSync(fd); fd = undefined;
-    if (read(snapshot.path).text !== expected) fail('concurrent_configuration_change');
+    if (process.platform !== 'win32' && snapshot.mode !== 0o600) chmodSync(stage, snapshot.mode);
+    check();
     renameSync(stage, snapshot.path);
-    if (process.platform !== 'win32' && snapshot.mode !== 0o600) chmodSync(snapshot.path, snapshot.mode);
-  } finally { if (fd !== undefined) closeSync(fd); try { unlinkSync(stage); } catch (e: any) { if (e.code !== 'ENOENT') throw e; } }
+    staged = false;
+  } finally { if (fd !== undefined) closeSync(fd); if (staged) { try { unlinkSync(stage); } catch (e: any) { if (e.code !== 'ENOENT') throw e; } } }
 }
 function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdit, captured?: SetupPlan[]): SetupResult {
   const clients = [...new Set(options.clients ?? ['codex', 'claude'])] as Client[];
@@ -368,10 +373,10 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
       for (const snapshot of plan.changes) { validateObservations(plan,written); replace(snapshot, true); written.push(snapshot); }
       validateObservations(plan,written);
     } catch (e: any) {
-      let rollbackConflict = false;
-      for (const snapshot of written.reverse()) { try { replace(snapshot, false); } catch { rollbackConflict = true; } }
+      let rollbackConflict = false, rollbackFailure = false;
+      for (const snapshot of written.reverse()) { try { replace(snapshot, false); } catch (error) { if (safeCode(error) === 'concurrent_configuration_change') rollbackConflict = true; else rollbackFailure = true; } }
       for (const path of madeDirs.reverse()) { try { rmdirSync(path); } catch { /* Never remove another writer's files. */ } }
-      plan.result.status = 'error'; plan.result.codes = [safeCode(e), ...(rollbackConflict ? ['rollback_concurrent_change'] : [])];
+      plan.result.status = 'error'; plan.result.codes = [safeCode(e), ...(rollbackConflict ? ['rollback_concurrent_change'] : []), ...(rollbackFailure ? ['rollback_failed'] : [])];
     }
   }
   return { status: results.some(result => result.status === 'error') ? 'partial' : results.every(result => result.status === 'skipped') ? 'skipped' : 'complete', clients: results };
