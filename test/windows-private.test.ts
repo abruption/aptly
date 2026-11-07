@@ -102,6 +102,9 @@ test('ACL failures carry bounded categories without exposing process output or r
  const cases = [
   [{code:'ETIMEDOUT',stderr:'secret'}, 'timeout'],
   [{code:'ENOENT',stderr:'secret'}, 'launch'],
+  [{code:'EACCES',stderr:'secret'}, 'launch'],
+  [{code:'ERR_CHILD_PROCESS_STDIO_MAXBUFFER',stderr:'secret'}, 'process'],
+  [{code:'ENOBUFS',stderr:'secret'}, 'process'],
   [{status:1,stdout:'rejected',stderr:'secret'}, 'rejected'],
   [{status:1,stdout:'secret',stderr:'secret'}, 'process'],
  ];

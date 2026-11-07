@@ -87,7 +87,7 @@ function runScript(scriptText: string, input: object, options: WindowsPrivateOpt
   const failure = error as {code?: unknown; stdout?: unknown; status?: unknown};
   if (failure?.code === 'ETIMEDOUT') category = 'timeout';
   else if (failure?.stdout === 'rejected') category = 'rejected';
-  else if (typeof failure?.code === 'string' && failure?.status == null) category = 'launch';
+  else if (typeof failure?.code === 'string' && ['ENOENT','EACCES','EPERM','ENOEXEC','ENOTDIR'].includes(failure.code) && failure?.status == null) category = 'launch';
  }
  const failure = new Error('windows_private_permissions') as Error & {category: FailureCategory; elapsed_ms: number};
  failure.category = category;
