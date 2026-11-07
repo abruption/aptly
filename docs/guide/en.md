@@ -267,9 +267,11 @@ With a recovery ID, use `get_spawn_routing_observation({retry_id})` on the same 
 
 ### Prepare a separate independent delegation (unreleased)
 
-After a defaults Hook blocks inherited application, the caller may use `prepare_fresh_delegation` only when it can declare **the same independent task, no user-required inherited history, and complete standalone instructions**. Supply the Hook/retry `retry_id`, `task_name`, `standalone_task`, and `declaration: {independent_task:true, same_task:true, history_requirement:"not_required", standalone_context_complete:true}` on the same process. It revalidates completed allowlisted advice without another classification.
+After a defaults Hook blocks inherited application, the caller may use `prepare_fresh_delegation` only when it can declare **the same independent task, no user-required inherited history, and complete standalone instructions**. Supply the Hook/retry `retry_id`, `task_name`, `standalone_task`, and `declaration: {independent_task:true, same_task:true, original_call_outcome:"blocked", history_requirement:"not_required", standalone_context_complete:true}` on the same process. It revalidates completed allowlisted advice without another classification.
 
 The original inherited invocation stays blocked. Review the separate `next_call.arguments` and submit it under existing delegation authorization and normal host permission checks. It includes `fork_turns: "none"` and preserves model/effort choices. This is caller-declared intent, not verified user intent or execution evidence. Do not use it for required/unknown history, fixed roles, resume or unverified additional execution arguments. A reference binds one task; five-minute expiry, cancellation, policy/catalog changes and changes to the original invocation block preparation. It is not offered for nonblocking advisory paths. See the [contract and limits](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased).
+
+Use this only after the host reports the original call blocked. `original_call_outcome` values `executed` and `unknown` reject preparation. This is caller-declared, not server execution observation. Repeated identical preparation does not guarantee single child execution. The profile was selected from the original classification summary and must not be reused for a different task.
 
 ## Direct recommendations
 

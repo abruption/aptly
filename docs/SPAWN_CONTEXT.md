@@ -337,7 +337,8 @@ context supplement. Advisory paths are excluded because the original invocation
 may already execute.
 
 The caller supplies `task_name`, a bounded `standalone_task`, and a declaration:
-`independent_task: true`, `same_task: true`, `history_requirement: "not_required"`,
+`independent_task: true`, `same_task: true`, `original_call_outcome: "blocked"`,
+`history_requirement: "not_required"`,
 `standalone_context_complete: true`. Required/unknown history, undeclared
 independence, incomplete context and changed scope reject without preparing a
 call. These declarations are not verified user-intent provenance. The caller
@@ -353,7 +354,10 @@ prepare a child. No new classification occurs.
 
 A successful response provides separate `next_call.arguments` including explicit
 `fork_turns: "none"`, the validated profile and the caller's standalone task.
-The original remains blocked and unchanged. The caller reviews and submits a
+A deny was returned for the original input, which was not rewritten. Server
+observation does not certify that the host enforced it. The caller must have a
+host-reported blocked tool outcome; executed/unknown declarations reject.
+The caller reviews and submits a
 new native call under unchanged host permissions and existing delegation
 authorization. Neither preparation nor argument output proves dispatch/execution.
 The process does not own native spawn or guarantee caller compliance.
@@ -385,3 +389,20 @@ real recommendation, preserved `fork_turns: "all"`, made no fresh preparation an
 created no child. Both tests preserved persistent configuration/trust, used no
 response-modifying adapter and removed their temporary files. These are bounded
 caller-driven checks, not universal model compliance or verified user provenance.
+
+
+Captured event/context checks are process-local and do not observe later native
+host-setting changes or host cancellation unless forwarded through the request
+signal or explicit registered-context revocation. The reused profile was chosen
+from the original classification summary; `same_task` is a caller declaration,
+not a semantic comparison of the standalone task. Do not reuse it for different
+work. Repeated preparation is idempotent, not an exactly-once spawn mechanism.
+The host still owns each actual invocation and its permissions.
+
+Private preparation digests are intentionally immutable once written, including
+when a final currentness check rejects the response. This fail-closed binding
+prevents changing a task under a consumed reference; it is not a plaintext backup
+and is not deleted to permit a different-task retry. The advisory read-only hint
+means no user file, host configuration or native execution is changed; like the
+existing recommendation/cache tools, private query bookkeeping is still written.
+It is not a statelessness or permission-approval claim.

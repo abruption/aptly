@@ -8,7 +8,7 @@ import type { Router } from './core.ts';
 import { hasSufficientTaskText } from './context-sufficiency.ts';
 
 const hash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-export interface FreshDeclaration { independent_task:boolean; same_task:boolean; history_requirement:'not_required'|'required'|'unknown'; standalone_context_complete:boolean; }
+export interface FreshDeclaration { independent_task:boolean; same_task:boolean; original_call_outcome:'blocked'|'executed'|'unknown'; history_requirement:'not_required'|'required'|'unknown'; standalone_context_complete:boolean; }
 interface Entry { seed:ContextRetrySeed; at:number; catalog:string; current?:()=>string|undefined; cancelled?:boolean; active?:boolean; recommendation_id?:string; }
 
 /** One caller-supplied supplement, never an automatic native spawn or a retry chain. */
@@ -98,7 +98,7 @@ export class ContextRetries {
      reason:entry.seed.application_blocked??'native_execution_not_observed'},
     ...(defaults?{next_call:{tool:entry.seed.client==='claude'?'Agent':'spawn_agent',set_if_unspecified:defaults,preserve:'all_other_arguments_and_history'}}:{}),
     next_step:result.status==='recommended'
-     ? entry.seed.application_blocked?`Report the application constraint and preserve original history and arguments. This profile is advice only. ${entry.seed.fresh_eligible?'If you can declare that this is the same independent task, the user does not require inherited history, and you can supply complete standalone instructions, call prepare_fresh_delegation with this retry_id, task_name, standalone_task and declaration {independent_task:true,same_task:true,history_requirement:"not_required",standalone_context_complete:true}. It prepares a separate fresh invocation without a new classification. Never use it when history is required or unknown.':''}`
+     ? entry.seed.application_blocked?`Report the application constraint and preserve original history and arguments. This profile is advice only. ${entry.seed.fresh_eligible?'Only after the host reports the original tool call blocked, if you can declare that this is the same independent task, the user does not require inherited history, and you can supply complete standalone instructions, call prepare_fresh_delegation with this retry_id, task_name, standalone_task and declaration {independent_task:true,same_task:true,original_call_outcome:"blocked",history_requirement:"not_required",standalone_context_complete:true}. It prepares a separate fresh invocation without a new classification. Never use it when history is required or unknown, or when original execution is unknown.':''}`
        :`Context supplementation is complete; do not call retry_spawn_recommendation again. Caller review means the parent checks arguments, not a request for new user approval. To perform the already requested delegation, on the next native ${entry.seed.client==='claude'?'Agent':'spawn_agent'} call, include these previously unspecified fields: ${JSON.stringify(defaults)}. Do not submit another model/effort-omitted call: it will be blocked again. Preserve all other arguments, explicit choices, history, roles and permissions. This response does not execute a child.`
      :'Stop this recovery attempt. Report the outcome; do not create another retry ID or spawn with an unresolved recommendation.'};
   }finally{entry.active=false;signal?.removeEventListener('abort',cancel);}
@@ -112,6 +112,7 @@ export class ContextRetries {
   if(!declaration||declaration.history_requirement!=='not_required')return reject('history_requirement_preserved');
   if(declaration.independent_task!==true)return reject('independent_task_not_declared');
   if(declaration.same_task!==true)return reject('task_scope_changed');
+  if(declaration.original_call_outcome!=='blocked')return reject('original_execution_not_confirmed_blocked');
   if(declaration.standalone_context_complete!==true)return reject('standalone_context_incomplete');
   if(typeof task_name!=='string'||!task_name.trim()||Buffer.byteLength(task_name)>128||typeof standalone_task!=='string'||Buffer.byteLength(standalone_task)>12000||!hasSufficientTaskText(standalone_task))return reject('insufficient_context');
   if(/\bsk-[A-Za-z0-9_-]{12,}|\bBearer\s+[A-Za-z0-9._~+\/-]{8,}={0,2}/i.test(task_name+'\n'+standalone_task))return reject('sensitive_input');
@@ -137,9 +138,9 @@ export class ContextRetries {
    }finally{if(fd!==undefined)closeSync(fd);}
    const changed=this.current(entry,signal);if(changed)return reject(changed);
    return {status:'prepared',reason:'caller_declared_independent',application:'advisory_only',source_retry_id:retry_id,preparation_id,
-    profile_id:profile.id,profile:structuredClone(profile),intent_provenance:'caller_declared_not_verified',original_invocation:'blocked_unchanged',execution:'not_observed',
+    profile_id:profile.id,profile:structuredClone(profile),intent_provenance:'caller_declared_not_verified',original_invocation:'deny_returned_execution_not_observed',execution:'not_observed',
     next_call:{tool:'spawn_agent',arguments:{task_name,message:standalone_task,fork_turns:'none',model:profile.model,reasoning_effort:profile.reasoning_effort}},
-    next_step:'Review and submit this separate native invocation only under existing delegation authorization and unchanged host permissions. The original inherited invocation remains blocked. Do not add history/role/resume overrides or reuse this preparation for another task. Preparation does not prove interception, permission approval or child execution.'};
+    next_step:'Review and submit this separate native invocation only after a host-reported blocked outcome, under existing delegation authorization and unchanged host permissions. Original arguments were not rewritten; host execution is not observed by this server. Do not add history/role/resume overrides or reuse this preparation for another task. Preparation does not prove interception, permission approval, single execution or child execution.'};
   }catch{return reject('fresh_delegation_unavailable');}
  }
 }

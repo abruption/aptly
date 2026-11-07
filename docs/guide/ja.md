@@ -267,9 +267,11 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 
 ### 別の独立した委任を準備する（未リリース）
 
-defaults Hook が継承呼び出しへの適用を拒否した後、呼び出し元が**同じ独立タスクであり、ユーザーが継承履歴を要求せず、完全な独立指示を渡せる**と宣言できる場合だけ `prepare_fresh_delegation` を使えます。同じプロセスで Hook または再推薦の `retry_id`、`task_name`、`standalone_task` と `declaration: {independent_task:true, same_task:true, history_requirement:"not_required", standalone_context_complete:true}` を渡してください。完了済みの許可プロファイルを再確認し、分類を追加で呼びません。
+defaults Hook が継承呼び出しへの適用を拒否した後、呼び出し元が**同じ独立タスクであり、ユーザーが継承履歴を要求せず、完全な独立指示を渡せる**と宣言できる場合だけ `prepare_fresh_delegation` を使えます。同じプロセスで Hook または再推薦の `retry_id`、`task_name`、`standalone_task` と `declaration: {independent_task:true, same_task:true, original_call_outcome:"blocked", history_requirement:"not_required", standalone_context_complete:true}` を渡してください。完了済みの許可プロファイルを再確認し、分類を追加で呼びません。
 
 元の継承呼び出しは拒否されたままです。別の `next_call.arguments` を確認し、既存の委任権限と通常のホスト権限確認の下で新しい呼び出しを送ってください。`fork_turns: "none"` と、元の選択を保つモデル・effort を含みます。呼び出し元の宣言であり、ユーザー意図や実行を検証するものではありません。履歴が必要・不明、固定役割、resume、未検証の追加実行引数がある場合は使わないでください。参照は一つのタスクだけに結び付き、5分の期限・取消・ポリシー/候補/元の呼び出しの変更で準備を止めます。元の実行を許す advisory 経路には提供しません。[契約と制限](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased)を確認してください。
+
+ホストが元の呼び出しの拒否を報告した後だけ使ってください。`original_call_outcome` が `executed` または `unknown` なら準備を拒否します。これは呼び出し元の宣言で、サーバーの実行観測ではありません。同じ準備の反復は子の一回実行を保証しません。プロファイルは元の分類要約に基づくため別タスクに再利用しないでください。
 
 ## 直接推薦
 

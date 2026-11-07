@@ -12,7 +12,7 @@ import {createTestTemp} from '../test-support/temp.ts';
 
 const description='Read supplied synthetic numbers and return their sorted literal list without using tools.';
 const task='Sort only the supplied numbers [3, 1, 2] and return [1, 2, 3]. No files, tools, network or other agents.';
-const intent={independent_task:true,same_task:true,history_requirement:'not_required',standalone_context_complete:true};
+const intent={independent_task:true,same_task:true,original_call_outcome:'blocked',history_requirement:'not_required',standalone_context_complete:true};
 const native=()=>({hook_event_name:'PreToolUse',session_id:'synthetic-session',tool_use_id:'synthetic-call',tool_name:'spawn_agent',tool_input:{task_name:'review_123_refresh',message:'gAAAAA'+'A'.repeat(96),fork_turns:'all'}});
 function fixture(t,options={}){
  const dir=createTestTemp(t,'codex-fresh-delegation-'),state=join(dir,'state');mkdirSync(state,{mode:0o700});const policyPath=join(dir,'policy.json');
@@ -29,7 +29,7 @@ test('independent preparation reuses known advice, keeps the original blocked an
  assert.equal(first.output.hookSpecificOutput.permissionDecision,'deny');assert.equal(f.calls(),1);
  const prepared=f.retries.prepareFresh(id,'sort_supplied_values',task,intent);
  assert.equal(prepared.status,'prepared');assert.equal(prepared.intent_provenance,'caller_declared_not_verified');
- assert.equal(prepared.original_invocation,'blocked_unchanged');assert.equal(prepared.execution,'not_observed');
+ assert.equal(prepared.original_invocation,'deny_returned_execution_not_observed');assert.equal(prepared.execution,'not_observed');
  assert.deepEqual(prepared.next_call.arguments,{task_name:'sort_supplied_values',message:task,fork_turns:'none',model:'gpt-6-luna',reasoning_effort:'max'});
  assert.deepEqual(event,before);assert.equal(f.retries.prepareFresh(id,'sort_supplied_values',task,intent).preparation_id,prepared.preparation_id);
  assert.equal(f.retries.prepareFresh(id,'sort_supplied_values',task+' Changed task.',intent).reason,'fresh_delegation_conflict');assert.equal(f.calls(),1);
@@ -38,7 +38,7 @@ test('independent preparation reuses known advice, keeps the original blocked an
 });
 test('required/unknown history, changed scope and incomplete or undeclared independence never produce a fresh call',async t=>{
  const f=fixture(t),{id}=await f.ready();
- for(const patch of [{history_requirement:'required'},{history_requirement:'unknown'},{independent_task:false},{same_task:false},{standalone_context_complete:false}]){
+ for(const patch of [{history_requirement:'required'},{history_requirement:'unknown'},{original_call_outcome:'executed'},{original_call_outcome:'unknown'},{independent_task:false},{same_task:false},{standalone_context_complete:false}]){
   const result=f.retries.prepareFresh(id,'sort_values',task,{...intent,...patch});assert.equal(result.status,'rejected');assert.equal(Object.hasOwn(result,'next_call'),false);
  }
  assert.equal(f.calls(),1);assert.equal(readdirSync(f.state).some(p=>p.startsWith('hook-fresh-')),false);

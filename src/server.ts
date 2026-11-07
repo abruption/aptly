@@ -80,7 +80,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  server.registerTool('prepare_fresh_delegation',{
   description:'Prepare a SEPARATE intentional Codex fresh-child call from a completed inherited recommendation. No classification or spawn. Use the original Hook retry_id on this process within five minutes. Only when the caller can declare independent work, no user-required inherited history, and complete standalone instructions. Never use for required/unknown history or to bypass permissions. Explicit choices and the original blocked invocation remain intact. Same task is idempotent; changed task conflicts.',
   annotations:{...annotations,openWorldHint:false},inputSchema:{retry_id:z.string().regex(/^[a-f0-9]{64}$/),task_name:z.string().min(1).max(128),standalone_task:z.string().min(1).max(12000),
-   declaration:z.object({independent_task:z.boolean(),same_task:z.boolean(),history_requirement:z.enum(['not_required','required','unknown']),standalone_context_complete:z.boolean()}).strict()}
+   declaration:z.object({independent_task:z.boolean(),same_task:z.boolean(),original_call_outcome:z.enum(['blocked','executed','unknown']),history_requirement:z.enum(['not_required','required','unknown']),standalone_context_complete:z.boolean()}).strict()}
  },async({retry_id,task_name,standalone_task,declaration},extra)=>{
   const result=retries.prepareFresh(retry_id,task_name,standalone_task,declaration,extra.signal);
   observations.recordFresh(retry_id,result);return content(result);
