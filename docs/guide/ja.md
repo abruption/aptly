@@ -224,6 +224,7 @@ Codex の本文が不透明な場合、`cleanup_merged_worktrees` のような�
 | `get_spawn_routing_observation` | 一致する Hook 呼び出しを照会し、native 実行を証明しません |
 | `prepare_spawn_context` | 正確に一致する予定呼び出しに上限付きの説明を登録します |
 | `cancel_spawn_context` | 説明の対応付けを取り消します。native 実行や送信済みリクエストは取り消しません |
+| `retry_spawn_recommendation` | Hook が返す retry_id を使い、タスク説明を一度補って再推薦します |
 
 ### 外部送信と自動共有の無効化
 
@@ -244,6 +245,12 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 実際の予定セッション・呼び出し ID と元のイベントを知る連携は、Hook の前に同じ MCP プロセスで `prepare_spawn_context({client, event, description})` を呼べます。目的・範囲・出力・制約・複雑さを短く記述してください。URL の内容は取得しません。上限付き説明と固定接頭文だけが抜粋を置き換え、履歴・ファイル・不透明な本文は送信しません。`cancel_spawn_context({client, event})` で取り消せます。有効な自動ポリシーが必要で、`enabled: false` は共有を止めます。既知の秘密パターン検査は完全ではありません。
 
 対応付けは5分間有効で変更不可、プロセスごとに最大128件です。入力変更・期限切れ・取消時は分類を止め、評価済みの呼び出しを説明変更で有料再試行しません。実際の予定イベントを取得できない呼び出し元は利用できません。標準 Hook は説明や呼び出し ID を作成しません。ローカルの `insufficient_context`、プロバイダーの `provider_needs_context`、適用時の `inherited_context_application_unverified` は別の結果です。限定的な native 説明受け渡しの検証は[契約](../SPAWN_CONTEXT.md)に記録しています。この検証は、説明の自動生成や推薦モデルの実行を証明するものではありません。
+
+### 文脈を補って再推薦する（未リリース）
+
+自動 Hook が `insufficient_context` または `provider_needs_context` を返すと、`retry_id` と補足手順を提示します。`defaults` ではその生成呼び出しを拒否し、`advisory` では案内だけを返します。親エージェントは既知の情報から目的・範囲・期待する出力・複雑さを短く説明し、5分以内に同じ MCP プロセスで `retry_spawn_recommendation({retry_id, description})` を呼んでください。将来の native 呼び出し ID は不要です。本当に情報が不足する場合だけユーザーに質問してください。
+
+元の呼び出しごとに補足は一度だけです。同じ入力はキャッシュを再利用し、説明の変更は競合として拒否します。再推薦も文脈不足または失敗なら終了し、結果不明の有料要求を新しい ID で繰り返さないでください。`spawn_application` が `blocked` なら推薦を適用せず制約を報告してください。それ以外も親は明示的な選択・履歴・役割・権限を保ち、新しい互換 native 呼び出しに未指定のモデル・effort だけを渡す必要があります。Hook 自体が親の再要求や native 実行を行うわけではありません。元の `prepare_spawn_context` の対応付けは変更不可のままです。[制限・費用・検証契約](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased)を参照してください。
 
 ## 直接推薦
 

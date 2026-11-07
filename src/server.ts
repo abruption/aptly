@@ -12,6 +12,7 @@ import { loadConfiguration, loadHostContext } from './config.ts';
 import { automaticHook, loadAutomaticHookPolicy, initialHookObservation } from './automatic-hook.ts';
 import { SpawnContexts } from './spawn-context.ts';
 import { RoutingObservations } from './routing-observations.ts';
+import { ContextRetries } from './context-retry.ts';
 
 const taskSchema=z.object({summary:z.string().min(1).max(4000),operation:z.enum(['read_only','write','review','analysis']),context_sufficient:z.boolean()}).strict();
 const constraintsSchema=z.object({model_pinned:z.boolean().optional(),effort_pinned:z.boolean().optional(),role_pinned:z.boolean().optional(),fork_inherits:z.boolean().optional(),provenance_verified:z.boolean().optional()}).strict();
@@ -22,6 +23,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  const {router,mode,modelInfo,credentialStatus,disabledClients}=runtime(env);
  const observations=new RoutingObservations();
  const contexts=new SpawnContexts();
+ const retries=new ContextRetries(router,env.APTLY_HOOK_POLICY_PATH);
  const server=new McpServer({name:'aptly',version:VERSION});
  const annotations={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:mode==='decisions'};
  const evidence=(client:Client,event:Record<string,unknown>)=>{
@@ -36,7 +38,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
   credential_status:credentialStatus,
-  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported'},
+  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported'},
  }));
  server.registerTool('get_spawn_routing_observation',{
   description:'Look up one exact spawn event in this MCP process (128 calls, 10 minutes). No provider call. Missing records do not prove bypass; argument updates never prove native child execution.',
@@ -60,6 +62,10 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   description:'Recommend an allowlisted profile for a supplied task only; never inspects host settings, spawns, or authorizes an agent. Optional constraints describe caller-declared choices to preserve; omitted flags are not claims about current host settings. Decisions mode may incur a bounded classification request.',annotations,
   inputSchema:{request_id:z.string().min(1).max(96),client:z.enum(['codex','claude']),task:taskSchema,eligible_profile_ids:z.array(z.string()).min(1).max(20).optional(),constraints:constraintsSchema.optional()}
  },async input=>content({...await router.advise(input),provider:mode}));
+ server.registerTool('retry_spawn_recommendation',{
+  description:'Supply one bounded task description after an Aptly Hook returns needs_context and a retry_id. Use the same MCP process within five minutes; no native call IDs are needed. May make one paid classification; duplicate input reuses its request identity, changed input conflicts. Never spawns or changes history. If still needs_context/unavailable, stop; do not create another ID. A blocked spawn_application remains advisory.',
+  annotations,inputSchema:{retry_id:z.string().regex(/^[a-f0-9]{64}$/),description:z.string().max(4000)}
+ },async({retry_id,description},extra)=>content(await retries.retry(retry_id,description,extra.signal)));
  server.registerTool('get_routing_precedence',{
   description:'Explain preserved choices and unknown effective setting sources. Never classifies, reads a transcript, or changes permissions.',annotations:{...annotations,openWorldHint:false},inputSchema:hookSchema
  },async({client,event})=>{
@@ -72,7 +78,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  },async ({client,event,task},extra)=>{
   observations.begin(client,event);
   if(env.APTLY_HOOK_POLICY_PATH!==undefined){
-   const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,context:()=>contexts.lookup(client,event),onObservation:value=>observations.record(value)});
+   const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,context:()=>contexts.lookup(client,event),onObservation:value=>observations.record(value),onNeedsContext:(seed,current)=>retries.register(seed,current)});
    observations.record(result.observation);
    return {content:[{type:'text',text:JSON.stringify(result.output)}]};
   }

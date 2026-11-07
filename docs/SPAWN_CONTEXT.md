@@ -1,4 +1,4 @@
-# Explicit spawn context handoff (Aptly 0.1.4)
+# Spawn context handoff and recovery
 
 Available from Aptly 0.1.4, following the pre-spawn routing changes in #60.
 It does not decode opaque messages, inspect conversations or modify host
@@ -72,12 +72,12 @@ after the asynchronous provider call. Expiry/cancellation prevents output but
 cannot refund or erase a provider request already sent. Revocation does not
 cancel native execution; the host controls execution.
 
-There is no richer-summary retry mechanism in this change. Register before the
+The original prepare_spawn_context handoff is immutable. Register before the
 first evaluation. If a label-only or description-bound evaluation already
 started, adding/changing the description fails closed (`call_conflict`);
 unknown paid outcomes remain unknown. Do not change IDs to bypass this guard.
-A future deliberate re-evaluation workflow needs its own explicit association
-and accounting design.
+The unreleased recovery protocol below provides a separate, bounded supplement;
+it never rebinds this original association.
 
 ## Outcomes and evidence
 
@@ -123,4 +123,92 @@ This validates a caller that can capture the exact event before product
 preflight. The adapter does not ship an automatic description producer, and
 ordinary parent agents still cannot invent the required IDs. PR #60's separate
 history/model application acceptance and merge order must be resolved before
-merging this dependent change. No richer-summary retry workflow is enabled.
+merging this dependent change. That historical test did not exercise the later recovery protocol below.
+
+
+## One context supplement after a Hook response (unreleased)
+
+When the enabled automatic Hook encounters local `insufficient_context` or a
+completed provider `provider_needs_context`, it issues a `retry_id`. In
+`defaults` mode it denies that pending spawn and includes model-visible recovery
+instructions. In `advisory` mode it supplies those instructions without blocking.
+This uses the documented [Codex PreToolUse deny feedback](https://learn.chatgpt.com/docs/hooks).
+A missing, untrusted or failed Hook is outside this guarantee.
+
+The parent agent can use its existing task knowledge to call:
+
+```json
+{
+  "retry_id": "<copy the 64-character retry_id from the Hook response>",
+  "description": "Review a small synthetic refresh change for conflict markers and incorrect imports. Return findings only; do not edit files."
+}
+```
+
+Send this input to `retry_spawn_recommendation` on the same MCP process within
+five minutes. No future native call ID is required. Describe purpose, scope,
+expected output and complexity; ask the user only for information genuinely
+missing from the task. The description uses the same size and known-secret
+checks as the original handoff. Only the labelled description and normal
+classification contract are sent, never the opaque body or original event.
+
+One valid supplement is allowed per original immutable call binding. Its
+classification request ID is fixed, and a description digest is persisted before
+provider preflight; text is not persisted by Aptly. Duplicate input reuses the
+ledger/cache. Changed input conflicts, including after process recreation.
+Timeout/network/unknown outcomes never issue replacement identities. A second
+`needs_context`, a budget failure or an unavailable result ends this recovery:
+`retry_allowed` is false and no further recovery ticket is created. Each process
+holds at most 128 tickets without eviction; duplicates do not extend expiry.
+Restart loses ticket lookup, although persistent bindings and the ledger still
+prevent a recreated original Hook event from creating another paid retry.
+
+The retry tool returns advice, not a rewritten original Hook response or a native
+spawn. For a recommendation, inspect `spawn_application`: `caller_review_required`
+requires the parent to review and explicitly supply only unspecified model/effort
+fields to a new compatible native call. `blocked` requires reporting the original
+history/application constraint. Never change `all` or omitted fork to `none`,
+discard history, alter explicit choices or bypass permissions to apply advice.
+If no recommendation is available, stop and report the result.
+
+Cancellation during the retry, expiry, and changed/disabled policy or catalog
+suppress its result. A sent request may still consume budget and complete in the
+ledger. The original event observation remains `awaiting_context` with execution
+`not_observed`; a retry recommendation does not prove child execution.
+
+This is a caller-driven recovery protocol. Hook feedback does not itself run the
+parent's next MCP call or spawn a child. It does not guarantee that every host or
+parent model follows the instructions, and inherited application remains blocked.
+
+
+### Bounded native recovery verification — 2026-11-07
+
+A local Codex CLI 0.167.0 trial exercised this unreleased implementation with
+its existing trusted Hook and ephemeral MCP command/environment overrides.
+The parent was instructed to attempt one fresh child (`fork_turns: "none"`)
+with no model/effort, a short synthetic task name and a message that the Hook
+received as opaque. The Hook denied the call and returned recovery instructions.
+The parent then called `retry_spawn_recommendation` through normal MCP tool
+orchestration, supplying a bounded description of sorting `[3, 1, 2]` without
+files, tools, network activity or changes.
+
+The accepted retry ID matched the Hook feedback. Exactly one real Decisions
+request contained the labelled description, without the opaque body or native
+event metadata. It recommended `codex-simple` (`gpt-6-luna` / `max`). The parent
+explicitly supplied that profile on its second native attempt, with the original
+fresh-child semantics. The actual linked child recorded Luna/max and returned
+`[1, 2, 3]`. Only one child was created. Neither Hook responses nor product
+behavior were modified by the transparent observation adapter; persistent host
+configuration and trust settings were unchanged, and temporary files were removed.
+
+Three earlier attempts were retained as failures: each stopped before a paid
+classification or child execution. Inspection of the nested MCP call established
+that the recovery tool's initial write annotation required approval and was
+rejected under `approvalPolicy: "never"`. The successful trial used the same
+read-only advisory annotations as `recommend_agent`; local cache/budget metadata
+is still recorded, and this is not a claim of stateless execution.
+
+This is a prompt-guided caller recovery check, not proof that every parent model
+will retry automatically. It does not validate inherited model application,
+Claude Code native recovery, model quality or cost savings. Claude recovery,
+provider abstention, duplicate/unknown outcomes and revocation are covered by
+separate offline tests; they are not native execution evidence.

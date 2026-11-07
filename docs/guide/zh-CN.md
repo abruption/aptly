@@ -224,6 +224,7 @@ Codex 正文不透明时，`cleanup_merged_worktrees` 等具体的短任务名�
 | `get_spawn_routing_observation` | 查询完全匹配的 Hook 调用，不证明原生执行 |
 | `prepare_spawn_context` | 为完全匹配的待执行调用注册受限说明 |
 | `cancel_spawn_context` | 撤销说明关联，不取消原生执行或已发送的请求 |
+| `retry_spawn_recommendation` | 使用 Hook 返回的 retry_id 补充一次任务说明并重新推荐 |
 
 ### 对外传输与关闭自动共享
 
@@ -244,6 +245,12 @@ Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context
 知道真实的待执行会话、调用 ID 和原始事件的集成，可在 Hook 前向同一 MCP 进程调用 `prepare_spawn_context({client, event, description})`。简述目的、范围、预期输出、约束和复杂度；不会抓取 URL 内容。只有受限说明和固定前缀替代任务摘录，不会发送历史、文件或不透明正文。使用 `cancel_spawn_context({client, event})` 撤销。必须启用自动策略；`enabled: false` 阻止共享。已知秘密模式检查并非完整保护。
 
 关联有效期为五分钟，不可修改，每个进程最多128项。输入变化、过期或撤销会阻止分类；不能通过修改说明对已评估调用进行付费重试。无法获取真实待执行事件的调用方不能使用此路径；默认 Hook 不生成说明或调用 ID。本地 `insufficient_context`、提供方 `provider_needs_context` 和应用阶段 `inherited_context_application_unverified` 是不同结果。有限的原生说明交接验证记录于[交接契约](../SPAWN_CONTEXT.md)。此验证不表示会自动生成说明或执行推荐的模型。
+
+### 补充上下文后重新推荐（尚未发布）
+
+自动 Hook 返回 `insufficient_context` 或 `provider_needs_context` 时，会提供 `retry_id` 和补充指引。`defaults` 模式会阻止该次派生调用，`advisory` 模式仅提供反馈。父代理应根据已知信息简要说明任务目的、范围、预期输出和复杂度，并在五分钟内通过同一 MCP 进程调用 `retry_spawn_recommendation({retry_id, description})`。无需提前知道 native 调用 ID。仅在确实缺少信息时询问用户。
+
+每个原始调用仅允许补充一次；相同输入复用缓存，修改说明会因冲突而被拒绝。再次需要上下文或失败时，请停止，不要为结果不明的付费请求更换 ID 重试。若 `spawn_application` 为 `blocked`，请报告限制，不要应用推荐。否则，父代理仍须保留显式选择、历史、角色和权限，仅将未指定的模型和 effort 传给新的兼容 native 调用。Hook 不会自行执行父代理的重试或派生操作。原有 `prepare_spawn_context` 关联仍不可修改。请参阅[限制、费用与验证契约](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased)。
 
 ## 直接推荐
 

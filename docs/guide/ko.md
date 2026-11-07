@@ -224,6 +224,7 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 | `get_spawn_routing_observation` | 정확히 일치하는 Hook 호출을 조회하며 native 실행을 증명하지 않습니다 |
 | `prepare_spawn_context` | 정확한 예정 호출에 제한된 설명을 등록합니다 |
 | `cancel_spawn_context` | 등록한 설명의 연결을 취소하며 native 실행이나 이미 전송된 요청을 취소하지 않습니다 |
+| `retry_spawn_recommendation` | Hook의 `retry_id`로 작업 설명을 한 번 보충해 재추천합니다 |
 
 ### 외부 전송과 자동 공유 끄기
 
@@ -244,6 +245,12 @@ Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_suffic
 실제 예정된 세션·호출 ID와 원래 이벤트를 아는 연동은 Hook 전에 같은 MCP 프로세스에 `prepare_spawn_context({client, event, description})`를 호출할 수 있습니다. 목적·범위·결과물·제약·복잡도를 짧게 적으세요. URL의 내용은 가져오지 않습니다. 제한된 설명과 고정 접두문만 작업 발췌문을 대체하며, 이력·파일·불투명 본문은 보내지 않습니다. `cancel_spawn_context({client, event})`로 취소합니다. 자동 정책이 활성화되어야 하며 `enabled: false`는 공유를 차단합니다. 알려진 비밀 패턴 검사만으로 완전한 보호를 보장하지 않습니다.
 
 연결은 5분간 유효하고 변경할 수 없으며 프로세스당 최대 128개입니다. 입력 변경·만료·취소 시 분류를 중단하고, 이미 평가한 호출에 설명을 바꿔 유료 재시도하지 않습니다. 실제 예정 이벤트를 알 수 없는 호출자는 사용할 수 없습니다. 기본 Hook은 설명이나 호출 ID를 만들지 않습니다. 로컬 `insufficient_context`, 공급자 `provider_needs_context`, 실제 적용의 `inherited_context_application_unverified`는 서로 다릅니다. 제한된 native 설명 전달 검증은 [전달 계약](../SPAWN_CONTEXT.md)에 기록했습니다. 이 검증은 기본 설명의 자동 생성이나 추천 모델의 실행을 증명하지 않습니다.
+
+### 맥락 보충 후 재추천 (미출시)
+
+자동 Hook이 `insufficient_context` 또는 `provider_needs_context`를 반환하면 `retry_id`와 보충 안내를 제공합니다. `defaults`에서는 해당 스폰을 차단하고, `advisory`에서는 안내만 전달합니다. 부모 에이전트는 이미 아는 작업 목적·범위·결과물·복잡도를 짧게 작성해 같은 MCP 프로세스에서 5분 안에 `retry_spawn_recommendation({retry_id, description})`를 호출하십시오. 미래 native 호출 ID는 필요하지 않습니다. 실제로 정보가 없을 때만 사용자에게 질문하십시오.
+
+보충은 원래 호출당 한 번이며 동일 입력은 캐시를 재사용하고 변경한 설명은 충돌로 거부합니다. 재추천도 `needs_context`이거나 실패하면 중단하십시오. 결과 불명인 요청을 새 ID로 반복하지 마십시오. `spawn_application`이 `blocked`이면 추천을 적용하지 말고 제약을 보고하십시오. 적용 가능한 추천도 부모가 명시 선택·이력·역할·권한을 보존하며 새 native 호출에 미지정 모델·effort만 전달해야 합니다. Hook이 부모의 재호출이나 실제 실행까지 자동 수행하지는 않습니다. 원래 `prepare_spawn_context` 연결은 여전히 변경할 수 없습니다. [한계·비용·검증 계약](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased)을 확인하십시오.
 
 ## 직접 추천
 

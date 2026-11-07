@@ -18,7 +18,7 @@ export interface AutoPolicy {
   state_directory: string;
 }
 export interface AutomaticHookObservation {
-  status: 'arguments_updated' | 'advisory' | 'preserved' | 'pending';
+  status: 'arguments_updated' | 'advisory' | 'preserved' | 'pending' | 'awaiting_context';
   preflight: 'observed';
   correlation_id?: string;
   classification: 'unknown' | 'evaluating' | 'not_requested' | 'provider_requested' | 'cache_hit' | 'local_outcome';
@@ -29,9 +29,17 @@ export interface AutomaticHookObservation {
   reason: string;
   profile_id?: string;
   request_id?: string;
+  retry_id?: string;
+}
+export interface ContextRetrySeed {
+  request_id: string;
+  client: Client;
+  eligible_profile_ids: string[];
+  policy_fingerprint: string;
+  application_blocked?: string;
 }
 export interface AutomaticHookResult {
-  output: HookOutput | { hookSpecificOutput: { hookEventName: 'PreToolUse'; additionalContext: string } };
+  output: HookOutput | { hookSpecificOutput: { hookEventName: 'PreToolUse'; additionalContext: string; permissionDecision?: 'deny'; permissionDecisionReason?: string } };
   observation: AutomaticHookObservation;
 }
 export interface AutomaticHookOptions {
@@ -45,6 +53,8 @@ export interface AutomaticHookOptions {
   signal?: AbortSignal;
   /** Internal diagnostics callback; never supplied through native tool arguments. */
   onObservation?: (observation: AutomaticHookObservation) => void;
+  /** Internal bounded recovery issuer; never supplied by native arguments. */
+  onNeedsContext?: (seed: ContextRetrySeed, current:()=>string|undefined) => { retry_id?: string; reason?: string };
   /** A caller may revoke the pending event; absence does not certify native dispatch. */
   stillCurrent?: () => boolean | Promise<boolean>;
 }
@@ -181,7 +191,7 @@ function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: strin
 }
 
 /** Operator default selection only. No provenance_verified/evidence_verified host claim. */
-export async function automaticHook({ client, event, router, policyPath, signal, context, stillCurrent, onObservation }: AutomaticHookOptions): Promise<AutomaticHookResult> {
+export async function automaticHook({ client, event, router, policyPath, signal, context, stillCurrent, onObservation, onNeedsContext }: AutomaticHookOptions): Promise<AutomaticHookResult> {
   const observation=initialHookObservation(client,event);
   const preserve = (reason: string, request_id?: string): AutomaticHookResult => ({ output: {}, observation: { ...observation, status: 'preserved', reason, ...(request_id ? { request_id } : {}) } });
   try {
@@ -197,11 +207,42 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if(!profiles.length)return preserve(hasModel?'explicit_model':hasEffort?'explicit_effort':'no_candidates');
     // Synthetic fixture output must never select a native child's defaults.
     if (loaded.policy.mode === 'defaults' && router.policy.provider_id !== 'decisions') return preserve('synthetic_provider');
+    const needsContext = (reason: string, request_id: string): AutomaticHookResult => {
+      if (!onNeedsContext) return preserve(reason, request_id);
+      if(signal?.aborted)return preserve('call_cancelled',request_id);
+      const currentPolicy=loadAutomaticHookPolicy(policyPath);
+      if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed',request_id);
+      const expectedContext=context?.();
+      const recovery=onNeedsContext({request_id,client:call.client,eligible_profile_ids:profiles.map(profile=>profile.id),
+        policy_fingerprint:loaded.fingerprint!,application_blocked:applicationConstraint(call)??undefined},()=>{
+          const latest=context?.();
+          if(latest?.reason)return latest.reason;
+          if(latest?.fingerprint!==expectedContext?.fingerprint)return 'context_changed';
+          const latestCall=readCall(client,event);
+          return latestCall?.payloadDigest===call.payloadDigest?undefined:'call_changed';
+        });
+      const instruction=recovery.retry_id
+        ? `Call Aptly retry_spawn_recommendation with retry_id "${recovery.retry_id}" and a short description of task purpose, scope, expected output and complexity. Use context you already have; ask the user only for genuinely missing information. One supplementation is allowed. Do not decode the opaque body or invent native call IDs. A recommendation is advice only: preserve explicit choices, roles, permissions and history; never change fork semantics to apply it. If application is blocked, report that limitation. Do not spawn while the retry still needs context or is unavailable.`
+        : `Context recovery is unavailable (${recovery.reason??'context_retry_unavailable'}). Report the limitation; do not repeat the spawn unchanged.`;
+      const feedback=`Aptly needs additional task context (${reason}). ${instruction}`;
+      return {output:{hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:feedback,
+        ...(loaded.policy!.mode==='defaults'?{permissionDecision:'deny' as const,permissionDecisionReason:feedback}:{})}},
+        observation:{...observation,status:'awaiting_context',reason,request_id,...(recovery.retry_id?{retry_id:recovery.retry_id}:{})}};
+    };
     const supplied = context?.();
     if (supplied?.reason) return preserve(supplied.reason);
     const summary = supplied?.summary ? supplied : boundedSummary(call, router.policy.max_summary_bytes);
     if (Buffer.byteLength(summary.summary ?? '') > Math.min(4000,router.policy.max_summary_bytes)) return preserve('insufficient_context');
-    if (!summary.summary) return preserve(summary.reason ?? 'insufficient_context');
+    if (!summary.summary) {
+      if(summary.reason!=='insufficient_context'||!onNeedsContext)return preserve(summary.reason??'insufficient_context');
+      if(signal?.aborted||(stillCurrent&&await stillCurrent()!==true))return preserve('call_cancelled');
+      const legacyId=hookInput({client,event,policy:router.policy})?.request_id??hash([call.client,call.event.session_id,call.event.tool_use_id??call.event.tool_call_id]);
+      try{router.load();}catch{return preserve('ledger_error');}
+      if(own(router.state.requests,legacyId))return preserve('legacy_request_exists',legacyId);
+      // Reserve the same immutable native-call binding without making a paid request.
+      const bound=bindCall(call,loaded.policy,loaded.fingerprint,catalogFingerprint(router.policy),supplied?.fingerprint);
+      return bound.request_id?needsContext('insufficient_context',bound.request_id):preserve(bound.reason??'automatic_state_unavailable');
+    }
     if (signal?.aborted || (stillCurrent && await stillCurrent() !== true)) return preserve('call_cancelled');
     // Installing an operator policy must not bypass a historical strict-path
     // unknown/complete record for this same native call with a new paid ID.
@@ -242,6 +283,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     // The existing narrow catalog/tuple validator is reused. This local flag is an
     // operator-policy decision, never a claim about complete host-setting evidence.
     if (!profile || observation.recommendation!=='produced') {
+      if(recommendation.status==='needs_context')return needsContext(recommendation.reason,request_id);
       const allowed = ['preserved_constraints', 'unsupported_profile', 'invalid_response', 'invalid_choice', 'provider_abstained', 'no_candidates', 'insufficient_context',
         'provider_needs_context', 'budget_exhausted', 'concurrency_limit', 'ledger_locked', 'request_conflict', 'outcome_unknown', 'ledger_error', 'timeout', 'refused',
         'truncated', 'invalid_json', 'unauthorized', 'rate_limited', 'network', 'provider_error', 'sensitive_input', 'invalid_input'];
