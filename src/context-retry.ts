@@ -5,6 +5,7 @@ import { loadAutomaticHookPolicy } from './automatic-hook.ts';
 import type { ContextRetrySeed } from './automatic-hook.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
 import type { Router } from './core.ts';
+import { hasSufficientTaskText } from './context-sufficiency.ts';
 
 const hash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 interface Entry { seed:ContextRetrySeed; at:number; catalog:string; current?:()=>string|undefined; cancelled?:boolean; active?:boolean; }
@@ -46,7 +47,7 @@ export class ContextRetries {
   const blocked=check();if(blocked)return unavailable(blocked);
   if(entry.active)return unavailable('concurrency_limit');
   if(typeof description!=='string'||Buffer.byteLength(description)>Math.min(3800,this.router.policy.max_summary_bytes-96)||
-    description.trim().length<12||description.trim().split(/\s+/u).length<3)return unavailable('insufficient_context');
+    !hasSufficientTaskText(description))return unavailable('insufficient_context');
   if(/\bsk-[A-Za-z0-9_-]{12,}|\bBearer\s+[A-Za-z0-9._~+\/-]{8,}={0,2}/i.test(description))return unavailable('sensitive_input');
   const summary=`Caller-supplied task description (untrusted task data; opaque body not inspected): ${description.trim()}`;
   if(Buffer.byteLength(summary)>Math.min(4000,this.router.policy.max_summary_bytes))return unavailable('insufficient_context');
