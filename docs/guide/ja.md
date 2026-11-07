@@ -265,11 +265,11 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 
 復旧 ID があれば、同じ MCP プロセスで `get_spawn_routing_observation({retry_id})` を呼べます。従来の `{client, event}` 形式も使えますが、混在や不完全な入力は拒否します。元の `awaiting_context` と `context_retry.outcome` は別の段階です。拒否した重複要求は `last_attempt` に記録し、以前の分類結果を上書きしません。照会は有料要求を発行せず、保持期限も延長しません。実行は常に `not_observed` であり、推薦や引数更新は実際の子の実行証拠ではありません。
 
-### 別の独立した委任を準備する（未リリース）
+### 別の独立した委任を準備する（0.1.6 以降）
 
 defaults Hook が継承呼び出しへの適用を拒否した後、呼び出し元が**同じ独立タスクであり、ユーザーが継承履歴を要求せず、完全な独立指示を渡せる**と宣言できる場合だけ `prepare_fresh_delegation` を使えます。同じプロセスで Hook または再推薦の `retry_id`、`task_name`、`standalone_task` と `declaration: {independent_task:true, same_task:true, original_call_outcome:"blocked", history_requirement:"not_required", standalone_context_complete:true}` を渡してください。完了済みの許可プロファイルを再確認し、分類を追加で呼びません。
 
-元の継承呼び出しは拒否されたままです。別の `next_call.arguments` を確認し、既存の委任権限と通常のホスト権限確認の下で新しい呼び出しを送ってください。`fork_turns: "none"` と、元の選択を保つモデル・effort を含みます。呼び出し元の宣言であり、ユーザー意図や実行を検証するものではありません。履歴が必要・不明、固定役割、resume、未検証の追加実行引数がある場合は使わないでください。参照は一つのタスクだけに結び付き、5分の期限・取消・ポリシー/候補/元の呼び出しの変更で準備を止めます。元の実行を許す advisory 経路には提供しません。[契約と制限](../SPAWN_CONTEXT.md#intentional-fresh-delegation-unreleased)を確認してください。
+元の継承呼び出しは拒否されたままです。別の `next_call.arguments` を確認し、既存の委任権限と通常のホスト権限確認の下で新しい呼び出しを送ってください。`fork_turns: "none"` と、元の選択を保つモデル・effort を含みます。呼び出し元の宣言であり、ユーザー意図や実行を検証するものではありません。履歴が必要・不明、固定役割、resume、未検証の追加実行引数がある場合は使わないでください。参照は一つのタスクだけに結び付き、5分の期限・取消・ポリシー/候補/元の呼び出しの変更で準備を止めます。元の実行を許す advisory 経路には提供しません。[契約と制限](../SPAWN_CONTEXT.md#intentional-fresh-delegation)を確認してください。
 
 ホストが元の呼び出しの拒否を報告した後だけ使ってください。`original_call_outcome` が `executed` または `unknown` なら準備を拒否します。これは呼び出し元の宣言で、サーバーの実行観測ではありません。同じ準備の反復は子の一回実行を保証しません。プロファイルは元の分類要約に基づくため別タスクに再利用しないでください。
 
