@@ -20,6 +20,8 @@ test('product MCP consumes installed policy, ignores caller policy and preserves
  const capabilities=await call('get_routing_capabilities');
  assert.equal(capabilities.automatic_hook.mode,'advisory');assert.equal(capabilities.automatic_hook.host_settings_verified,false);
  assert.equal(capabilities.automatic_hook.observation_tool,'get_spawn_routing_observation');
+ assert.equal(capabilities.automatic_hook.guarantee.missing_hook_detectable,false);
+ assert.equal(capabilities.automatic_hook.guarantee.caller_recovery,'model_driven_not_guaranteed');
  assert.equal(Object.hasOwn(capabilities.automatic_hook,'last_result'),false);
  const event={hook_event_name:'PreToolUse',session_id:'test-session',tool_use_id:'advisory-call',tool_name:'spawn_agent',tool_input:{task_name:'Sort values',message:'Sort the supplied numbers [3, 1, 2] in ascending order.',fork_turns:'none'}};
  const reply=await call('route_spawn_hook',{client:'codex',event,mode:'defaults'});

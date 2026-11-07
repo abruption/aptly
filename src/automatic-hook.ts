@@ -18,7 +18,7 @@ export interface AutoPolicy {
   state_directory: string;
 }
 export interface AutomaticHookObservation {
-  status: 'arguments_updated' | 'advisory' | 'preserved' | 'pending' | 'awaiting_context';
+  status: 'arguments_updated' | 'advisory' | 'preserved' | 'pending' | 'awaiting_context' | 'blocked';
   preflight: 'observed';
   correlation_id?: string;
   classification: 'unknown' | 'evaluating' | 'not_requested' | 'provider_requested' | 'cache_hit' | 'local_outcome';
@@ -30,6 +30,10 @@ export interface AutomaticHookObservation {
   profile_id?: string;
   request_id?: string;
   retry_id?: string;
+  context_retry?: {
+    outcome?: {status:string;reason:string;classification:string;recommendation:'produced'|'not_produced';application:'blocked'|'not_attempted';request_id:string;profile_id?:string};
+    last_attempt:{status:string;reason:string};
+  };
 }
 export interface ContextRetrySeed {
   request_id: string;
@@ -193,7 +197,19 @@ function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: strin
 /** Operator default selection only. No provenance_verified/evidence_verified host claim. */
 export async function automaticHook({ client, event, router, policyPath, signal, context, stillCurrent, onObservation, onNeedsContext }: AutomaticHookOptions): Promise<AutomaticHookResult> {
   const observation=initialHookObservation(client,event);
-  const preserve = (reason: string, request_id?: string): AutomaticHookResult => ({ output: {}, observation: { ...observation, status: 'preserved', reason, ...(request_id ? { request_id } : {}) } });
+  let activeMode:'defaults'|'advisory'|undefined;
+  const preserve = (reason: string, request_id?: string): AutomaticHookResult => {
+    const result:AutomaticHookResult={output:{},observation:{...observation,status:'preserved',reason,...(request_id?{request_id}:{})}};
+    if(!activeMode||signal?.aborted||reason==='call_cancelled')return result;
+    // Respect an operator revocation rather than blocking under a disabled policy.
+    const currentPolicy=loadAutomaticHookPolicy(policyPath).policy;
+    if(!currentPolicy?.enabled)return result;
+    const message=`Aptly could not select compatible subagent defaults (${reason}). Original arguments and execution constraints are preserved; no child execution is observed. Report this outcome. Do not repeat an uncertain paid request with a new ID or change history, explicit choices, roles or permissions to bypass this result.`;
+    result.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:message,
+      ...(currentPolicy.mode==='defaults'?{permissionDecision:'deny',permissionDecisionReason:message}:{})}};
+    result.observation.status=currentPolicy.mode==='defaults'?'blocked':'preserved';
+    return result;
+  };
   try {
     const loaded = loadAutomaticHookPolicy(policyPath);
     if (!loaded.policy || !loaded.policy.enabled || !loaded.fingerprint) return preserve(loaded.reason);
@@ -207,6 +223,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if(!profiles.length)return preserve(hasModel?'explicit_model':hasEffort?'explicit_effort':'no_candidates');
     // Synthetic fixture output must never select a native child's defaults.
     if (loaded.policy.mode === 'defaults' && router.policy.provider_id !== 'decisions') return preserve('synthetic_provider');
+    activeMode=loaded.policy.mode;
     const needsContext = (reason: string, request_id: string): AutomaticHookResult => {
       if (!onNeedsContext) return preserve(reason, request_id);
       if(signal?.aborted)return preserve('call_cancelled',request_id);
@@ -293,7 +310,10 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if(blocked){
       const kept=preserve(blocked,request_id);
       const next=blocked==='effort_argument_unsupported'?'The caller must review the native reasoning_effort argument spelling; Aptly never rewrites an explicit choice.':'Inherited model/effort updates are not verified for this host. Verify the host version and native contract before enabling them; task arguments cannot certify support. Aptly never changes history automatically.';
-      kept.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next}`}};
+      const message=`Aptly recommends ${profile.id}, but application is blocked (${blocked}). Original history and arguments are preserved; no child execution is observed. ${next} Report this constraint and stop this spawn; do not discard history or create a fresh child merely to apply the recommendation.`;
+      kept.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:message,
+        ...(activeMode==='defaults'?{permissionDecision:'deny',permissionDecisionReason:message}:{})}};
+      kept.observation.status=activeMode==='defaults'?'blocked':'preserved';
       return kept;
     }
     const candidate = hookOutput({ client, event: snapshot, recommendation, mode: 'apply', compatibilityVerified: true, policy: router.policy,fillUnspecified:true });

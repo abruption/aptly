@@ -252,6 +252,14 @@ Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_suffic
 
 보충은 원래 호출당 한 번이며 동일 입력은 캐시를 재사용하고 변경한 설명은 충돌로 거부합니다. 재추천도 `needs_context`이거나 실패하면 중단하십시오. 결과 불명인 요청을 새 ID로 반복하지 마십시오. `spawn_application`이 `blocked`이면 추천을 적용하지 말고 제약을 보고하십시오. 적용 가능한 추천도 부모가 명시 선택·이력·역할·권한을 보존하며 새 native 호출에 미지정 모델·effort만 전달해야 합니다. Hook이 부모의 재호출이나 실제 실행까지 자동 수행하지는 않습니다. 원래 `prepare_spawn_context` 연결은 여전히 변경할 수 없습니다. [한계·비용·검증 계약](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased)을 확인하십시오.
 
+### 자동 경유의 보장 범위와 차단 결과 (미출시)
+
+활성화되고 신뢰된 Hook이 연결된 MCP에서 지원 호출을 처리하는 범위만 보장합니다. `get_routing_capabilities.automatic_hook.guarantee`로 이 범위를 확인하십시오. Hook 미등록·미신뢰·연결 해제·호스트 오류는 서버가 탐지하거나 강제로 차단할 수 없으며 호스트가 후속 처리를 결정합니다. MCP 연결 표시만으로 개별 호출의 경유를 판단하지 마십시오.
+
+유효한 활성 정책과 지원 대상이 확인된 뒤, `defaults`는 추천 적용 불가·예산 초과·분류 실패·결과 불명 등을 `deny`와 안전한 사유 코드로 알립니다. 원래 인자와 제약은 유지하지만 해당 스폰은 진행하지 않습니다. 상속 이력이 미검증이면 부모 모델로 조용히 실행하거나 `none`으로 변경하지 말고 제약을 보고하십시오. `advisory`는 차단 없이 같은 한계를 설명합니다. 정책 미설정·비활성화, 명시 튜플·고정 역할·resume은 의도적인 로컬 보존 경로이며 일괄 차단하지 않습니다.
+
+복구 ID가 있으면 `get_spawn_routing_observation({retry_id})`로 같은 MCP 프로세스의 관측을 조회할 수 있습니다. 또는 기존 `{client, event}`를 사용하십시오. 두 형식을 섞거나 일부만 보내면 거부합니다. 원래 `awaiting_context`와 `context_retry.outcome`은 별개이며, 거부된 중복 요청은 `last_attempt`에 표시해 이전 분류 결과를 덮어쓰지 않습니다. 조회는 유료 요청을 만들지 않고 보관 시간을 연장하지 않습니다. 실행은 항상 `not_observed`이므로 추천이나 인자 갱신을 실제 자식 실행으로 표현하지 마십시오.
+
 ## 직접 추천
 
 `recommend_agent` MCP와 CLI `recommend`는 작업 요약을 받아 프로필을 추천합니다. 자식을 직접 생성하지 않습니다. 아래 JSON을 MCP 도구 인자로 전달하거나 파일에 저장해 CLI의 표준 입력으로 제공하십시오.

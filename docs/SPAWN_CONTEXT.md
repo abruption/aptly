@@ -212,3 +212,70 @@ will retry automatically. It does not validate inherited model application,
 Claude Code native recovery, model quality or cost savings. Claude recovery,
 provider abstention, duplicate/unknown outcomes and revocation are covered by
 separate offline tests; they are not native execution evidence.
+
+
+## Visible routing outcomes and correlated recovery (unreleased)
+
+After establishing a valid enabled policy, a supported unpinned/default-selection
+call and eligible profiles, `defaults` denies application incompatibilities and
+classification failures instead of silently continuing with the original model.
+The safe reason is model-visible. Budget exhaustion, unknown results and provider
+errors do not authorize retrying with another identity. Cancellation of the host
+request suppresses output; an operator-disabled policy stays disabled.
+
+In particular, omitted or inherited Codex history still cannot apply a recommended
+profile under the current verified contract. Defaults mode stops the spawn and
+asks the parent to report that constraint. It does not silently rewrite history,
+create a fresh child or execute the parent's defaults. Advisory mode remains
+nonblocking feedback. Fully specified tuples, fixed roles and resumed agents
+retain intentional local preservation without unnecessary paid classification.
+
+The guarantee is limited to an enabled, trusted, connected and supported Hook.
+The MCP server cannot intercept calls when the host does not invoke it. The
+`automatic_hook.guarantee` capability describes this boundary and does not certify
+installation, trust or dispatch. Missing/untrusted/unavailable Hooks remain a host
+fallback condition, not a server-enforced block. See the official
+[Codex Hook limitations](https://learn.chatgpt.com/docs/hooks) and
+[Claude Code Hook reference](https://code.claude.com/docs/en/hooks).
+
+A parent with a Hook-issued retry ID can query the existing observation tool:
+
+```text
+get_spawn_routing_observation({retry_id})
+```
+
+This is an alternative to `{client, event}`; the two forms are mutually exclusive
+and partial forms are rejected. Both look up the same bounded process-local
+record. Original preflight remains `awaiting_context`; `context_retry.outcome`
+records the separately classified recovery and `context_retry.last_attempt`
+records the latest retrieval/rejection. A conflicting or concurrent duplicate
+does not erase an earlier classification. Only safe status/reason, classification,
+recommendation/application state and allowlisted profile identity are retained in
+this view, never the description, original event, policy or raw provider output.
+Lookups make no paid calls or retention renewal. Missing/expired records do not
+prove bypass, and execution remains `not_observed` throughout.
+
+
+### Ordinary Codex follow-through verification — 2026-11-07
+
+A bounded native Codex CLI 0.167.0 trial used the existing trusted Hook with an
+ephemeral product-server override and a transparent observer. The user prompt
+requested a sorting delegation, a short synthetic task name and omitted model,
+effort, fork and role fields. It did not describe the recovery tool, provide a
+retry sequence or tell the parent how to supply a description after a denial.
+
+The real opaque-body Hook invocation was denied for local context shortage.
+The parent followed the Hook feedback and supplied a bounded description through
+MCP. Exactly one real Decisions classification produced a recommendation, while
+the original omitted-fork history constraint was returned as application blocked.
+The parent reported the constraint without creating a child, switching to a
+fresh fork or supplying a model to bypass it. The HTTP boundary recorder checked
+that only the labelled description was shared as task text, without opaque body
+or native event metadata. Persistent host configuration/trust stayed unchanged;
+temporary files were removed.
+
+This verifies one ordinary follow-through and a stopped inherited application,
+not inherited-model compatibility, unconditional model compliance, a benchmark
+or successful child execution. It does not recover evidence for the historical
+reported session. The earlier fresh-child recovery verification is a separate
+scenario and must not be substituted for this omitted-fork result.

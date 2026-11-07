@@ -137,7 +137,7 @@ for(const client of ['codex','claude'])test(`${client}: sensitive patterns in la
    const event=native(client);
    if(location==='label')event.tool_input[labelField]=synthetic;
    else event.tool_input[bodyField]=location==='second-paragraph'?first+'\n\n'+synthetic:first+' '+'.'.repeat(5000)+synthetic;
-   const result=await f.run(client,event);assert.deepEqual(result.output,{});assert.equal(result.observation.reason,'sensitive_input');
+   const result=await f.run(client,event);assert.equal(result.output.hookSpecificOutput.permissionDecision,'deny');assert.equal(result.observation.reason,'sensitive_input');
   }
  }
  assert.equal(f.sent.length,0);assert.deepEqual(readdirSync(f.state),[]);

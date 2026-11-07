@@ -17,6 +17,10 @@ import { ContextRetries } from './context-retry.ts';
 const taskSchema=z.object({summary:z.string().min(1).max(4000),operation:z.enum(['read_only','write','review','analysis']),context_sufficient:z.boolean()}).strict();
 const constraintsSchema=z.object({model_pinned:z.boolean().optional(),effort_pinned:z.boolean().optional(),role_pinned:z.boolean().optional(),fork_inherits:z.boolean().optional(),provenance_verified:z.boolean().optional()}).strict();
 const hookSchema={client:z.enum(['codex','claude']),event:z.record(z.string(),z.unknown())};
+const observationSchema=z.object({client:hookSchema.client.optional(),event:hookSchema.event.optional(),retry_id:z.string().regex(/^[a-f0-9]{64}$/).optional()}).strict().superRefine((input,ctx)=>{
+ const valid=input.retry_id!==undefined?input.client===undefined&&input.event===undefined:input.client!==undefined&&input.event!==undefined;
+ if(!valid)ctx.addIssue({code:'custom',message:'Supply only {client,event} or only {retry_id}.'});
+});
 const content=(result:Record<string,unknown>):CallToolResult=>({content:[{type:'text',text:JSON.stringify(result)}],structuredContent:result});
 
 export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
@@ -38,12 +42,13 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
   credential_status:credentialStatus,
-  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported'},
+  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported',
+   guarantee:{scope:'enabled_trusted_connected_supported_hook_only',missing_hook_detectable:false,unavailable_host_hook:'host_controls_fallback',eligible_defaults_failure:'deny',inherited_application:'defaults_deny_advisory_feedback',caller_recovery:'model_driven_not_guaranteed'}},
  }));
  server.registerTool('get_spawn_routing_observation',{
-  description:'Look up one exact spawn event in this MCP process (128 calls, 10 minutes). No provider call. Missing records do not prove bypass; argument updates never prove native child execution.',
-  annotations:{...annotations,openWorldHint:false},inputSchema:hookSchema
- },async({client,event})=>content(observations.lookup(client,event)));
+  description:'Look up an exact spawn event OR a Hook-issued retry_id in this MCP process (128 calls, 10 minutes). Supply only {client,event} or only {retry_id}. Original preflight and context_retry outcome are separate; no provider call. Missing records never prove bypass; execution remains not_observed.',
+  annotations:{...annotations,openWorldHint:false},inputSchema:observationSchema
+ },async input=>content(input.retry_id!==undefined?observations.lookupRetry(input.retry_id):observations.lookup(input.client,input.event)));
  server.registerTool('prepare_spawn_context',{
   description:'Register a bounded untrusted description for an exact upcoming spawn event in this MCP process for five minutes. Requires enabled automatic policy. No provider call, file fetching, execution or permissions. The caller must know the real session/call IDs and exact original invocation; invented IDs do not connect to native Hooks.',
   annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false},
@@ -65,7 +70,13 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  server.registerTool('retry_spawn_recommendation',{
   description:'Supply one bounded task description after an Aptly Hook returns needs_context and a retry_id. Use the same MCP process within five minutes; no native call IDs are needed. May make one paid classification; duplicate input reuses its request identity, changed input conflicts. Never spawns or changes history. If still needs_context/unavailable, stop; do not create another ID. A blocked spawn_application remains advisory.',
   annotations,inputSchema:{retry_id:z.string().regex(/^[a-f0-9]{64}$/),description:z.string().max(4000)}
- },async({retry_id,description},extra)=>content(await retries.retry(retry_id,description,extra.signal)));
+ },async({retry_id,description},extra)=>{
+  let result:Record<string,unknown>;
+  try{result=await retries.retry(retry_id,description,extra.signal);}
+  catch{result={status:'unavailable',reason:'context_retry_unavailable',application:'advisory_only',retry_id,retry_allowed:false};}
+  observations.recordRetry(retry_id,result);
+  return content(result);
+ });
  server.registerTool('get_routing_precedence',{
   description:'Explain preserved choices and unknown effective setting sources. Never classifies, reads a transcript, or changes permissions.',annotations:{...annotations,openWorldHint:false},inputSchema:hookSchema
  },async({client,event})=>{

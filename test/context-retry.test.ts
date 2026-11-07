@@ -187,11 +187,27 @@ test('real MCP transport exposes recovery without future call IDs and returns co
  const call=async(name,args)=>{const result=await client.callTool({name,arguments:args});assert.notEqual(result.isError,true);return result.structuredContent??JSON.parse(result.content[0].text);};
  const listed=(await client.listTools()).tools.find(tool=>tool.name==='retry_spawn_recommendation');
  assert.equal(listed.annotations.readOnlyHint,true);assert.equal(listed.annotations.destructiveHint,false);
+ const observationTool=(await client.listTools()).tools.find(tool=>tool.name==='get_spawn_routing_observation');
+ assert.deepEqual(Object.keys(observationTool.inputSchema.properties).sort(),['client','event','retry_id']);
  const args={client:'codex',event:event()},hook=await call('route_spawn_hook',args);
  assert.equal(hook.hookSpecificOutput.permissionDecision,'deny');
  const observed=await call('get_spawn_routing_observation',args);assert.equal(observed.reason,'insufficient_context');
  const result=await call('retry_spawn_recommendation',{retry_id:observed.retry_id,description});
  assert.equal(result.status,'recommended');assert.equal(requests,1);
+ const byId=await call('get_spawn_routing_observation',{retry_id:observed.retry_id});
+ assert.equal(byId.correlation_id,observed.correlation_id);assert.equal(byId.status,'awaiting_context');
+ assert.equal(byId.context_retry.outcome.status,'recommended');assert.equal(byId.context_retry.outcome.profile_id,'codex-routine');
+ for(const invalid of [{retry_id:observed.retry_id,...args},{client:'codex'},{event:args.event},{retry_id:'invalid'},{}]){
+  const reply=await client.callTool({name:'get_spawn_routing_observation',arguments:invalid});assert.equal(reply.isError,true);
+ }
  assert.equal((await call('retry_spawn_recommendation',{retry_id:observed.retry_id,description})).cached,true);assert.equal(requests,1);
+ assert.equal((await call('get_spawn_routing_observation',{retry_id:observed.retry_id})).context_retry.outcome.classification,'cache_hit');assert.equal(requests,1);
+ await call('route_spawn_hook',args);
+ assert.equal((await call('get_spawn_routing_observation',{retry_id:observed.retry_id})).context_retry.outcome.status,'recommended');assert.equal(requests,1);
+ t.mock.method(ContextRetries.prototype,'retry',async()=>{throw Error('SYNTHETIC_PRIVATE_ASYNC_ERROR');});
+ const failed=await call('retry_spawn_recommendation',{retry_id:observed.retry_id,description});
+ assert.equal(failed.reason,'context_retry_unavailable');assert.equal(JSON.stringify(failed).includes('SYNTHETIC_PRIVATE'),false);
+ const after=await call('get_spawn_routing_observation',{retry_id:observed.retry_id});
+ assert.equal(after.context_retry.outcome.status,'recommended');assert.equal(after.context_retry.last_attempt.reason,'context_retry_unavailable');assert.equal(requests,1);
  assert.equal((await call('get_spawn_routing_observation',args)).execution,'not_observed');
 });
