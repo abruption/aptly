@@ -252,6 +252,10 @@ Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context
 
 每个原始调用仅允许补充一次；相同输入复用缓存，修改说明会因冲突而被拒绝。再次需要上下文或失败时，请停止，不要为结果不明的付费请求更换 ID 重试。若 `spawn_application` 为 `blocked`，请报告限制，不要应用推荐。否则，父代理仍须保留显式选择、历史、角色和权限，仅将未指定的模型和 effort 传给新的兼容 native 调用。Hook 不会自行执行父代理的重试或派生操作。原有 `prepare_spawn_context` 关联仍不可修改。请参阅[限制、费用与验证契约](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased)。
 
+重新推荐的响应通过 `next_call.set_if_unspecified` 提供下一次 native 调用所需的未指定字段；不包含已显式指定的模型或 effort，也不会为 Claude 添加 effort。因历史等约束无法应用时，不提供 `next_call`。这些字段不是执行结果或权限批准。
+
+`context_retry_allowed: false` 仅表示不再接受上下文补充。对于兼容的推荐，`caller_review_required` 表示父代理检查参数，并非要求用户重新批准。现有委派授权和宿主权限检查仍然有效。
+
 ### 自动路由的保证范围与阻止结果（尚未发布）
 
 保证仅适用于已启用、已信任且连接到 MCP 的 Hook 所处理的受支持调用。请通过 `get_routing_capabilities.automatic_hook.guarantee` 查看范围。服务器无法检测或强制阻止未注册、未信任、断连或宿主出错的 Hook，后续处理由宿主决定。MCP 连接状态本身不是单次调用经过路由的证据。

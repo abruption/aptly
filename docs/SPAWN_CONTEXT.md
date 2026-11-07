@@ -157,7 +157,7 @@ provider preflight; text is not persisted by Aptly. Duplicate input reuses the
 ledger/cache. Changed input conflicts, including after process recreation.
 Timeout/network/unknown outcomes never issue replacement identities. A second
 `needs_context`, a budget failure or an unavailable result ends this recovery:
-`retry_allowed` is false and no further recovery ticket is created. Each process
+`context_retry_allowed` is false and no further recovery ticket is created. Each process
 holds at most 128 tickets without eviction; duplicates do not extend expiry.
 Restart loses ticket lookup, although persistent bindings and the ledger still
 prevent a recreated original Hook event from creating another paid retry.
@@ -165,7 +165,12 @@ prevent a recreated original Hook event from creating another paid retry.
 The retry tool returns advice, not a rewritten original Hook response or a native
 spawn. For a recommendation, inspect `spawn_application`: `caller_review_required`
 requires the parent to review and explicitly supply only unspecified model/effort
-fields to a new compatible native call. `blocked` requires reporting the original
+fields to a new compatible native call. Caller review means argument review,
+not a request for new user approval. Existing delegation authorization and host
+permission checks still apply; this advisory result grants neither.
+The response supplies concrete fields in
+`next_call.set_if_unspecified`, excluding original explicit choices. Claude
+receives model only, never an effort field. Blocked results omit `next_call`. `blocked` requires reporting the original
 history/application constraint. Never change `all` or omitted fork to `none`,
 discard history, alter explicit choices or bypass permissions to apply advice.
 If no recommendation is available, stop and report the result.
@@ -279,3 +284,37 @@ not inherited-model compatibility, unconditional model compliance, a benchmark
 or successful child execution. It does not recover evidence for the historical
 reported session. The earlier fresh-child recovery verification is a separate
 scenario and must not be substituted for this omitted-fork result.
+
+
+### Claude Code recovery and child verification — 2026-11-07
+
+A native Claude Code 2.1.314 trial used an ephemeral copy of the installed Hook
+settings, a temporary MCP server override and normal permission checks. The
+parent received an ordinary sorting-delegation request with a short initial
+Agent prompt and no initial model. The request explicitly distinguished that
+initial unpinned omission from a user prohibition on later model selection. It
+did not provide recovery tool names or an MCP retry sequence.
+
+The first real Agent call was denied for insufficient context. The parent
+supplied a description through MCP; exactly one real Decisions request selected
+`claude-simple` / `haiku`. The retry returned concrete missing defaults under
+`next_call.set_if_unspecified`. The parent submitted a second Agent call with
+`model: "haiku"`. One actual child produced `[1, 2, 3]`; forwarded child messages
+with parent-tool linkage recorded `claude-haiku-5-5`, also present in model usage.
+The transparent observer did not modify Hook responses. Persistent settings and
+MCP registration were unchanged, permission bypass was not used, and temporary
+files were removed.
+
+Earlier native attempts remain failures, not successes. Two stopped before any
+Agent/classification under the previous login context. Four authenticated trials
+reached recommendation but did not create a child: one resubmitted omitted
+defaults, one answered inline, and two stopped without a second Agent call. The final retained assistant
+report attributed its stop to interpreting the test's model-omission wording as
+a user constraint. The contract was clarified with concrete missing
+fields and `context_retry_allowed` (ending supplementation, not authorizing or
+forbidding native execution), while the final prompt clarified only the initial
+unpinned state. These trials are not a model-quality or cost comparison.
+
+This verifies one caller-driven Claude recovery under explicit unpinned task
+semantics. It does not guarantee every parent model follows feedback, change
+host permission decisions, or establish inherited Codex application support.

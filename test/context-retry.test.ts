@@ -37,7 +37,8 @@ test('opaque short-name Hook denies, accepts one supplement, deduplicates and ne
  assert.equal(executions,0);
  const result=await f.retries.retry(retry_id,description);
  assert.equal(result.status,'recommended');assert.equal(result.profile.model,'gpt-6.1-terra');
- assert.equal(result.spawn_application.status,'caller_review_required');assert.equal(result.retry_allowed,false);
+ assert.equal(result.spawn_application.status,'caller_review_required');assert.equal(result.context_retry_allowed,false);
+ assert.deepEqual(result.next_call.set_if_unspecified,{model:'gpt-6.1-terra',reasoning_effort:'high'});
  assert.equal(f.calls.length,1);assert.match(f.calls[0].input.task.summary,/Caller-supplied/);
  assert.equal(f.calls[0].input.task.summary.includes(ev.tool_input.message),false);
  assert.equal(JSON.stringify(f.calls).includes('review_12345_refresh'),false);
@@ -48,7 +49,7 @@ test('opaque short-name Hook denies, accepts one supplement, deduplicates and ne
  for(const raw of [description,ev.tool_input.message,ev.session_id,ev.tool_use_id])assert.equal(stored.includes(raw),false);
  const next=await f.run(ev);assert.equal(next.observation.retry_id,retry_id);
  const reloaded=new ContextRetries(new Router({policy:f.router.policy,ledgerPath:f.ledgerPath,provider:async()=>{throw Error('must not send');}}),f.policyPath);
- const seed={request_id:first.observation.request_id,client:'codex',eligible_profile_ids:f.router.policy.profiles.filter(p=>p.client==='codex').map(p=>p.id),policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint};
+ const seed={request_id:first.observation.request_id,client:'codex',eligible_profile_ids:f.router.policy.profiles.filter(p=>p.client==='codex').map(p=>p.id),policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint,fill_model:true,fill_effort:true};
  assert.equal(reloaded.register(seed).retry_id,retry_id);
  assert.equal((await reloaded.retry(retry_id,description)).cached,true);
  assert.equal((await reloaded.retry(retry_id,description+' changed')).reason,'context_retry_conflict');
@@ -58,7 +59,7 @@ test('provider needs_context allows one supplement but repeated abstention creat
  ev.tool_input.message='Review this synthetic module for correctness.';
  const first=await f.run(ev);assert.equal(calls,1);assert.equal(first.observation.reason,'provider_needs_context');
  const result=await f.retries.retry(first.observation.retry_id,description);
- assert.equal(result.status,'needs_context');assert.equal(result.retry_allowed,false);assert.equal(calls,2);
+ assert.equal(result.status,'needs_context');assert.equal(result.context_retry_allowed,false);assert.equal(calls,2);
  assert.equal((await f.retries.retry(first.observation.retry_id,description)).cached,true);assert.equal(calls,2);
  assert.equal((await f.run(ev)).observation.retry_id,first.observation.retry_id);assert.equal(calls,2);
 });
@@ -67,7 +68,7 @@ test('inherited/default history remains blocked even after a successful recommen
   const f=fixture(t),ev=event();if(fork)ev.tool_input.fork_turns=fork;else delete ev.tool_input.fork_turns;
   const first=await f.run(ev),result=await f.retries.retry(first.observation.retry_id,description);
   assert.equal(result.status,'recommended');assert.equal(result.spawn_application.status,'blocked');
-  assert.equal(result.spawn_application.reason,'inherited_context_application_unverified');
+  assert.equal(result.spawn_application.reason,'inherited_context_application_unverified');assert.equal(Object.hasOwn(result,'next_call'),false);
   assert.match(result.next_step,/preserve original history/);assert.equal(ev.tool_input.fork_turns,fork);
  }
 });
@@ -84,12 +85,14 @@ test('Claude general-purpose context recovery stays within Claude profiles and d
  assert.equal(first.output.hookSpecificOutput.permissionDecision,'deny');
  const result=await f.retries.retry(first.observation.retry_id,description);
  assert.equal(result.status,'recommended');assert.equal(result.profile.model,'sonnet');
+ assert.deepEqual(result.next_call,{tool:'Agent',set_if_unspecified:{model:'sonnet'},preserve:'all_other_arguments_and_history'});
  assert.equal(Object.hasOwn(result.profile,'reasoning_effort'),false);assert.ok(f.calls[0].profiles.every(p=>p.client==='claude'));
 });
 test('partial pins restrict retry candidates; both pins, roles and sensitive input issue no ticket',async t=>{
  const f=fixture(t),ev=event();ev.tool_input.model='gpt-6.1-terra';
  const first=await f.run(ev),result=await f.retries.retry(first.observation.retry_id,description);
  assert.equal(result.profile.model,'gpt-6.1-terra');assert.deepEqual(f.calls[0].profiles.map(p=>p.id),['codex-routine']);
+ assert.deepEqual(result.next_call.set_if_unspecified,{reasoning_effort:'high'});
  for(const patch of [{model:'gpt-6.1-terra',reasoning_effort:'high'},{role:'reviewer'},{resume:'synthetic'},
   {message:'Review the token sk-syntheticonly12345678 safely'}]){
   const fresh=fixture(t),input=event();Object.assign(input.tool_input,patch);
@@ -102,7 +105,7 @@ test('timeout stays unknown across repeats and restart; no replacement paid ID',
  assert.equal((await f.retries.retry(id,description)).reason,'timeout');assert.equal(calls,1);
  assert.equal((await f.retries.retry(id,description)).reason,'outcome_unknown');assert.equal(calls,1);
  assert.equal((await f.run()).observation.retry_id,id);assert.equal(calls,1);
- const retries=new ContextRetries(f.router,f.policyPath);retries.register({request_id:first.observation.request_id,client:'codex',eligible_profile_ids:f.router.policy.profiles.filter(p=>p.client==='codex').map(p=>p.id),policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint});
+ const retries=new ContextRetries(f.router,f.policyPath);retries.register({request_id:first.observation.request_id,client:'codex',eligible_profile_ids:f.router.policy.profiles.filter(p=>p.client==='codex').map(p=>p.id),policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint,fill_model:true,fill_effort:true});
  assert.equal((await retries.retry(id,description)).reason,'outcome_unknown');assert.equal(calls,1);
 });
 test('description binding survives local provider-preflight failure and ticket recreation',async t=>{
@@ -110,7 +113,7 @@ test('description binding survives local provider-preflight failure and ticket r
  const f=fixture(t,{provider}),first=await f.run(),id=first.observation.retry_id;
  assert.equal((await f.retries.retry(id,description)).reason,'unauthorized');
  assert.equal((await f.retries.retry(id,description+' changed')).reason,'context_retry_conflict');
- const again=new ContextRetries(f.router,f.policyPath);again.register({request_id:first.observation.request_id,client:'codex',eligible_profile_ids:f.router.policy.profiles.filter(p=>p.client==='codex').map(p=>p.id),policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint});
+ const again=new ContextRetries(f.router,f.policyPath);again.register({request_id:first.observation.request_id,client:'codex',eligible_profile_ids:f.router.policy.profiles.filter(p=>p.client==='codex').map(p=>p.id),policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint,fill_model:true,fill_effort:true});
  assert.equal((await again.retry(id,description+' changed')).reason,'context_retry_conflict');
 });
 test('bounds, expiry, policy/catalog changes, cancellation, concurrency and budgets do not loop',async t=>{
@@ -151,7 +154,7 @@ test('original context cancellation/expiry and changed original events revoke re
   assert.equal(calls,1);
  }
  let changed=false,release;const f=fixture(t,{provider:()=>new Promise(resolve=>{release=()=>resolve({choice:'codex-routine'});})});
- const seed={request_id:'synthetic-local-context',client:'codex',eligible_profile_ids:['codex-routine'],policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint};
+ const seed={request_id:'synthetic-local-context',client:'codex',eligible_profile_ids:['codex-routine'],policy_fingerprint:loadAutomaticHookPolicy(f.policyPath).fingerprint,fill_model:true,fill_effort:true};
  const {retry_id}=f.retries.register(seed,()=>changed?'context_cancelled':undefined);
  const pending=f.retries.retry(retry_id,description);await new Promise(resolve=>setImmediate(resolve));changed=true;release();
  assert.equal((await pending).reason,'context_cancelled');

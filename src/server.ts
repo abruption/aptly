@@ -73,7 +73,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  },async({retry_id,description},extra)=>{
   let result:Record<string,unknown>;
   try{result=await retries.retry(retry_id,description,extra.signal);}
-  catch{result={status:'unavailable',reason:'context_retry_unavailable',application:'advisory_only',retry_id,retry_allowed:false};}
+  catch{result={status:'unavailable',reason:'context_retry_unavailable',application:'advisory_only',retry_id,context_retry_allowed:false};}
   observations.recordRetry(retry_id,result);
   return content(result);
  });

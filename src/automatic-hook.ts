@@ -41,6 +41,8 @@ export interface ContextRetrySeed {
   eligible_profile_ids: string[];
   policy_fingerprint: string;
   application_blocked?: string;
+  fill_model?: boolean;
+  fill_effort?: boolean;
 }
 export interface AutomaticHookResult {
   output: HookOutput | { hookSpecificOutput: { hookEventName: 'PreToolUse'; additionalContext: string; permissionDecision?: 'deny'; permissionDecisionReason?: string } };
@@ -231,7 +233,8 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed',request_id);
       const expectedContext=context?.();
       const recovery=onNeedsContext({request_id,client:call.client,eligible_profile_ids:profiles.map(profile=>profile.id),
-        policy_fingerprint:loaded.fingerprint!,application_blocked:applicationConstraint(call)??undefined},()=>{
+        policy_fingerprint:loaded.fingerprint!,application_blocked:applicationConstraint(call)??undefined,
+        fill_model:!hasModel,fill_effort:!hasEffort},()=>{
           const latest=context?.();
           if(latest?.reason)return latest.reason;
           if(latest?.fingerprint!==expectedContext?.fingerprint)return 'context_changed';
