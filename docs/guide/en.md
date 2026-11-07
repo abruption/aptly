@@ -252,6 +252,18 @@ When the automatic Hook returns `insufficient_context` or `provider_needs_contex
 
 One supplement is allowed per original call. Duplicate input reuses the cache; changed descriptions conflict. Stop if the retry still needs context or fails; never replace an uncertain paid request with a new ID. If `spawn_application` is `blocked`, report the constraint without applying the profile. Otherwise the parent must preserve explicit choices, history, roles and permissions when passing only unspecified model/effort to a new compatible native call. The Hook does not itself perform the parent's retry or native execution. The original `prepare_spawn_context` association stays immutable. See the [limits, costs and validation contract](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response-unreleased).
 
+The retry response includes `next_call.set_if_unspecified` with concrete fields for the next native call. It excludes already specified model/effort fields and never adds Claude effort. Blocked history/application results omit `next_call`. These fields are neither execution evidence nor permission approval.
+
+`context_retry_allowed: false` ends further context supplementation. For a compatible recommendation, `caller_review_required` means the parent reviews arguments; it does not request new user approval. Existing delegation authorization and host permission checks still apply.
+
+### Automatic routing guarantees and blocked outcomes (unreleased)
+
+The guarantee covers supported calls handled by an enabled, trusted Hook on a connected MCP process. Check `get_routing_capabilities.automatic_hook.guarantee` for this scope. The server cannot detect or enforce an absent, untrusted, disconnected or host-failed Hook; the host controls fallback. MCP connection status alone is not per-call routing evidence.
+
+After a valid enabled policy and eligible call are established, `defaults` returns a deny decision and a safe reason for incompatible application, budget exhaustion, classification failure or unknown outcomes. Original arguments and constraints remain intact, but that spawn does not proceed. For unverified inherited history, report the constraint instead of silently running parent defaults or switching to `none`. `advisory` describes the limit without blocking. Missing/disabled policy, explicit tuples, fixed roles and resume remain intentional local preservation paths rather than blanket denials.
+
+With a recovery ID, use `get_spawn_routing_observation({retry_id})` on the same MCP process, or use the existing `{client, event}` form. Mixed or partial forms are rejected. Original `awaiting_context` and `context_retry.outcome` are separate stages; rejected duplicates appear under `last_attempt` without replacing an earlier classification outcome. Lookups incur no paid request and do not renew retention. Execution always remains `not_observed`; neither advice nor argument updates establish actual child execution.
+
 ## Direct recommendations
 
 The `recommend_agent` MCP tool and CLI `recommend` accept a task summary and recommend a profile. They do not spawn subagents. Pass this JSON as MCP tool arguments, or save it to a file and provide it to the CLI through standard input.
