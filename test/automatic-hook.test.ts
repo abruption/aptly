@@ -71,7 +71,9 @@ for (const client of ['codex', 'claude']) {
     const field = client === 'codex' ? 'message' : 'prompt';
     for (const body of [undefined, '', 'Sort values', 'Do it', 'Sort [3,2,1].\n\nsk-abcdefghijklmnop', 'Sort [3,2,1].\n\nBearer abcdefghijklmnop']) {
       const ev = event(client); ev.tool_input[field] = body;
-      assert.deepEqual((await f.run(client, ev)).output, {});
+      const outcome=await f.run(client,ev);
+      if(outcome.observation.reason==='invalid_event')assert.deepEqual(outcome.output,{});
+      else assert.equal(outcome.output.hookSpecificOutput.permissionDecision,'deny');
     }
     assert.equal(f.calls.length, 0);
   });
@@ -148,7 +150,8 @@ test('policy/input/catalog changes and cancellation while provider waits discard
     if (change === 'callback') current = false;
     release();
     const outcome = await result;
-    assert.deepEqual(outcome.output, {}); assert.equal(outcome.observation.status, 'preserved');
+    if (['event','catalog'].includes(change)) { assert.equal(outcome.output.hookSpecificOutput.permissionDecision,'deny'); assert.equal(outcome.observation.status,'blocked'); }
+    else { assert.deepEqual(outcome.output,{}); assert.equal(outcome.observation.status,'preserved'); }
   }
 });
 test('task text is bounded by UTF-8 and injection remains data, not policy', async t => {
@@ -175,7 +178,7 @@ test('bounded Claude JSON-string transport works; malformed/foreign/oversized ev
 test('invalid provider choices and local budget failure leave native arguments untouched', async t => {
   for (const choice of ['keep_current', 'needs_context', 'foreign-model']) {
     const f = fixture(t, { provider: async () => ({ choice }) });
-    assert.deepEqual((await f.run()).output, {});
+    assert.equal((await f.run()).output.hookSpecificOutput.permissionDecision, 'deny');
   }
   const f = fixture(t); f.router.policy.max_total_calls = 0;
   assert.equal((await f.run()).observation.reason, 'budget_exhausted'); assert.equal(f.calls.length, 0);
@@ -246,14 +249,18 @@ test('opaque task-name fallback rejects vague, malformed, non-Codex and unbounde
     '_'+name, name+'_', name.replace('_', '__'), name.replace('sort', 'Sort'), name.replace('sort', '정렬'), name.replace('_', ' '),
     name + '_x'.repeat(256), 'sort_supplied_numbers_sk-abcdefghijklmnop_ascending_without_tools']) {
     const ev = event('codex'); ev.tool_input.message = ciphertext; ev.tool_input.task_name = label;
-    assert.deepEqual((await f.run('codex', ev)).output, {});
+    const outcome=await f.run('codex',ev);
+    if(outcome.observation.reason==='invalid_event')assert.deepEqual(outcome.output,{});
+    else assert.equal(outcome.output.hookSpecificOutput.permissionDecision,'deny');
   }
   for (const body of [undefined, '', 'Do it', 'gAAAAA'+'A'.repeat(20), 'gAAAAA'+'A'.repeat(96)+'!', ciphertext+'\n']) {
     const ev = event('codex'); ev.tool_input.task_name = name; ev.tool_input.message = body;
-    assert.deepEqual((await f.run('codex', ev)).output, {});
+    const outcome=await f.run('codex',ev);
+    if(outcome.observation.reason==='invalid_event')assert.deepEqual(outcome.output,{});
+    else assert.equal(outcome.output.hookSpecificOutput.permissionDecision,'deny');
   }
   const claude = event('claude'); claude.tool_input.description = name; claude.tool_input.prompt = ciphertext;
-  assert.deepEqual((await f.run('claude', claude)).output, {});
+  assert.equal((await f.run('claude', claude)).output.hookSpecificOutput.permissionDecision, 'deny');
   assert.equal(f.calls.length, 0);
   const bounded = fixture(t, { routerPolicy: { max_summary_bytes: 80 } });
   const ev = event('codex'); ev.tool_input.task_name = name; ev.tool_input.message = ciphertext;
@@ -280,7 +287,7 @@ test('both pins, unmatched halves and unsupported Claude effort preserve without
 });
 test('a constrained provider cannot select outside the matching profile subset',async t=>{
  const f=fixture(t,{provider:async()=>({choice:'codex-deep'})}),ev=event('codex');ev.tool_input.model=defaultPolicy.profiles.find(p=>p.id==='codex-simple').model;
- const result=await f.run('codex',ev);assert.equal(result.observation.reason,'invalid_choice');assert.equal(result.observation.application,'not_attempted');assert.deepEqual(result.output,{});
+ const result=await f.run('codex',ev);assert.equal(result.observation.reason,'invalid_choice');assert.equal(result.observation.application,'not_attempted');assert.equal(result.output.hookSpecificOutput.permissionDecision,'deny');
 });
 test('inherited calls retain cache, budget, cancellation, unknown and same-call conflict protections',async t=>{
  const inherited=()=>{const ev=event('codex');ev.tool_input.fork_turns='all';return ev;};
@@ -386,7 +393,7 @@ test('revocation or expiry while provider is pending suppresses output without h
   const run=f.run('codex',ev,{context:()=>contexts.lookup('codex',ev)});
   await started;if(expire)now=300000;else contexts.cancel('codex',ev);release();
   const result=await run;
-  assert.equal(result.observation.reason,expire?'context_expired':'context_cancelled');assert.deepEqual(result.output,{});
+  assert.equal(result.observation.reason,expire?'context_expired':'context_cancelled');assert.equal(result.output.hookSpecificOutput.permissionDecision,'deny');
   assert.equal(result.observation.classification,'provider_requested');assert.equal(f.calls.length,1);
   await f.run('codex',ev,{context:()=>contexts.lookup('codex',ev)});assert.equal(f.calls.length,1);
  }
