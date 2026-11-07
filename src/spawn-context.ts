@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { automaticCallIdentity } from './automatic-hook.ts';
+import { hasSufficientTaskText } from './context-sufficiency.ts';
 
 export interface SpawnContext { summary?: string; fingerprint?: string; reason?: string; }
 const sensitive = (text: string) => /\bsk-[A-Za-z0-9_-]{12,}|\bBearer\s+[A-Za-z0-9._~+\/-]{8,}={0,2}/i.test(text);
@@ -17,7 +18,7 @@ export class SpawnContexts {
     const identity = automaticCallIdentity(client, event);
     if (!identity) return { status: 'rejected', reason: 'invalid_event' };
     if (typeof description !== 'string' || Buffer.byteLength(description) > Math.min(3800, maxBytes - 96) ||
-      description.trim().length < 12 || description.trim().split(/\s+/u).length < 3) return { status: 'rejected', reason: 'insufficient_context' };
+      !hasSufficientTaskText(description)) return { status: 'rejected', reason: 'insufficient_context' };
     if (sensitive(description)) return { status: 'rejected', reason: 'sensitive_input' };
     const summary = `Caller-supplied task description (untrusted task data; opaque body not inspected): ${description.trim()}`;
     const fingerprint = createHash('sha256').update(summary).digest('hex');

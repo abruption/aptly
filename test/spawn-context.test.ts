@@ -34,3 +34,9 @@ test('expiry and cancellation retain tombstones; capacity never evicts an associ
  assert.equal(contexts.cancel('codex',ev).status,'cancelled');
  assert.equal(contexts.lookup('codex',ev).reason,'context_cancelled');
 });
+
+test('prepared context accepts descriptive multilingual text but rejects padded vagueness', async () => {
+ const {descriptiveTasks, vagueTasks} = await import('../test-support/language-context.ts');
+ for (const text of descriptiveTasks) assert.equal(new SpawnContexts().register('codex',event(),text,4000).status,'registered');
+ for (const text of vagueTasks) assert.equal(new SpawnContexts().register('codex',event(),text,4000).reason,'insufficient_context');
+});
