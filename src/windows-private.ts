@@ -9,15 +9,15 @@ $ErrorActionPreference = 'Stop'
 try {
  $request = [Console]::In.ReadToEnd() | ConvertFrom-Json
  $path = [string]$request.path
- if ([string]::IsNullOrWhiteSpace($path) -or ![IO.Path]::IsPathRooted($path)) { throw 'invalid' }
+ if ([string]::IsNullOrWhiteSpace($path) -or ![IO.Path]::IsPathRooted($path)) { throw 'aptly_acl_rejected' }
  $attributes = [IO.File]::GetAttributes($path)
- if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'invalid' }
+ if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'aptly_acl_rejected' }
  $isDirectory = ($attributes -band [IO.FileAttributes]::Directory) -ne 0
  $sidType = [Security.Principal.SecurityIdentifier]
  $current = [Security.Principal.WindowsIdentity]::GetCurrent().User
  $allowed = @($current.Value, 'S-1-5-18', 'S-1-5-32-544')
  if ($request.action -eq 'protect-new-directory') {
-  if (!$isDirectory) { throw 'invalid' }
+  if (!$isDirectory) { throw 'aptly_acl_rejected' }
   $acl = [Security.AccessControl.DirectorySecurity]::new()
   $acl.SetOwner($current)
   $acl.SetAccessRuleProtection($true, $false)
@@ -27,21 +27,21 @@ try {
    $acl.AddAccessRule($rule)
   }
   [IO.Directory]::SetAccessControl($path, $acl)
- } elseif ($request.action -ne 'assert-private') { throw 'invalid' }
+ } elseif ($request.action -ne 'assert-private') { throw 'aptly_acl_rejected' }
  $acl = if ($isDirectory) { [IO.Directory]::GetAccessControl($path) } else { [IO.File]::GetAccessControl($path) }
- if ($allowed -notcontains $acl.GetOwner($sidType).Value) { throw 'invalid' }
+ if ($allowed -notcontains $acl.GetOwner($sidType).Value) { throw 'aptly_acl_rejected' }
  $descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($acl.GetSecurityDescriptorBinaryForm(), 0)
- if ($null -eq $descriptor.DiscretionaryAcl) { throw 'invalid' }
+ if ($null -eq $descriptor.DiscretionaryAcl) { throw 'aptly_acl_rejected' }
  foreach ($rule in $acl.GetAccessRules($true, $true, $sidType)) {
-  if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and $allowed -notcontains $rule.IdentityReference.Value) { throw 'invalid' }
+  if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and $allowed -notcontains $rule.IdentityReference.Value) { throw 'aptly_acl_rejected' }
  }
  [Console]::Out.Write('private')
-} catch { [Console]::Out.Write('rejected'); exit 1 }
+} catch { if ($_.Exception.Message -eq 'aptly_acl_rejected') { [Console]::Out.Write('rejected') } else { [Console]::Out.Write('error') }; exit 1 }
 `;
-type Runner = (executable: string, args: readonly string[], input: string) => string;
-interface WindowsPrivateOptions { execute?: Runner }
-const run: Runner = (executable,args,input) => execFileSync(executable,[...args],{
- input, encoding:'utf8', windowsHide:true, timeout:30000, maxBuffer:4096, stdio:['pipe','pipe','pipe']
+type Runner = (executable: string, args: readonly string[], input: string, timeoutMs: number) => string;
+interface WindowsPrivateOptions { execute?: Runner; timeoutMs?: number }
+const run: Runner = (executable,args,input,timeoutMs) => execFileSync(executable,[...args],{
+ input, encoding:'utf8', windowsHide:true, timeout:timeoutMs, maxBuffer:4096, stdio:['pipe','pipe','pipe']
 });
 const copyScript = String.raw`
 $ErrorActionPreference = 'Stop'
@@ -50,13 +50,13 @@ try {
  $request = [Console]::In.ReadToEnd() | ConvertFrom-Json
  $source = [string]$request.source
  $target = [string]$request.target
- if (![IO.Path]::IsPathRooted($source) -or ![IO.Path]::IsPathRooted($target)) { throw 'invalid' }
+ if (![IO.Path]::IsPathRooted($source) -or ![IO.Path]::IsPathRooted($target)) { throw 'aptly_acl_rejected' }
  $source = [IO.Path]::GetFullPath($source)
  $target = [IO.Path]::GetFullPath($target)
- if ([string]::Equals($source, $target, [StringComparison]::OrdinalIgnoreCase) -or ![string]::Equals([IO.Path]::GetDirectoryName($source), [IO.Path]::GetDirectoryName($target), [StringComparison]::OrdinalIgnoreCase)) { throw 'invalid' }
+ if ([string]::Equals($source, $target, [StringComparison]::OrdinalIgnoreCase) -or ![string]::Equals([IO.Path]::GetDirectoryName($source), [IO.Path]::GetDirectoryName($target), [StringComparison]::OrdinalIgnoreCase)) { throw 'aptly_acl_rejected' }
  foreach ($path in @($source, $target)) {
   $attributes = [IO.File]::GetAttributes($path)
-  if (($attributes -band [IO.FileAttributes]::Directory) -ne 0 -or ($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'invalid' }
+  if (($attributes -band [IO.FileAttributes]::Directory) -ne 0 -or ($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'aptly_acl_rejected' }
  }
  $sections = [Security.AccessControl.AccessControlSections]::Access
  $sourceAcl = [IO.File]::GetAccessControl($source, $sections)
@@ -69,19 +69,21 @@ try {
  $acl.SetSecurityDescriptorSddlForm($expected, $sections)
  [IO.File]::SetAccessControl($target, $acl)
  $actual = [IO.File]::GetAccessControl($target, $sections).GetSecurityDescriptorSddlForm($sections)
- if ($expected -cne $actual) { throw 'invalid' }
+ if ($expected -cne $actual) { throw 'aptly_acl_rejected' }
  [Console]::Out.Write('private')
-} catch { [Console]::Out.Write('rejected'); exit 1 }
+} catch { if ($_.Exception.Message -eq 'aptly_acl_rejected') { [Console]::Out.Write('rejected') } else { [Console]::Out.Write('error') }; exit 1 }
 `;
 type FailureCategory = 'timeout' | 'launch' | 'rejected' | 'process' | 'unexpected_output';
 function runScript(scriptText: string, input: object, options: WindowsPrivateOptions) {
  const started = Date.now();
+ const timeoutMs = options.timeoutMs === undefined ? 10000 : options.timeoutMs;
+ if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) throw new Error('windows_private_permissions');
  let category: FailureCategory = 'process';
  try {
   const executable = windowsPowerShellPath();
-  const result = (options.execute ?? run)(executable,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(scriptText,'utf16le').toString('base64')],JSON.stringify(input));
+  const result = (options.execute ?? run)(executable,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(scriptText,'utf16le').toString('base64')],JSON.stringify(input),timeoutMs);
   if (result === 'private') return;
-  category = result === 'rejected' ? 'rejected' : 'unexpected_output';
+  category = result === 'rejected' ? 'rejected' : result === 'error' ? 'process' : 'unexpected_output';
  } catch (error) {
   // Inspect only bounded process metadata; never propagate stderr or input.
   const failure = error as {code?: unknown; stdout?: unknown; status?: unknown};

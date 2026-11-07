@@ -61,13 +61,14 @@ test('private file and state reads require Windows ACL authorization instead of 
  const directory=createTestTemp(t,'codex-windows-private-test-'), path=join(directory,'metadata.json');
  writeFileSync(path,'{}',{mode:0o644}); chmodSync(directory,0o755);
  const originalExec=childProcess.execFileSync, platform=Object.getOwnPropertyDescriptor(process,'platform');
- let reject=false; const calls=[];
- childProcess.execFileSync=(_exe,_args,options) => {calls.push(JSON.parse(options.input)); return reject?'rejected':'private';};
+ let reject=false; const calls=[], timeouts=[];
+ childProcess.execFileSync=(_exe,_args,options) => {calls.push(JSON.parse(options.input)); timeouts.push(options.timeout); return reject?'rejected':'private';};
  Object.defineProperty(process,'platform',{value:'win32'});syncBuiltinESMExports();
  try {
   assertPrivateStatePath(path);
   assert.equal(readRegularFile(path,{privateFile:true}).toString(),'{}');
   assert.ok(calls.some(call=>call.path===directory)); assert.ok(calls.some(call=>call.path===path));
+  assert.ok(timeouts.every(timeout=>timeout===10000));
   reject=true;
   assert.throws(()=>assertPrivateStatePath(path),/windows_private_permissions/);
   assert.throws(()=>readRegularFile(path,{privateFile:true}),/windows_private_permissions/);
@@ -120,4 +121,26 @@ test('ACL failures carry bounded categories without exposing process output or r
   assert.equal(calls,1);
  }
  assert.throws(() => assertWindowsPrivatePath('C:\\private',{execute:()=> 'unexpected secret'}),error=>error.category==='unexpected_output' && !JSON.stringify(error).includes('secret'));
+});
+
+
+test('ACL subprocess uses bounded timeouts and fixed script outcome tokens', () => {
+ for (const [timeoutMs, expected] of [[undefined,10000],[30000,30000]]) {
+  let observed;
+  protectNewWindowsPrivateDirectory('C:\\fixture',{timeoutMs,execute(_exe,args,_input,timeout) {
+   observed=timeout;
+   const script=Buffer.from(args.at(-1),'base64').toString('utf16le');
+   assert.match(script,/throw 'aptly_acl_rejected'/);
+   assert.match(script,/Exception.Message -eq 'aptly_acl_rejected'/);
+   assert.match(script,/Out.Write\('rejected'\)/);
+   assert.match(script,/Out.Write\('error'\)/);
+   return 'private';
+  }});
+  assert.equal(observed,expected);
+ }
+ for(const timeoutMs of [null,0,-1,30001,Infinity,NaN,1.5,'30000']) {
+  assert.throws(()=>protectNewWindowsPrivateDirectory('C:\\fixture',{timeoutMs,execute:()=>assert.fail('must not execute')}),/windows_private_permissions/);
+ }
+ assert.throws(()=>assertWindowsPrivatePath('C:\\fixture',{execute:()=> 'error'}), error=>error.category==='process');
+ assert.throws(()=>assertWindowsPrivatePath('C:\\fixture',{execute:()=> {throw {code:'ETIMEDOUT',stdout:'rejected'};}}),error=>error.category==='timeout');
 });

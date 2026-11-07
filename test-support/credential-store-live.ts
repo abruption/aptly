@@ -46,7 +46,7 @@ try{
   const aclProbe=join(home,phase);mkdirSync(aclProbe);
   const started=Date.now();
   try {
-   protectNewWindowsPrivateDirectory(aclProbe);
+   protectNewWindowsPrivateDirectory(aclProbe,{timeoutMs:30000});
    console.log(JSON.stringify({phase,elapsed_ms:Date.now()-started,result:'pass'}));
   } catch (error) {
    const failure=error as Error & {category?: string; elapsed_ms?: number};
