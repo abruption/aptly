@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs, { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, chmodSync, symlinkSync, readdirSync } from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
-import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { parse } from 'smol-toml';
-import { setupHosts, removeSetup, setDefaults, setEnvironment, setCredentialReference, configurableEnvironmentKeys } from '../src/setup.ts';
+import { setupHosts, removeSetup, setDefaults, setEnvironment, setCredentialReference, migrateLauncher, configurableEnvironmentKeys } from '../src/setup.ts';
 import { createTestTemp } from '../test-support/temp.ts';
 const save = (path, value) => writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value), { mode: 0o600 });
 const load = path => JSON.parse(readFileSync(path, 'utf8'));
@@ -155,6 +157,130 @@ test('commit failure rolls back only unchanged owned writes and removes atomic s
     assert.deepEqual(installed.clients[0].codes, ['configuration_io_error']);
     assert.equal(readFileSync(join(dir, 'config.toml'), 'utf8'), source);
     assert.deepEqual(readdirSync(dir), ['config.toml']);
+  } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
+});
+
+test('a newly created config is removed when a later hook write fails', t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); save(join(dir, 'unrelated'), 'preserve');
+  const rename = fs.renameSync; let committed = false;
+  try {
+    fs.renameSync = (from, to) => {
+      if (String(to).endsWith('hooks.json')) { assert.equal(committed, true); assert.equal(existsSync(config), true); throw new Error('synthetic hook failure'); }
+      const result = rename(from, to); if (to === config) committed = true; return result;
+    };
+    syncBuiltinESMExports();
+    assert.deepEqual(setupHosts(options).clients[0].codes, ['configuration_io_error']);
+    assert.equal(existsSync(config), false);
+    assert.deepEqual(readdirSync(dir), ['unrelated']);
+    assert.equal(readFileSync(join(dir, 'unrelated'), 'utf8'), 'preserve');
+  } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
+});
+
+test('rollback preserves another writer replacing a newly created config', t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); const rename = fs.renameSync;
+  try {
+    fs.renameSync = (from, to) => {
+      if (String(to).endsWith('hooks.json')) { assert.equal(existsSync(config), true); save(config, 'model = "concurrent"\n'); throw new Error('synthetic hook failure'); }
+      return rename(from, to);
+    };
+    syncBuiltinESMExports();
+    assert.deepEqual(setupHosts(options).clients[0].codes, ['configuration_io_error', 'rollback_concurrent_change']);
+    assert.equal(readFileSync(config, 'utf8'), 'model = "concurrent"\n');
+    assert.deepEqual(readdirSync(dir), ['config.toml']);
+  } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
+});
+
+test('POSIX permissions are prepared before replacement, including the former target chmod failure', { skip: process.platform === 'win32' }, t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); save(config, 'model = "synthetic-original"\n'); chmodSync(config, 0o644);
+  const chmod = fs.chmodSync; let targetCalls = 0, stageCalls = 0;
+  try {
+    fs.chmodSync = (path, mode) => { if (path === config) { targetCalls++; throw new Error('synthetic target chmod failure'); } if (String(path).includes('.aptly-stage-')) stageCalls++; return chmod(path, mode); };
+    syncBuiltinESMExports();
+    assert.equal(setupHosts(options).status, 'complete');
+    assert.equal(targetCalls, 0); assert.ok(stageCalls > 0);
+    assert.equal(statSync(config).mode & 0o777, 0o644);
+  } finally { fs.chmodSync = chmod; syncBuiltinESMExports(); }
+});
+
+test('POSIX stage permission failure leaves the original content and mode intact', { skip: process.platform === 'win32' }, t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml'), source = 'model = "original"\n';
+  mkdirSync(dir); save(config, source); chmodSync(config, 0o644);
+  const chmod = fs.chmodSync;
+  try {
+    fs.chmodSync = (path, mode) => { if (String(path).includes('.aptly-stage-')) throw new Error('synthetic chmod failure'); return chmod(path, mode); };
+    syncBuiltinESMExports();
+    assert.deepEqual(setupHosts(options).clients[0].codes, ['configuration_io_error']);
+    assert.equal(readFileSync(config, 'utf8'), source); assert.equal(statSync(config).mode & 0o777, 0o644);
+    assert.deepEqual(readdirSync(dir), ['config.toml']);
+  } finally { fs.chmodSync = chmod; syncBuiltinESMExports(); }
+});
+
+test('restrictive umask preserves mode and rollback after a later failure', { skip: process.platform === 'win32' }, t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir, { mode: 0o700 }); mkdirSync(join(dir, 'aptly'), { mode: 0o700 }); mkdirSync(join(dir, 'aptly', 'state'), { mode: 0o700 });
+  save(config, 'model = "original"\n'); chmodSync(config, 0o600);
+  const script = `
+    import fs from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    import { setupHosts } from ${JSON.stringify(pathToFileURL(resolve('src/setup.ts')).href)};
+    const [home, config] = process.argv.slice(1);
+    const rename = fs.renameSync; let committedMode;
+    fs.renameSync = (from, to) => {
+      if (String(to).endsWith('hooks.json')) throw new Error('synthetic later failure');
+      const result = rename(from, to);
+      if (to === config) committedMode = fs.statSync(config).mode & 0o777;
+      return result;
+    };
+    syncBuiltinESMExports(); process.umask(0o277);
+    const result = setupHosts({ home, env: {}, clients: ['codex'], packageRoot: home });
+    process.stdout.write(JSON.stringify({ result, committedMode, mode: fs.statSync(config).mode & 0o777, content: fs.readFileSync(config, 'utf8') }));
+  `;
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', script, options.home, config], { encoding: 'utf8' });
+  assert.equal(child.status, 0, child.stderr);
+  const actual = JSON.parse(child.stdout);
+  assert.deepEqual(actual.result.clients[0].codes, ['configuration_io_error']);
+  assert.equal(actual.committedMode, 0o600); assert.equal(actual.mode, 0o600);
+  assert.equal(actual.content, 'model = "original"\n'); assert.deepEqual(readdirSync(dir).sort(), ['aptly', 'config.toml']);
+});
+
+for (const operation of ['setup', 'defaults', 'environment', 'migration', 'removal']) test(`${operation} rolls back a committed file with its POSIX mode after a later write fails`, { skip: process.platform === 'win32' }, t => {
+  const options = { ...fixture(t), clients: ['codex'], env: { ROUTER_PROVIDER: 'fixture' } }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); save(config, 'model = "original"\n');
+  if (operation !== 'setup') assert.equal(setupHosts(options).status, 'complete');
+  chmodSync(config, 0o644); const before = readFileSync(config, 'utf8');
+  const rename = fs.renameSync;
+  try {
+    fs.renameSync = (from, to) => { if (String(to).endsWith(operation === 'setup' || operation === 'removal' ? 'hooks.json' : 'setup-ownership.json')) throw new Error('synthetic later failure'); return rename(from, to); };
+    syncBuiltinESMExports();
+    const outcome = operation === 'setup' ? setupHosts(options) : operation === 'defaults' ? setDefaults(options) : operation === 'environment' ? setEnvironment('ROUTER_PROVIDER', 'decisions', options) : operation === 'migration' ? migrateLauncher({ ...options, packageRoot: resolve('.') }) : removeSetup(options);
+    assert.deepEqual(outcome.clients[0].codes, ['configuration_io_error']);
+    assert.equal(readFileSync(config, 'utf8'), before); assert.equal(statSync(config).mode & 0o777, 0o644);
+    assert.equal(readdirSync(dir).some(name => name.startsWith('.aptly-stage-')), false);
+  } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
+});
+
+test('rollback reports an I/O failure separately from a concurrent change', t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); save(config, 'model = "before"\n'); const rename = fs.renameSync; let configWrites = 0;
+  try {
+    fs.renameSync = (from, to) => { if (to === config && ++configWrites === 2) throw new Error('synthetic rollback failure'); if (String(to).endsWith('hooks.json')) throw new Error('synthetic commit failure'); return rename(from, to); };
+    syncBuiltinESMExports();
+    assert.deepEqual(setupHosts(options).clients[0].codes, ['configuration_io_error', 'rollback_failed']);
+    assert.match(readFileSync(config, 'utf8'), /mcp_servers\.aptly/);
+  } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
+});
+
+test('rollback does not overwrite another writer changing only permissions', { skip: process.platform === 'win32' }, t => {
+  const options = { ...fixture(t), clients: ['codex'] }, dir = join(options.home, '.codex'), config = join(dir, 'config.toml');
+  mkdirSync(dir); save(config, 'model = "before"\n'); const rename = fs.renameSync;
+  try {
+    fs.renameSync = (from, to) => { if (String(to).endsWith('hooks.json')) { chmodSync(config, 0o644); throw new Error('synthetic commit failure'); } return rename(from, to); };
+    syncBuiltinESMExports();
+    assert.deepEqual(setupHosts(options).clients[0].codes, ['configuration_io_error', 'rollback_concurrent_change']);
+    assert.equal(statSync(config).mode & 0o777, 0o644); assert.match(readFileSync(config, 'utf8'), /mcp_servers\.aptly/);
   } finally { fs.renameSync = rename; syncBuiltinESMExports(); }
 });
 
