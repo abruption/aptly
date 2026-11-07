@@ -1,10 +1,14 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.6 준비
+## 0.1.6 게시와 검증
 
-[Issue #85](https://github.com/abruption/aptly/issues/85)에서 #81·#84·#82·#83을 main에 순차 병합한 소스로 0.1.6을 준비합니다. #84는 스택 기반 브랜치에서 main으로 기준을 바꾸고 최신 main CI를 확인해 병합했습니다. 네 수정이 포함된 준비 기반 main은 `0f0da280f0d9b5dca17c0b61fb18b6e180f1c3a5`이며, 준비 PR의 버전 변경 소스와 실제 미래 게시 소스는 구분합니다. [한국어 릴리즈 노트 초안](release-notes/0.1.6.md)에 변경 이슈·업데이트 절차·지원 및 검증 경계를 기록합니다.
+2026-11-07에 `v0.1.6` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42377420833)를 수행했습니다. 설치 시험·새 runner 패키징·게시 3개 job이 성공했고 확인 당시 npm `latest`는 0.1.6입니다. [한국어 릴리즈 노트](release-notes/0.1.6.md)와 [실제 검증 기록](releases/0.1.6.md)에 변경·소스·실행·digest와 검증 범위를 기록합니다.
 
-이 단계는 릴리즈 준비 PR과 검증이며 실제 게시가 아닙니다. 준비 PR 병합과 정확한 main SHA의 CI 성공 후 별도 게시 지시에 따라 `v0.1.6` 태그를 생성·push하십시오. 태그 push는 기존 Actions OIDC 게시를 시작합니다. source SHA·run·attempt·artifact/registry digest·서명·provenance는 새 실행의 실제 값으로 확인해야 하며 과거 버전의 성공을 재사용하지 않습니다. 전역 설치·운영 원장·호스트 설정·키와 보호 규칙은 이번 준비에서 변경하지 않습니다.
+준비 PR #86이 병합된 `a6306f6c2f08237516ec513a06d449e261e8aaad`의 main CI 7개 성공 후 태그를 생성했습니다. 이번 artifact와 registry 파일은 SHA-256·SHA-512 SRI에서 일치했고, 정확한 npm SLSA v1 bundle 및 GitHub 인증서 SAN·소스·태그·workflow·실행 identity를 검증했습니다. 준비 기반 main과 실제 게시 소스를 구분하고 이전 버전의 결과를 재사용하지 않았습니다.
+
+provenance endpoint의 초기 404→200 전파를 읽기 전용으로 기다렸으며, 첫 격리 npm 설치 `ETIMEDOUT` 실패를 보존한 뒤 같은 게시 실행의 검증을 완료했습니다. 두 현상의 원인을 동일시하지 않으며 태그·게시 job을 재실행하지 않았습니다. 실제 OIDC 게시·인증서를 확인했으며 로컬 npm 관리자 설정을 새로 조회했다고 주장하지 않습니다.
+
+별도 독립 위임 준비·다국어 맥락 검사·POSIX 설정 복구·Windows ACL 진단을 포함합니다. 호출자 선언·서버 실행 미관측·과거 Windows 원인 미확정 경계를 유지합니다. 전역 설치·운영 원장·호스트 설정·키는 변경하지 않았습니다.
 
 ## 0.1.5 게시와 검증
 
