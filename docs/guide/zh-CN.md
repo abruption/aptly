@@ -227,6 +227,10 @@ Codex 正文不透明时，`cleanup_merged_worktrees` 等具体的短任务名�
 | `retry_spawn_recommendation` | 使用 Hook 返回的 retry_id 补充一次任务说明并重新推荐 |
 | `prepare_fresh_delegation` | 根据已完成的继承调用推荐准备独立 Codex 调用参数，不执行调用 |
 
+### confidence 与推荐保留
+
+`confidence` 是元数据，尚未验证其为经过校准的正确概率。目前不将其用作自动应用的阈值。目前，只要满足其他应用条件，0 和较低值也可被接受。实际 Decisions 响应缺少该值时会被作为错误拒绝；通用 Router 与已保存结果中的该字段仍为可选项。`keep_current` 与 `needs_context` 是独立于数值的结果，遵循既有的保留与上下文补充规则。显式指定的模型、effort、历史和权限均会保留。小规模分类评估不能证明子任务质量或总成本有所改善。
+
 ### 对外传输与关闭自动共享
 
 自动分类的 `summary` 是由有效任务标签与正文**截取后的首段拼接成的摘录**，并不是重新进行语义摘要或匿名化。其 UTF-8 大小不超过 `min(4000, max_summary_bytes)`；这不是整个 HTTP 请求的大小限制。Codex 的 opaque 消息回退仅使用足够具体的 `task_name`，不会解码或传输该正文。标签也可能包含敏感信息。
