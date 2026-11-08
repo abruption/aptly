@@ -231,7 +231,7 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 
 사전 등록 설명이 없는 자동 분류의 `summary`는 허용된 작업 라벨과 본문의 **첫 문단을 잘라 붙인 발췌문**입니다. 의미를 새로 요약하거나 익명화하지 않습니다. UTF-8 크기는 `min(4000, max_summary_bytes)` 이하이며 전체 HTTP 요청의 크기 제한은 아닙니다. Codex의 opaque 메시지 fallback은 본문을 해독·전송하지 않고 충분히 구체적인 `task_name`만 사용합니다. 라벨에도 민감한 정보가 들어갈 수 있습니다.
 
-`prepare_spawn_context`에 유효한 설명을 등록하면 고정 접두사와 그 설명이 native 발췌 대신 분류에 사용됩니다. 등록 자체는 API를 호출하지 않습니다. `retry_spawn_recommendation`은 문맥 부족 응답 이후 고정 접두사와 새 보충 설명으로 한 번 재추천하며, 이전 본문을 덧붙이지 않습니다. 두 경로 모두 원시 설명은 `min(3800, max_summary_bytes - 96)` 바이트 이하이고 접두사 포함 설명은 `min(4000, max_summary_bytes)` 바이트 이하입니다. `prepare_fresh_delegation` 자체는 완료된 추천을 재사용해 추가 분류를 호출하지 않으며, 독립 지시를 로컬의 다음 호출 인자로 반환합니다. 이후 native 호출은 별도 경유 검사를 받습니다. 어느 경로도 설명의 비민감성이나 자동 익명화를 보장하지 않습니다.
+`prepare_spawn_context`에 유효한 설명을 등록하면 고정 접두사와 그 설명이 native 발췌 대신 분류에 사용됩니다. 등록 자체는 API를 호출하지 않습니다. `retry_spawn_recommendation`은 문맥 부족 응답 이후 고정 접두사와 새 보충 설명으로 한 번 재추천하며, 이전 본문을 덧붙이지 않습니다. 두 경로 모두 원시 설명은 `min(3800, max_summary_bytes - 96)` 바이트 이하이고 접두사 포함 설명은 `min(4000, max_summary_bytes)` 바이트 이하입니다. `prepare_fresh_delegation` 자체는 완료된 추천을 재사용해 추가 분류를 호출하지 않으며, 독립 지시를 로컬의 다음 호출 인자로 반환합니다. 반환된 모델·effort를 그대로 명시한 Codex 호출은 현재 Hook에서 `explicit_model`로 분류 없이 보존됩니다. 이후 호출의 경유 검사가 추가 분류를 뜻하지는 않습니다. 어느 경로도 설명의 비민감성이나 자동 익명화를 보장하지 않습니다.
 
 Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_sufficient`와 후보 프로필 ID·모델·effort 설명 및 설정된 모델 특성이 전달됩니다. 분류용 API 키는 `Authorization` 헤더로, 요청 ID는 `X-Client-Request-Id` 헤더로 전송됩니다. 자동 경로의 ID는 해시이며 직접 추천의 ID는 호출자가 지정합니다. ID나 후보 설명에도 비밀을 넣지 마십시오.
 
@@ -256,6 +256,8 @@ Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_suffic
 보충은 원래 호출당 한 번이며 동일 입력은 캐시를 재사용하고 변경한 설명은 충돌로 거부합니다. 재추천도 `needs_context`이거나 실패하면 중단하십시오. 결과 불명인 요청을 새 ID로 반복하지 마십시오. `spawn_application`이 `blocked`이면 추천을 적용하지 말고 제약을 보고하십시오. 적용 가능한 추천도 부모가 명시 선택·이력·역할·권한을 보존하며 새 native 호출에 미지정 모델·effort만 전달해야 합니다. Hook이 부모의 재호출이나 실제 실행까지 자동 수행하지는 않습니다. 원래 `prepare_spawn_context` 연결은 여전히 변경할 수 없습니다. [한계·비용·검증 계약](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response)을 확인하십시오.
 
 재추천 응답의 `next_call.set_if_unspecified`는 다음 native 호출에 넣을 미지정 필드만 제공합니다. 명시한 모델·effort는 포함하지 않으며 Claude에는 effort를 추가하지 않습니다. 이력 등으로 적용이 막히면 `next_call`을 제공하지 않습니다. 이 값은 실행 결과나 권한 승인이 아닙니다.
+
+캐시 재사용은 첫 결과가 완료된 경우에 한합니다. 결과가 불명이면 `outcome_unknown`으로 유지하며 새 ID로 유료 호출을 반복하지 마십시오.
 
 `context_retry_allowed: false`는 추가 설명 보충을 더 허용하지 않는다는 뜻입니다. 호환 가능한 추천에서 `caller_review_required`는 부모가 인자를 검토한다는 의미이며 새 사용자 승인을 요구하지 않습니다. 기존 위임 권한과 호스트 권한 검사는 그대로 유지됩니다.
 

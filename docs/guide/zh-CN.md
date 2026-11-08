@@ -231,7 +231,7 @@ Codex 正文不透明时，`cleanup_merged_worktrees` 等具体的短任务名�
 
 没有预先注册的说明时，自动分类的 `summary` 是由有效任务标签与正文**截取后的首段拼接成的摘录**，并不是重新进行语义摘要或匿名化。其 UTF-8 大小不超过 `min(4000, max_summary_bytes)`；这不是整个 HTTP 请求的大小限制。Codex 的 opaque 消息回退仅使用足够具体的 `task_name`，不会解码或传输该正文。标签也可能包含敏感信息。
 
-有效的 `prepare_spawn_context` 说明会加上固定前缀，替代 native 摘录用于分类；注册本身不调用 API。收到上下文不足的响应后，`retry_spawn_recommendation` 可使用固定前缀与新的补充说明重新推荐一次，不附加先前正文。两条路径均将原始说明限制在 `min(3800, max_summary_bytes - 96)` 字节以内，含前缀的说明限制在 `min(4000, max_summary_bytes)` 字节以内。`prepare_fresh_delegation` 本身复用已完成的推荐，不再调用分类，并将独立指令作为本地下一次调用的参数返回。后续 native 调用仍有独立的路由检查。这些路径均不保证说明不含敏感信息，也不保证自动匿名化。
+有效的 `prepare_spawn_context` 说明会加上固定前缀，替代 native 摘录用于分类；注册本身不调用 API。收到上下文不足的响应后，`retry_spawn_recommendation` 可使用固定前缀与新的补充说明重新推荐一次，不附加先前正文。两条路径均将原始说明限制在 `min(3800, max_summary_bytes - 96)` 字节以内，含前缀的说明限制在 `min(4000, max_summary_bytes)` 字节以内。`prepare_fresh_delegation` 本身复用已完成的推荐，不再调用分类，并将独立指令作为本地下一次调用的参数返回。按返回参数明确指定模型与 effort 的 Codex 调用，目前会由 Hook 以 `explicit_model` 保留，不进行分类。检查后续调用并不意味着再次分类。这些路径均不保证说明不含敏感信息，也不保证自动匿名化。
 
 Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context_sufficient`，以及候选配置 ID、模型与 effort 说明、已配置的模型特性。分类 API 密钥通过 `Authorization` 请求头发送，请求 ID 通过 `X-Client-Request-Id` 发送。自动路径使用哈希 ID，直接推荐的 ID 由调用方提供。请勿在 ID 或候选说明中放入秘密信息。
 
@@ -256,6 +256,8 @@ Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context
 每个原始调用仅允许补充一次；相同输入复用缓存，修改说明会因冲突而被拒绝。再次需要上下文或失败时，请停止，不要为结果不明的付费请求更换 ID 重试。若 `spawn_application` 为 `blocked`，请报告限制，不要应用推荐。否则，父代理仍须保留显式选择、历史、角色和权限，仅将未指定的模型和 effort 传给新的兼容 native 调用。Hook 不会自行执行父代理的重试或派生操作。原有 `prepare_spawn_context` 关联仍不可修改。请参阅[限制、费用与验证契约](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response)。
 
 重新推荐的响应通过 `next_call.set_if_unspecified` 提供下一次 native 调用所需的未指定字段；不包含已显式指定的模型或 effort，也不会为 Claude 添加 effort。因历史等约束无法应用时，不提供 `next_call`。这些字段不是执行结果或权限批准。
+
+只有首次结果已完成时才能复用缓存。结果未知时保持 `outcome_unknown`；请勿使用新 ID 重复付费调用。
 
 `context_retry_allowed: false` 仅表示不再接受上下文补充。对于兼容的推荐，`caller_review_required` 表示父代理检查参数，并非要求用户重新批准。现有委派授权和宿主权限检查仍然有效。
 

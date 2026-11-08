@@ -28,7 +28,7 @@ provider는 `task` 전체 객체가 아니라 `summary`, `operation`, `context_s
 - 유효한 `prepare_spawn_context` 등록이 있으면 호출자가 작성한 설명에 고정 출처 접두사를 붙여 native 발췌 대신 사용합니다. 등록 자체는 분류 요청을 보내지 않으며, 실제 Hook이 이 설명을 선택해 분류할 때 provider로 전송합니다. 정확한 예정 호출과 같은 MCP 프로세스에 결합되고 5분 동안 유효합니다. 만료·취소·불일치한 등록은 native 발췌로 되돌아가지 않고 경유를 중단합니다.
 - 등록된 설명이 없는 평문 native 작업은 허용 크기의 label을 `Task: ...` 접두사로 붙이고, 작업 본문의 첫 문단을 UTF-8 경계에서 잘라 사용합니다. 후속 문단은 전송 설명에 포함하지 않습니다. 이는 의미를 요약하거나 익명화하는 과정이 아닙니다.
 - 불투명 메시지 형식과 일치하는 Codex 입력은 원문을 해독·전송하지 않습니다. 현재의 구체성 조건을 만족한 평문 `task_name`만 출처를 표시하여 사용합니다. label도 민감할 수 있으며 label만으로 추천이 충분하다는 일반적 품질 검증은 없습니다.
-- `retry_spawn_recommendation`은 Hook의 `insufficient_context` 또는 `provider_needs_context` 이후 호출자가 작성한 보충 설명으로 한 번 재추천할 수 있습니다. native 원문이나 이전 설명을 덧붙이지 않고 고정 접두사와 보충 설명을 전송합니다. 로컬 문맥 부족은 최초 분류 전일 수 있고 provider의 문맥 부족은 이미 한 번 전송한 뒤일 수 있습니다. 같은 설명의 반복은 캐시를 재사용하며 변경된 설명·불명 결과를 새 유료 ID로 우회하지 않습니다.
+- `retry_spawn_recommendation`은 Hook의 `insufficient_context` 또는 `provider_needs_context` 이후 호출자가 작성한 보충 설명으로 한 번 재추천할 수 있습니다. native 원문이나 이전 설명을 덧붙이지 않고 고정 접두사와 보충 설명을 전송합니다. 로컬 문맥 부족은 최초 분류 전일 수 있고 provider의 문맥 부족은 이미 한 번 전송한 뒤일 수 있습니다. 완료된 결과는 같은 설명의 반복에 캐시를 재사용합니다. 결과가 불명이면 `outcome_unknown`으로 유지하며 변경된 설명·불명 결과를 새 유료 ID로 우회하지 않습니다.
 - 등록·재추천의 원시 설명은 `min(3800, max_summary_bytes - 96)` 바이트 이하이고, 접두사를 포함한 설명도 `min(4000, max_summary_bytes)` 바이트 이하여야 합니다. 두 경로는 구체성 및 알려진 민감 패턴을 검사하지만 비민감성을 인증하지 않습니다.
 - 자동 설명은 `min(4000, max_summary_bytes)` **바이트** 이내입니다. 이 값은 전체 HTTP 요청 크기 제한이 아닙니다. 직접 추천의 설명은 Router의 유효 `max_summary_bytes`를 따릅니다.
 - native 발췌 경로의 민감 패턴 검사는 label과 제한된 native 본문 전체에 적용한 뒤 발췌합니다. 따라서 전송에서 빠지는 후속 문단이나 잘리는 끝부분에 알려진 키 패턴이 있어도 요청을 보존합니다.
@@ -56,7 +56,7 @@ JSON 원장은 요청 ID·digest·완료/불명 상태·선택 프로필·사용
 
 진단 JSON·Markdown은 허용된 상태 코드와 도구·환경 분류만 내보내며 작업 설명·설정값·개인 경로·키·원시 오류를 포함하지 않습니다. 자동 Hook의 관측 결과도 상태·사유·프로필·요청 ID로 제한합니다. 반면 native Hook의 `updatedInput`은 **로컬 호스트가 작업을 실행하도록 원래 task를 유지**합니다. 이 응답이나 호스트의 transcript를 외부 분류 요청 또는 진단 보관과 혼동하지 않습니다. 호스트와 외부 시스템의 로깅을 Aptly가 제어한다고 주장하지 않습니다.
 
-`prepare_fresh_delegation`은 완료된 추천을 재사용하며 추가 분류를 호출하지 않습니다. `standalone_task`는 로컬 `next_call.arguments.message`로 반환되는 새 호출용 지시입니다. 이 준비 응답만으로 native 실행이나 이후 호출의 외부 전송을 인증하지 않습니다. 설명 등록·재추천·별도 호출의 조건은 [맥락 전달 계약](SPAWN_CONTEXT.md)을 확인하십시오.
+`prepare_fresh_delegation`은 완료된 추천을 재사용하며 추가 분류를 호출하지 않습니다. `standalone_task`는 로컬 `next_call.arguments.message`로 반환되는 새 호출용 지시입니다. 이 준비 응답만으로 native 실행이나 이후 호출의 외부 전송을 인증하지 않습니다. 반환 인자에는 모델·effort가 명시되므로 그대로 제출한 Codex 호출은 현재 Hook에서 `explicit_model`로 분류 없이 보존됩니다. 이후 호출을 검사한다는 표현은 추가 분류가 반드시 발생한다는 뜻이 아닙니다. 설명 등록·재추천·별도 호출의 조건은 [맥락 전달 계약](SPAWN_CONTEXT.md)을 확인하십시오.
 
 ## 대안과 아직 결정하지 않은 항목
 
