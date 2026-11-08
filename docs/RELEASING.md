@@ -1,5 +1,13 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.7 릴리즈 준비
+
+[#93](https://github.com/abruption/aptly/issues/93)에서 0.1.7을 준비합니다. 기준 main은 `e2e4c48cade4316e06c03f6ab5e299c8133b8b13`이며 [main CI](https://github.com/abruption/aptly/actions/runs/42470133835)가 성공했습니다. #92는 처음 #90 브랜치에 병합됐고, #90의 main 통합으로 #91과 함께 포함됐습니다. [한국어 릴리즈 노트 초안](release-notes/0.1.7.md)에 이슈·변경·전환 조건을 기록합니다.
+
+후보 버전·네 README/가이드의 지원 표시를 0.1.7로 갱신합니다. 과거 0.1.6 게시 기록과 기능별 최소 버전·confidence 파일럿의 원본 입력/관측값은 그대로 보존합니다. 신규 미선택은 자동 전송하지 않으며 기존 v1은 excerpt로 유지합니다. 기존 원장·키·명시 모델·이력·권한을 변경하지 않습니다.
+
+준비 PR 병합 후 **정확한 새 main SHA의 CI 성공**을 확인하고 별도 게시 지시에 따라 `v0.1.7` 태그를 생성합니다. 새 v* 태그 push는 실제 Actions OIDC 게시를 시작하므로 준비 단계에서 만들거나 push하지 않습니다. 실제 registry 파일·서명·provenance는 새 게시 실행에 대해 별도로 검증하며 이전 버전 근거를 재사용하지 않습니다. 현재 이 절은 게시 성공을 뜻하지 않습니다.
+
 ## 0.1.6 게시와 검증
 
 2026-11-07에 `v0.1.6` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42377420833)를 수행했습니다. 설치 시험·새 runner 패키징·게시 3개 job이 성공했고 확인 당시 npm `latest`는 0.1.6입니다. [한국어 릴리즈 노트](release-notes/0.1.6.md)와 [실제 검증 기록](releases/0.1.6.md)에 변경·소스·실행·digest와 검증 범위를 기록합니다.

@@ -34,7 +34,7 @@ aptly --version
 
 ```sh
 npm install -g aptly@latest --ignore-scripts
-aptly setup --client all --mode defaults
+aptly setup --client all
 ```
 
 명시적 `setup`은 설치 스크립트 실행 여부와 관계없이 사용할 수 있습니다. 기존 실행 경로는 보존하므로 구버전 경로 오류는 아래 복구 절차를 따르십시오. 키 설정·MCP 재시작과 Codex의 `/hooks` 신뢰 승인은 별도로 필요합니다.
@@ -47,7 +47,7 @@ aptly setup --client all --mode defaults
 
 ```sh
 aptly update
-aptly setup --client all --mode defaults
+aptly setup --client all
 aptly --version
 ```
 
@@ -235,7 +235,7 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 
 ### Decisions API 전송 범위
 
-이 절의 전송 범위 명령은 다음 릴리스 후보의 기능이며 게시된 0.1.6에는 없습니다.
+이 절의 전송 범위 명령은 Aptly 0.1.7부터 지원합니다.
 
 여기서 전송은 **로컬 작업 정보를 OpenAI Decisions API에 보내는 것**이며 Aptly 개발자에게 작업을 제공하는 기능이 아닙니다. 적용 모드 `defaults/advisory`와 전송 범위는 별개입니다. 신규 등록은 v2 정책의 `unselected` 상태이며 자동 전송하지 않습니다. 대화형 `aptly set default`는 미선택 호스트에만 범위를 묻고 Enter의 기본 선택은 `none`입니다. 비대화형 실행·postinstall은 묻거나 동의한 것으로 처리하지 않습니다.
 

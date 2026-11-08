@@ -34,7 +34,7 @@ aptly --version
 
 ```sh
 npm install -g aptly@latest --ignore-scripts
-aptly setup --client all --mode defaults
+aptly setup --client all
 ```
 
 无论安装脚本是否运行，都可以显式执行 `setup`。它会保留已有启动路径；旧路径错误请按下文恢复步骤处理。密钥配置、MCP 重启和 Codex `/hooks` 信任审核仍需单独完成。
@@ -47,7 +47,7 @@ aptly setup --client all --mode defaults
 
 ```sh
 aptly update
-aptly setup --client all --mode defaults
+aptly setup --client all
 aptly --version
 ```
 
@@ -235,7 +235,7 @@ Codex 正文不透明时，`cleanup_merged_worktrees` 等具体的短任务名�
 
 ### Decisions API 传输范围
 
-本节传输范围命令属于下一版本候选功能，已发布的 0.1.6 尚不包含。
+本节传输范围命令从 Aptly 0.1.7 起提供。
 
 这里的传输是指**将本地任务信息发送至 OpenAI Decisions API**，不是向 Aptly 开发者提供任务的功能。应用模式 `defaults/advisory` 与传输范围相互独立。新注册使用 v2 策略的 `unselected` 状态，不自动传输。交互式 `aptly set default` 仅为尚未选择的宿主询问范围，按 Enter 默认选择 `none`。非交互运行和 postinstall 不询问，也不视为同意。
 

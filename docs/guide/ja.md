@@ -34,7 +34,7 @@ aptly --version
 
 ```sh
 npm install -g aptly@latest --ignore-scripts
-aptly setup --client all --mode defaults
+aptly setup --client all
 ```
 
 スクリプトの実行にかかわらず、明示的な `setup` を利用できます。既存の起動パスは保持するため、旧パスのエラーは以下の復旧手順に従ってください。キー設定・MCP の再起動と Codex の `/hooks` 信頼確認は別途必要です。
@@ -47,7 +47,7 @@ aptly setup --client all --mode defaults
 
 ```sh
 aptly update
-aptly setup --client all --mode defaults
+aptly setup --client all
 aptly --version
 ```
 
@@ -235,7 +235,7 @@ Codex の本文が不透明な場合、`cleanup_merged_worktrees` のような�
 
 ### Decisions API への送信範囲
 
-この節の送信範囲コマンドは次のリリース候補の機能であり、公開済みの 0.1.6 にはありません。
+この節の送信範囲コマンドは Aptly 0.1.7 以降で利用できます。
 
 ここでの送信は、**ローカルのタスク情報を OpenAI Decisions API に送ること**であり、Aptly の開発者にタスクを提供する機能ではありません。適用モード `defaults/advisory` と送信範囲は別の設定です。新規登録は v2 ポリシーの `unselected` となり、自動送信しません。対話形式の `aptly set default` は未選択のホストだけに範囲を尋ね、Enter では `none` を選択します。非対話実行と postinstall は質問せず、同意したものとして扱いません。
 
