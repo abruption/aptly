@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-08",
+  "provider": "decisions",
+  "classification_model": "gpt-6-luna",
+  "transport": "connected Aptly MCP recommend_agent; no native spawn",
+  "local_client_source_sha": "b1abc922796da8c14fdd7e67a11c03e847e87f36",
+  "server_binary_source_sha_verified": false,
+  "policy_version": "aptly-v010",
+  "catalog_version": "catalog-037c98753595cb6d0c5dabeab47bbc8b",
+  "corpus_sha256": "e63957ad1f3352500d8a02033b9faf65b377fe8381164a8ecfb8dc18340f53cd",
+  "pricing": {
+    "source": "https://developers.openai.com/api/docs/guides/decisions",
+    "checked_on": "2026-11-08",
+    "uncached_input_usd_per_million": 0.1,
+    "output_charged": false,
+    "basis": "All input at uncached rate; excludes cache-write/read adjustments, regional/long-context premiums, parent orchestration and child execution. Not actual billing or a guaranteed bound."
+  },
+  "rows": [
+    {
+      "case_id": "sort",
+      "round": 1,
+      "wall_latency_ms": 450,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-simple",
+      "confidence": 0.99,
+      "latency_ms": 373.623,
+      "usage": {
+        "input_tokens": 479,
+        "output_tokens": 0,
+        "total_tokens": 479
+      },
+      "cached": false
+    },
+    {
+      "case_id": "format",
+      "round": 1,
+      "wall_latency_ms": 308,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-simple",
+      "confidence": 1,
+      "latency_ms": 221.14,
+      "usage": {
+        "input_tokens": 468,
+        "output_tokens": 0,
+        "total_tokens": 468
+      },
+      "cached": false
+    },
+    {
+      "case_id": "translation",
+      "round": 1,
+      "wall_latency_ms": 505,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-simple",
+      "confidence": 0.43,
+      "latency_ms": 415.337,
+      "usage": {
+        "input_tokens": 482,
+        "output_tokens": 0,
+        "total_tokens": 482
+      },
+      "cached": false
+    },
+    {
+      "case_id": "scoped-code",
+      "round": 1,
+      "wall_latency_ms": 374,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-routine",
+      "confidence": 0.84,
+      "latency_ms": 299.61,
+      "usage": {
+        "input_tokens": 471,
+        "output_tokens": 0,
+        "total_tokens": 471
+      },
+      "cached": false
+    },
+    {
+      "case_id": "concurrency",
+      "round": 1,
+      "wall_latency_ms": 343,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-deep",
+      "confidence": 0.74,
+      "latency_ms": 242.508,
+      "usage": {
+        "input_tokens": 485,
+        "output_tokens": 0,
+        "total_tokens": 485
+      },
+      "cached": false
+    },
+    {
+      "case_id": "security",
+      "round": 1,
+      "wall_latency_ms": 303,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-deep",
+      "confidence": 0.75,
+      "latency_ms": 219.042,
+      "usage": {
+        "input_tokens": 471,
+        "output_tokens": 0,
+        "total_tokens": 471
+      },
+      "cached": false
+    },
+    {
+      "case_id": "missing",
+      "round": 1,
+      "wall_latency_ms": 451,
+      "status": "needs_context",
+      "reason": "provider_needs_context",
+      "confidence": 0.99,
+      "latency_ms": 368.153,
+      "usage": {
+        "input_tokens": 484,
+        "output_tokens": 0,
+        "total_tokens": 484
+      },
+      "cached": false
+    },
+    {
+      "case_id": "ambiguous",
+      "round": 1,
+      "wall_latency_ms": 312,
+      "status": "needs_context",
+      "reason": "provider_needs_context",
+      "confidence": 0.89,
+      "latency_ms": 230.031,
+      "usage": {
+        "input_tokens": 468,
+        "output_tokens": 0,
+        "total_tokens": 468
+      },
+      "cached": false
+    },
+    {
+      "case_id": "sort",
+      "round": 2,
+      "wall_latency_ms": 481,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-simple",
+      "confidence": 0.99,
+      "latency_ms": 372.809,
+      "usage": {
+        "input_tokens": 479,
+        "output_tokens": 0,
+        "total_tokens": 479
+      },
+      "cached": false
+    },
+    {
+      "case_id": "format",
+      "round": 2,
+      "wall_latency_ms": 521,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-simple",
+      "confidence": 1,
+      "latency_ms": 428.208,
+      "usage": {
+        "input_tokens": 468,
+        "output_tokens": 0,
+        "total_tokens": 468
+      },
+      "cached": false
+    },
+    {
+      "case_id": "translation",
+      "round": 2,
+      "wall_latency_ms": 327,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-simple",
+      "confidence": 0.43,
+      "latency_ms": 233.226,
+      "usage": {
+        "input_tokens": 482,
+        "output_tokens": 0,
+        "total_tokens": 482
+      },
+      "cached": false
+    },
+    {
+      "case_id": "scoped-code",
+      "round": 2,
+      "wall_latency_ms": 474,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-routine",
+      "confidence": 0.84,
+      "latency_ms": 386.167,
+      "usage": {
+        "input_tokens": 471,
+        "output_tokens": 0,
+        "total_tokens": 471
+      },
+      "cached": false
+    },
+    {
+      "case_id": "concurrency",
+      "round": 2,
+      "wall_latency_ms": 361,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "codex-deep",
+      "confidence": 0.74,
+      "latency_ms": 262.111,
+      "usage": {
+        "input_tokens": 485,
+        "output_tokens": 0,
+        "total_tokens": 485
+      },
+      "cached": false
+    },
+    {
+      "case_id": "security",
+      "round": 2,
+      "wall_latency_ms": 531,
+      "status": "recommended",
+      "reason": "allowed_profile",
+      "profile_id": "claude-deep",
+      "confidence": 0.75,
+      "latency_ms": 440.314,
+      "usage": {
+        "input_tokens": 471,
+        "output_tokens": 0,
+        "total_tokens": 471
+      },
+      "cached": false
+    },
+    {
+      "case_id": "missing",
+      "round": 2,
+      "wall_latency_ms": 526,
+      "status": "needs_context",
+      "reason": "provider_needs_context",
+      "confidence": 0.99,
+      "latency_ms": 442.483,
+      "usage": {
+        "input_tokens": 484,
+        "output_tokens": 0,
+        "total_tokens": 484
+      },
+      "cached": false
+    },
+    {
+      "case_id": "ambiguous",
+      "round": 2,
+      "wall_latency_ms": 696,
+      "status": "needs_context",
+      "reason": "provider_needs_context",
+      "confidence": 0.89,
+      "latency_ms": 608.906,
+      "usage": {
+        "input_tokens": 468,
+        "output_tokens": 0,
+        "total_tokens": 468
+      },
+      "cached": false
+    }
+  ],
+  "cache_replay": {
+    "case_id": "sort",
+    "round": 1,
+    "cached": true,
+    "wall_latency_ms": 56,
+    "original_latency_ms_returned": 373.623,
+    "usage_is_original_not_new_charge": true
+  },
+  "limitations": [
+    "Author-assigned expected profiles, not independent task quality grades.",
+    "Eight unique English task descriptions, two request identities each; not sixteen independent tasks.",
+    "No child execution, output quality assessment, threshold enforcement or end-to-end cost measurement.",
+    "No live confidence zero, missing confidence or keep_current result observed; offline fixtures cover their contracts.",
+    "Candidate profiles only; current-account availability and actual Claude alias resolution unverified.",
+    "Provider cache-read/write breakdown not exposed by current Aptly usage metadata."
+  ]
+}

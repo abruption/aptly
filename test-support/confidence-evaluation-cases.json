@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "purpose": "Issue14 classification pilot; expected outcomes are author-assigned rubric, not task execution quality",
+  "source_sha": "b1abc922796da8c14fdd7e67a11c03e847e87f36",
+  "repetitions": 2,
+  "max_provider_requests": 16,
+  "request_prefix": "issue14-20261108-pilot1",
+  "operation": "analysis",
+  "context_sufficient": true,
+  "notes": [
+    "All tasks synthetic and non-sensitive.",
+    "Missing-context cases deliberately reach provider with context_sufficient true to observe provider abstention; separate false guard is tested offline.",
+    "No numeric cutoff, default change, child execution, retry supplementation, or new-ID retry of unknown outcomes.",
+    "Classify sequentially in case order round1 then round2; exact replay of first ID is a separate cache check, not a paid sample.",
+    "Stop on unavailable/unknown outcomes or exhausted budget; do not replace trials."
+  ],
+  "cases": [
+    {
+      "id": "sort",
+      "client": "codex",
+      "category": "simple",
+      "summary": "Sort the supplied integers [9, 3, 7, 3] ascending and return the JSON array only. No files, tools or explanation are required.",
+      "expected": [
+        "codex-simple"
+      ],
+      "rubric_basis": "simple"
+    },
+    {
+      "id": "format",
+      "client": "claude",
+      "category": "simple",
+      "summary": "Convert the supplied records name=Ana age=7 and name=Bo age=8 into a two-row Markdown table with columns name and age. Preserve the values exactly.",
+      "expected": [
+        "claude-simple"
+      ],
+      "rubric_basis": "simple"
+    },
+    {
+      "id": "translation",
+      "client": "codex",
+      "category": "routine",
+      "summary": "Review a synthetic 40-line Korean translation of an English installation guide for terminology consistency and faithful meaning. Identify at most five justified wording corrections, preserving every command, version and link.",
+      "expected": [
+        "codex-routine"
+      ],
+      "rubric_basis": "routine"
+    },
+    {
+      "id": "scoped-code",
+      "client": "claude",
+      "category": "routine",
+      "summary": "Implement a small CSV row validator in an existing synthetic TypeScript module with documented required columns, optional blank fields and duplicate ID handling. Add focused edge-case tests while preserving the public API.",
+      "expected": [
+        "claude-routine"
+      ],
+      "rubric_basis": "routine"
+    },
+    {
+      "id": "concurrency",
+      "client": "codex",
+      "category": "deep",
+      "summary": "Review a synthetic cross-process transaction design spanning lock acquisition, atomic rename, rollback and crash recovery. Find a concrete concurrency counterexample and compare two fixes while preserving permissions and exactly-once billing constraints.",
+      "expected": [
+        "codex-deep"
+      ],
+      "rubric_basis": "deep"
+    },
+    {
+      "id": "security",
+      "client": "claude",
+      "category": "deep",
+      "summary": "Analyze a synthetic multi-tenant authorization design spanning cache invalidation, token rotation and asynchronous job retries. Trace privilege escalation paths and propose a minimal fix with negative tests and rollout tradeoffs.",
+      "expected": [
+        "claude-deep"
+      ],
+      "rubric_basis": "deep"
+    },
+    {
+      "id": "missing",
+      "client": "codex",
+      "category": "needs_context",
+      "summary": "Investigate the reported failure in the application. No error message, reproduction, affected component, expected behavior or source excerpt has been provided. Identify what missing information prevents selecting an appropriate execution profile.",
+      "expected": [
+        "needs_context",
+        "keep_current"
+      ],
+      "rubric_basis": "needs_context"
+    },
+    {
+      "id": "ambiguous",
+      "client": "claude",
+      "category": "needs_context",
+      "summary": "Improve the system as requested by the stakeholder. The system, intended outcome, change scope, constraints and existing behavior have not been specified; no implementation or document is available.",
+      "expected": [
+        "needs_context",
+        "keep_current"
+      ],
+      "rubric_basis": "needs_context"
+    }
+  ]
+}

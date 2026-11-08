@@ -227,6 +227,10 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 | `retry_spawn_recommendation` | Accepts one task-description supplement using a Hook-issued retry_id |
 | `prepare_fresh_delegation` | Prepares a separate independent Codex call from completed inherited advice; never executes it |
 
+### Confidence and abstention
+
+`confidence` is metadata and has not been validated here as a calibrated probability of correctness. It is not currently used as an automatic-application threshold. Zero and low values are currently allowed when other application conditions hold. A missing value in a live Decisions response is rejected as an error; it remains optional in generic Router and stored results. `keep_current` and `needs_context` are separate outcomes with existing abstention and context-recovery rules. Explicit model, effort, history and permissions are preserved. A small classification pilot does not establish improved child-task quality or total cost.
+
 ### Outbound data and disabling automatic sharing
 
 For automatic classification, `summary` is an **excerpt assembled from an accepted task label and the clipped first paragraph** of the body. It is not a semantic rewrite or anonymization. Its UTF-8 size is at most `min(4000, max_summary_bytes)`; this is not a limit on the whole HTTP request. The opaque-message fallback in Codex uses only a sufficiently descriptive `task_name`, without decoding or transmitting that body. Labels can also contain sensitive information.
