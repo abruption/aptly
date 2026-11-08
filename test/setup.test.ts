@@ -29,7 +29,7 @@ test('explicit setup registers both hosts with private policy, no trust bypass o
   assert.deepEqual(codex.mcp_servers.aptly.env_vars, ['OPENAI_API_KEY']);
   for (const name of ['.codex', '.claude']) {
     const dir = join(options.home, name), privateDir = join(dir, 'aptly'), policyPath = join(privateDir, 'auto-policy.json');
-    assert.deepEqual(load(policyPath), { schema_version: 1, kind: 'aptly-auto-hook', mode: 'defaults', issuer: 'operator_installation', enabled: true, state_directory: join(privateDir, 'state') });
+    assert.deepEqual(load(policyPath), { schema_version: 2, kind: 'aptly-auto-hook', mode: 'defaults', issuer: 'operator_installation', enabled: true, state_directory: join(privateDir, 'state'), transmission: 'unselected' });
     for (const p of [privateDir, join(privateDir, 'state')]) assert.equal(statSync(p).mode & 0o777, 0o700);
     assert.equal(statSync(policyPath).mode & 0o777, 0o600);
     assert.equal(statSync(join(privateDir, 'setup-ownership.json')).mode & 0o777, 0o600);

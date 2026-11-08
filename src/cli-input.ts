@@ -36,3 +36,23 @@ export async function readEnvironmentValue({ key, fromStdin = false }: { key: st
     });
   } finally { rl.close(); process.stdout.write('\n'); }
 }
+
+/** Operator choice of external transmission scope; Enter selects no automatic transmission. */
+export async function readTransmissionChoice(): Promise<'none' | 'description' | 'excerpt'> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) throw fail('set_interactive_input_required');
+  process.stdout.write('Select task information sent to the OpenAI Decisions API (not Aptly developers).\nDescriptions and excerpts may contain sensitive information; this is not anonymization.\n  1. No automatic transmission (default)\n  2. Caller-provided descriptions only\n  3. Allow native task excerpts\n');
+  const rl = createInterface({input:process.stdin,output:process.stdout});
+  try {
+    return await new Promise((resolve,reject)=>{
+      let settled=false;
+      const cancel=()=>{if(!settled){settled=true;reject(fail('set_input_cancelled'));}};
+      rl.once('SIGINT',()=>{cancel();rl.close();});rl.once('close',cancel);
+      const ask=()=>rl.question('Transmission scope [1]: ',value=>{
+        const choices:Record<string,'none'|'description'|'excerpt'|undefined>={'':'none','1':'none','2':'description','3':'excerpt',none:'none',description:'description',excerpt:'excerpt'};
+        const scope=Object.hasOwn(choices,value.trim())?choices[value.trim()]:undefined;
+        if(!scope){process.stdout.write('Choose 1, 2 or 3.\n');ask();return;}
+        settled=true;resolve(scope);
+      });ask();
+    });
+  } finally {rl.close();}
+}

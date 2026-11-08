@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
+import { loadAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
 import { assertPrivateStatePath } from './files.ts';
 import { assertWindowsPrivatePath, protectNewWindowsPrivateDirectory, copyWindowsFilePermissions } from './windows-private.ts';
 
@@ -18,8 +19,11 @@ export interface SetupOptions {
   automatic?: boolean;
   clients?: Client[];
   mode?: 'defaults' | 'advisory';
+  transmission?: TransmissionScope;
+  selectUnselectedOnly?: boolean;
 }
-export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; requires_hook_review?: boolean; recovery?: string[] }
+export type TransmissionScope = 'none' | 'description' | 'excerpt';
+export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected' }
 export interface SetupResult { status: 'complete' | 'partial' | 'skipped'; clients: SetupClientResult[] }
 type Snapshot = { path: string; before: string | null; after: string | null; mode: number };
 type Ownership = { schema_version: 1; kind: 'aptly-setup-ownership'; client: Client; hook: ObjectValue; mcp_created: boolean; mcp?: ObjectValue; policy: ObjectValue; policy_created: boolean; env_added: Record<string, string>; toml_block?: string };
@@ -105,7 +109,7 @@ function removeTomlEnv(text: string, additions: Record<string, string>): string 
   if (!isDeepStrictEqual(toml(text), target)) fail('managed_entry_changed'); return text;
 }
 export const configurableEnvironmentKeys: readonly string[] = Object.freeze(['ROUTER_PROVIDER', 'APTLY_CLAUDE_MODELS', 'APTLY_CODEX_MODELS', 'CLAUDE_MODELS', 'CODEX_MODELS', 'APTLY_MODEL_INFO_PATH'] as const);
-type EnvironmentEdit = { defaults: true } | { key: string; value: string } | { credential: true } | { migrate: true; includeExisting?: boolean };
+type EnvironmentEdit = { defaults: true } | { key: string; value: string } | { credential: true } | { migrate: true; includeExisting?: boolean } | { transmission: TransmissionScope };
 const defaultEnvironment = { ROUTER_PROVIDER: 'decisions', APTLY_CLAUDE_MODELS: '["haiku","sonnet","opus"]', APTLY_CODEX_MODELS: '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]' };
 function validateEnvironmentValue(key: string, value: string) {
   if (!(configurableEnvironmentKeys as readonly string[]).includes(key)) fail(/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL/i.test(key) ? 'environment_secret_key_unsupported' : 'environment_key_unsupported');
@@ -124,7 +128,7 @@ function editEnvironment(current: ObjectValue, edit: EnvironmentEdit, client: Cl
   } else if ('credential' in edit) {
     updates.APTLY_SECRET_BACKEND = 'os';
     updates.APTLY_SECRET_CLIENT = client;
-  } else if (!('migrate' in edit)) { validateEnvironmentValue(edit.key, edit.value); updates[edit.key] = edit.value; }
+  } else if (!('migrate' in edit) && !('transmission' in edit)) { validateEnvironmentValue(edit.key, edit.value); updates[edit.key] = edit.value; }
   const effective = { ...current, ...updates };
   if (effective.ROUTER_PROVIDER !== undefined && !['fixture','decisions'].includes(effective.ROUTER_PROVIDER)) fail('environment_invalid_value');
   try { resolveCatalog(effective); } catch { fail('environment_invalid_value'); }
@@ -282,11 +286,28 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     if (existingRoute.some(entry => !isDeepStrictEqual(entry, hookValue))) fail('existing_routing_hook_conflict');
     if (existingRoute.length === 0) entries.push(hookValue);
     hooks.after = edit && 'migrate' in edit ? hooks.before : stringify(hooksObject);
-    const preservedMode = edit && policy.before !== null ? json(policy.before).mode : undefined;
-    const policyValue = { schema_version: 1, kind: 'aptly-auto-hook', mode: options.mode ?? (['defaults','advisory'].includes(preservedMode) ? preservedMode : 'defaults'), issuer: 'operator_installation', enabled: true, state_directory: stateDir };
+    const currentPolicy = policy.before === null ? undefined : loadAutomaticHookPolicy(policyPath).policy;
+    if (policy.before !== null && !currentPolicy) fail('policy_conflict');
+    const requestedScope = options.transmission ?? (edit && 'transmission' in edit ? edit.transmission : undefined);
+    if (requestedScope !== undefined && !['none','description','excerpt'].includes(requestedScope)) fail('transmission_invalid_scope');
+    const preservedMode = edit && currentPolicy ? currentPolicy.mode : undefined;
+    const desiredMode = options.mode ?? preservedMode ?? currentPolicy?.mode ?? 'defaults';
+    // Existing v1 settings retain their original scope and byte representation.
+    // Only an explicit operator scope selection migrates them to v2.
+    let policyValue: AutoPolicy = currentPolicy ? { ...currentPolicy, mode: desiredMode } : {
+      schema_version: 2, kind: 'aptly-auto-hook', mode: desiredMode,
+      issuer: 'operator_installation', enabled: true, state_directory: stateDir, transmission: 'unselected',
+    };
+    if (requestedScope !== undefined) {
+      if (options.selectUnselectedOnly && (!currentPolicy || effectiveTransmission(currentPolicy)!=='unselected')) fail('transmission_selection_changed');
+      if (currentPolicy && (!oldOwner || !isDeepStrictEqual(currentPolicy,oldOwner.policy))) fail('managed_policy_changed');
+      policyValue = { ...policyValue, schema_version: 2, transmission: requestedScope };
+    }
     if (policy.before !== null) {
-      const p = json(policy.before);
-      if (!isDeepStrictEqual(p, policyValue)) fail('policy_conflict');
+      if (requestedScope === undefined && !isDeepStrictEqual(currentPolicy,policyValue)) fail('policy_conflict');
+      // An unrelated setup/env operation must never adopt externally modified policy.
+      if (oldOwner && !isDeepStrictEqual(currentPolicy,oldOwner.policy)) fail('policy_conflict');
+      if (requestedScope !== undefined) policy.after = stringify(policyValue);
     } else policy.after = stringify(policyValue);
     const envAdded = oldOwner?.env_added ?? (created ? {} : Object.fromEntries(Object.entries(additions).filter(([key]) => {
       const original = client === 'codex' ? toml(mcp.before ?? '') : json(mcp.before); return original[client === 'codex' ? 'mcp_servers' : 'mcpServers']?.aptly?.env?.[key] === undefined;
@@ -314,9 +335,12 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
       const priorEnv = prior[client === 'codex' ? 'mcp_servers' : 'mcpServers']?.aptly?.env ?? {};
       for (const [key,value] of Object.entries(updates)) if (priorEnv[key] === undefined) owner.env_added[key] = value;
     }
+    if (requestedScope !== undefined) owner.policy = structuredClone(policyValue);
+    result.transmission = effectiveTransmission(policyValue);
+    result.transmission_source = policyValue.schema_version === 1 ? 'legacy' : policyValue.transmission === 'unselected' ? 'unselected' : 'explicit';
     manifest.after = stringify(owner);
     if (client === 'codex') result.requires_hook_review = true;
-    result.codes = client === 'codex' ? ['requires_hook_review'] : [];
+    result.codes = [...(client === 'codex' ? ['requires_hook_review'] : []), ...(result.transmission === 'unselected' ? ['transmission_selection_required'] : result.transmission_source === 'legacy' ? ['legacy_transmission_excerpt'] : []), ...(requestedScope !== undefined ? ['mcp_restart_required'] : [])];
     dirs.push(dir, privateDir, stateDir);
   }
   // Validate complete desired data before any host file is changed.
@@ -352,6 +376,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   const clients = [...new Set(options.clients ?? ['codex', 'claude'])] as Client[];
   if (clients.some(client => client !== 'codex' && client !== 'claude')) return { status: 'partial', clients: [] };
   const env = options.env ?? process.env;
+  if (options.transmission !== undefined && !['none','description','excerpt'].includes(options.transmission)) return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
   if (!removing && options.automatic && (env.APTLY_SKIP_SETUP === '1' || !!env.CI)) return { status: 'skipped', clients: clients.map(client => ({ client, status: 'skipped', codes: [env.APTLY_SKIP_SETUP === '1' ? 'setup_disabled' : 'ci_environment'] })) };
   const prepared = captured ?? clients.map(client => {
     try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: { client, status: 'error', codes: [safeCode(e)] } as SetupClientResult }; }
@@ -381,7 +406,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   }
   return { status: results.some(result => result.status === 'error') ? 'partial' : results.every(result => result.status === 'skipped') ? 'skipped' : 'complete', clients: results };
 }
-const codes = new Set(['launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
+const codes = new Set(['transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
 function safeCode(error: unknown) { return error instanceof Error && codes.has(error.message) ? error.message : 'configuration_io_error'; }
 export function setupHosts(options: SetupOptions = {}): SetupResult { return execute(options, false); }
 export function removeSetup(options: SetupOptions = {}): SetupResult { return execute(options, true); }
@@ -451,4 +476,23 @@ export function migrateLauncher(options: SetupOptions, dryRun = false, includeEx
     if(result.status==='complete') result.clients[0].codes.push('launcher_migrated','mcp_restart_required');
     return result;
   } catch(error) { return {status:'partial',clients:[{client,status:'error',codes:[safeCode(error)]}]}; }
+}
+
+/** Explicit operator change; updates policy and its receipt through normal guarded staging. */
+export function setTransmission(scope: TransmissionScope, options: SetupOptions = {}): SetupResult {
+  if (!['none','description','excerpt'].includes(scope)) return {status:'partial',clients:(options.clients??['codex','claude']).map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
+  return execute(options,false,{transmission:scope});
+}
+
+/** Read-only redacted policy state. Does not create host directories or contact a provider. */
+export function showTransmission(options: SetupOptions = {}) {
+  return {clients:(options.clients??['codex','claude']).map(client=>{
+    try {
+      const {privateDir}=resolved(options,client); noSymlinks(privateDir);
+      const loaded=loadAutomaticHookPolicy(join(privateDir,'auto-policy.json'));
+      if(!loaded.policy)return {client,status:'unavailable',code:loaded.reason};
+      return {client,status:'configured',application_mode:loaded.policy.mode,enabled:loaded.policy.enabled,
+        transmission:effectiveTransmission(loaded.policy),transmission_source:loaded.policy.schema_version===1?'legacy':effectiveTransmission(loaded.policy)==='unselected'?'unselected':'explicit'};
+    }catch(error){return {client,status:'error',code:safeCode(error)};}
+  })};
 }

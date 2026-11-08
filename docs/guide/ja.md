@@ -14,7 +14,7 @@ Node.js 24 以上と Claude Code または Codex が必要です。npm の最新
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
-aptly setup --client all --mode defaults
+aptly set default
 aptly --version
 ```
 
@@ -231,15 +231,38 @@ Codex の本文が不透明な場合、`cleanup_merged_worktrees` のような�
 
 `confidence` はメタデータであり、校正された正解確率としては検証されていません。現在、自動適用の閾値としては使用しません。現在は他の適用条件を満たせば、0 や低い値も許容します。実際の Decisions 応答で値が欠けている場合はエラーとして拒否しますが、汎用 Router と保存結果では任意項目です。`keep_current` と `needs_context` は数値とは別の結果であり、既存の保留・文脈補足規則に従います。明示されたモデル・effort・履歴・権限は保持します。小規模な分類評価だけで、子タスクの品質や総費用の改善を主張しません。
 
-### 外部送信と自動共有の無効化
+<a id="外部送信と自動共有の無効化"></a>
 
-自動分類の `summary` は、有効なタスクラベルと本文の**最初の段落を切り詰めて組み合わせた抜粋**です。意味を再要約したものでも、匿名化したものでもありません。UTF-8 のサイズは `min(4000, max_summary_bytes)` 以下ですが、HTTP リクエスト全体の上限ではありません。Codex の opaque メッセージへのフォールバックでは、本文を復号・送信せず、十分に具体的な `task_name` だけを使用します。ラベルにも機密情報が含まれる可能性があります。
+### Decisions API への送信範囲
+
+この節の送信範囲コマンドは次のリリース候補の機能であり、公開済みの 0.1.6 にはありません。
+
+ここでの送信は、**ローカルのタスク情報を OpenAI Decisions API に送ること**であり、Aptly の開発者にタスクを提供する機能ではありません。適用モード `defaults/advisory` と送信範囲は別の設定です。新規登録は v2 ポリシーの `unselected` となり、自動送信しません。対話形式の `aptly set default` は未選択のホストだけに範囲を尋ね、Enter では `none` を選択します。非対話実行と postinstall は質問せず、同意したものとして扱いません。
+
+```sh
+aptly set transmission --show
+aptly set transmission none
+aptly set transmission description
+aptly set transmission excerpt
+```
+
+変更コマンドは選択肢を示しています。希望する一つだけを実行してください。`--client codex|claude|all` で対象を選べます。`none` は自動送信を停止し、元の呼び出しを保持します。`description` は親エージェントが提供した説明だけを許可します。説明がなければ API 呼び出し前に文脈補足を求め、native 本文やラベルには自動で切り替えません。`defaults` は未解決の spawn を拒否し、`advisory` は案内のみを返します。`excerpt` は既存の native 抜粋と明示的な説明を許可します。出所・サイズ・既知の秘密パターンの検査は、非機密性やユーザーの同意を証明しません。
+
+既存の v1 ポリシーはバイト単位で保持され、出所 `legacy` の `excerpt` と表示されます。明示的な変更時だけ v2 に移行し、所有権記録も同時に更新します。変更済みポリシーや独自ランチャーを自動で引き継がず、競合時は保持します。キー・台帳・不明な記録は削除しません。変更後は MCP を再起動してください。開始済みの送信は回収できず、ポリシー変更前の処理中結果・retry・fresh 準備は適用されません。既存の結合競合を新しい有料 ID で回避しないでください。明示的な `recommend_agent` と `aptly recommend` は別の要求であり、この自動送信設定では禁止しません。
+
+手動の `enabled: false` は緊急停止として有効ですが、所有権記録と競合する場合があります。通常の変更には上記コマンドを使い、検査を回避するために所有権記録を編集しないでください。
+
+### 送信内容とフィルターの限界
+
+`excerpt` の範囲では、事前登録された説明がない場合、自動分類の `summary` は、有効なタスクラベルと本文の**最初の段落を切り詰めて組み合わせた抜粋**です。意味を再要約したものでも、匿名化したものでもありません。UTF-8 のサイズは `min(4000, max_summary_bytes)` 以下ですが、HTTP リクエスト全体の上限ではありません。Codex の opaque メッセージへのフォールバックでは、本文を復号・送信せず、十分に具体的な `task_name` だけを使用します。ラベルにも機密情報が含まれる可能性があります。
+
+有効な `prepare_spawn_context` の説明は、固定の接頭辞とともに native の抜粋に代わって分類に使用されます。登録自体は API を呼び出しません。文脈不足の応答後、`retry_spawn_recommendation` は以前の本文を付け加えず、固定の接頭辞と新しい補足説明で一度だけ再推薦できます。両経路とも説明原文は `min(3800, max_summary_bytes - 96)` バイト以下、接頭辞を含む説明は `min(4000, max_summary_bytes)` バイト以下です。`prepare_fresh_delegation` 自体は完了済みの推薦を再利用し、追加の分類を呼び出さず、独立した指示をローカルの次回呼び出し引数として返します。返されたモデルと effort をそのまま明示した Codex 呼び出しは、現在の Hook で `explicit_model` として分類せずに保持されます。後続の呼び出しを検査することは、追加の分類を意味しません。どの経路も、説明に機密情報が含まれないことや自動的な匿名化を保証しません。
 
 Decisions には `client`、`task.summary`、`task.operation`、`task.context_sufficient` と、候補プロファイル ID・モデルと effort の説明・設定したモデル特性を送信します。分類用 API キーは `Authorization` ヘッダー、リクエスト ID は `X-Client-Request-Id` ヘッダーで送信します。自動経路の ID はハッシュで、直接推薦の ID は呼び出し元が指定します。ID や候補の説明にも秘密情報を含めないでください。
 
 自動共有を無効にするには、`APTLY_HOOK_POLICY_PATH` が指す既存の非公開ポリシーファイルで、**`enabled` だけを `false` に変更**してください。他のフィールドと所有権の記録は保持してください。その後の自動 Hook 呼び出しは、分類や呼び出しバインディングファイルの作成前に元の呼び出しを保持します。開始済みの送信を取り消したり、サーバーが受信した情報を回収したりすることはできません。生成済みのポリシーを変更すると、登録・設定・削除コマンドの所有権検査で競合する場合があり、それらのコマンドは無効化したポリシーを上書きしません。検査を回避するために所有権の記録を編集しないでください。
 
-`mode: advisory` でも分類データは送信されるため、プライバシー上の共有停止にはなりません。`APTLY_HOOK_POLICY_PATH` を削除すると従来の strict 経路が有効になる場合があるため、共有停止の代わりにしないでください。`enabled: false` は、明示的な `recommend_agent` や `aptly recommend` のリクエストを止めるものではありません。
+送信範囲で許可されていれば `mode: advisory` でも分類データは送信されるため、プライバシー上の共有停止にはなりません。`APTLY_HOOK_POLICY_PATH` を削除すると従来の strict 経路が有効になる場合があるため、共有停止の代わりにしないでください。`enabled: false` は、明示的な `recommend_agent` や `aptly recommend` のリクエストを止めるものではありません。
 
 共有する要約を自分で選ぶ場合は、自動共有を無効にしてから直接推薦に必要な情報だけを記述してください。Aptly は要約中の URL の文書や、言及されたソースファイルを自動取得・添付しません。既知のキーや Bearer のパターン検査は、完全な秘密情報の検出や送信の安全性を保証しません。
 
@@ -258,6 +281,8 @@ Decisions には `client`、`task.summary`、`task.operation`、`task.context_su
 元の呼び出しごとに補足は一度だけです。同じ入力はキャッシュを再利用し、説明の変更は競合として拒否します。再推薦も文脈不足または失敗なら終了し、結果不明の有料要求を新しい ID で繰り返さないでください。`spawn_application` が `blocked` なら推薦を適用せず制約を報告してください。それ以外も親は明示的な選択・履歴・役割・権限を保ち、新しい互換 native 呼び出しに未指定のモデル・effort だけを渡す必要があります。Hook 自体が親の再要求や native 実行を行うわけではありません。元の `prepare_spawn_context` の対応付けは変更不可のままです。[制限・費用・検証契約](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response)を参照してください。
 
 再推薦の応答は `next_call.set_if_unspecified` に次の native 呼び出しで補う具体的な未指定フィールドを返します。明示済みのモデル・effort は含めず、Claude に effort を追加しません。履歴などで適用できない結果には `next_call` を返しません。実行証拠や権限承認ではありません。
+
+キャッシュを再利用できるのは最初の結果が完了した場合です。結果が不明なら `outcome_unknown` を保持し、新しい ID で有料呼び出しを繰り返さないでください。
 
 `context_retry_allowed: false` は追加の文脈補足を終了する意味です。互換性のある推薦の `caller_review_required` は親が引数を確認する意味であり、新しいユーザー承認の要求ではありません。既存の委任権限とホストの権限確認は引き続き適用されます。
 

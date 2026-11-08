@@ -14,7 +14,7 @@ Requires Node.js 24 or later and Claude Code or Codex. Install the latest stable
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
-aptly setup --client all --mode defaults
+aptly set default
 aptly --version
 ```
 
@@ -231,15 +231,38 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 
 `confidence` is metadata and has not been validated here as a calibrated probability of correctness. It is not currently used as an automatic-application threshold. Zero and low values are currently allowed when other application conditions hold. A missing value in a live Decisions response is rejected as an error; it remains optional in generic Router and stored results. `keep_current` and `needs_context` are separate outcomes with existing abstention and context-recovery rules. Explicit model, effort, history and permissions are preserved. A small classification pilot does not establish improved child-task quality or total cost.
 
-### Outbound data and disabling automatic sharing
+<a id="outbound-data-and-disabling-automatic-sharing"></a>
 
-For automatic classification, `summary` is an **excerpt assembled from an accepted task label and the clipped first paragraph** of the body. It is not a semantic rewrite or anonymization. Its UTF-8 size is at most `min(4000, max_summary_bytes)`; this is not a limit on the whole HTTP request. The opaque-message fallback in Codex uses only a sufficiently descriptive `task_name`, without decoding or transmitting that body. Labels can also contain sensitive information.
+### Decisions API transmission scope
+
+The transmission commands in this section are part of the next release candidate and are not in published 0.1.6.
+
+Transmission means **sending local task information to the OpenAI Decisions API**, not providing tasks to Aptly developers. Application mode `defaults/advisory` and transmission scope are independent. New registrations use v2 policy with `unselected` scope and make no automatic transmission. Interactive `aptly set default` asks only for unselected hosts; Enter selects `none`. Noninteractive runs and postinstall neither prompt nor count as consent.
+
+```sh
+aptly set transmission --show
+aptly set transmission none
+aptly set transmission description
+aptly set transmission excerpt
+```
+
+The change commands above show alternatives; run only the one you want. Use `--client codex|claude|all` to select hosts. `none` disables automatic transmission and preserves the original call. `description` permits only a parent-supplied description. Without one, it requests context before calling the API and never falls back to native body or label. `defaults` denies the unresolved spawn; `advisory` supplies feedback only. `excerpt` permits existing native excerpts and explicit descriptions. Source, size and known-secret checks establish neither non-sensitive content nor user consent.
+
+Existing v1 policies remain byte-identical and report `excerpt` with `legacy` provenance. An explicit change migrates the policy to v2 and updates its ownership receipt together. Modified policies and custom launchers are not silently adopted; conflicts preserve them. Keys, ledgers and unknown records are not deleted. Restart MCP after changes. Already-started transmission cannot be recalled; changed policy prevents in-flight results, retry and fresh preparation from applying. Do not bypass an old call-binding conflict with a new paid identity. Explicit `recommend_agent` and `aptly recommend` requests remain separate and are not prohibited by this automatic-transmission setting.
+
+Manually setting `enabled: false` remains an emergency stop, but can conflict with ownership records. Use the commands above for normal changes and never edit ownership receipts to bypass checks.
+
+### Outbound content and filtering limits
+
+Under `excerpt` scope, Without prepared context, automatic classification `summary` is an **excerpt assembled from an accepted task label and the clipped first paragraph** of the body. It is not a semantic rewrite or anonymization. Its UTF-8 size is at most `min(4000, max_summary_bytes)`; this is not a limit on the whole HTTP request. The opaque-message fallback in Codex uses only a sufficiently descriptive `task_name`, without decoding or transmitting that body. Labels can also contain sensitive information.
+
+A valid `prepare_spawn_context` description and fixed prefix replace the native excerpt for classification; registration itself makes no API call. After a needs-context response, `retry_spawn_recommendation` can classify one new supplement with a fixed prefix, without appending the earlier body. Both paths limit the raw description to `min(3800, max_summary_bytes - 96)` bytes and the prefixed summary to `min(4000, max_summary_bytes)` bytes. `prepare_fresh_delegation` itself reuses completed advice without another classification and returns standalone instructions as local next-call arguments. A Codex call submitted with the returned explicit model and effort is currently preserved by the Hook as `explicit_model`, without classification. Checking a later call does not imply another classification. None of these paths establishes that descriptions are non-sensitive or automatically anonymized.
 
 Decisions receives `client`, `task.summary`, `task.operation`, `task.context_sufficient`, candidate profile IDs, model/effort descriptions, and configured model facts. The classification API key is sent in `Authorization`; the request ID is sent in `X-Client-Request-Id`. Automatic IDs are hashes; direct recommendation IDs are caller-supplied. Do not put secrets in IDs or candidate descriptions.
 
 To disable automatic sharing, change **only `enabled` to `false`** in the existing private policy file referenced by `APTLY_HOOK_POLICY_PATH`. Preserve the other fields and ownership record. Subsequent automatic Hook calls preserve the original call before classification or creation of a call-binding file. This cannot undo a transmission already started or recall information received by the server. Editing a generated policy can cause ownership conflicts in setup, configuration, or removal commands; those commands do not overwrite the disabled policy. Do not edit ownership records to bypass the checks.
 
-`mode: advisory` still transmits classification data; it is not a privacy opt-out. Removing `APTLY_HOOK_POLICY_PATH` can activate the older strict path, so do not use removal as an alternative. `enabled: false` does not block explicit `recommend_agent` or `aptly recommend` requests.
+When the transmission scope permits it, `mode: advisory` still transmits classification data; it is not a privacy opt-out. Removing `APTLY_HOOK_POLICY_PATH` can activate the older strict path, so do not use removal as an alternative. `enabled: false` does not block explicit `recommend_agent` or `aptly recommend` requests.
 
 For control over the shared summary, disable automatic sharing and write only the information needed for a direct recommendation. Aptly does not automatically fetch documents at URLs or attach source files mentioned in the summary. Checks for known key and Bearer patterns do not provide complete secret detection or establish that text is safe to transmit.
 
@@ -258,6 +281,8 @@ When the automatic Hook returns `insufficient_context` or `provider_needs_contex
 One supplement is allowed per original call. Duplicate input reuses the cache; changed descriptions conflict. Stop if the retry still needs context or fails; never replace an uncertain paid request with a new ID. If `spawn_application` is `blocked`, report the constraint without applying the profile. Otherwise the parent must preserve explicit choices, history, roles and permissions when passing only unspecified model/effort to a new compatible native call. The Hook does not itself perform the parent's retry or native execution. The original `prepare_spawn_context` association stays immutable. See the [limits, costs and validation contract](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response).
 
 The retry response includes `next_call.set_if_unspecified` with concrete fields for the next native call. It excludes already specified model/effort fields and never adds Claude effort. Blocked history/application results omit `next_call`. These fields are neither execution evidence nor permission approval.
+
+Cache reuse requires a completed first result. An unknown outcome remains `outcome_unknown`; do not repeat a paid call with a new ID.
 
 `context_retry_allowed: false` ends further context supplementation. For a compatible recommendation, `caller_review_required` means the parent reviews arguments; it does not request new user approval. Existing delegation authorization and host permission checks still apply.
 

@@ -24,12 +24,12 @@ Node.js **24 以上**と Claude Code または Codex が必要です。初めて
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
-aptly setup --client all --mode defaults
+aptly set default
 aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`aptly --version` でインストール済みのバージョンを確認してください。対応する npm では、`--allow-scripts=aptly` で Aptly のインストールスクリプトを許可します。このオプションに対応していない npm では、[インストール案内](docs/guide/ja.md#インストール)の明示的なインストール・設定手順に従ってください。
+`aptly --version` でインストール済みのバージョンを確認してください。対応する npm では、`--allow-scripts=aptly` で Aptly のインストールスクリプトを許可します。このオプションに対応していない npm では、[インストール案内](docs/guide/ja.md#インストール)の明示的なインストール・設定手順に従ってください。 次のリリース候補では、新規登録は自動送信せず、`aptly set default` で OpenAI Decisions API への送信範囲を選択します。
 
 インストール時の `postinstall` は、既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。自動登録をスキップした場合や、ホストに設定ディレクトリがまだない場合も、`setup` を明示的に実行して登録できます。他の既存設定・Hook と、既存の Aptly の実行コマンド・環境は保持します。
 

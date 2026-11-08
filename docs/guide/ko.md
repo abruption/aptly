@@ -14,7 +14,7 @@ Node.js 24 이상과 Claude Code 또는 Codex가 필요합니다. npm의 최신 
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
-aptly setup --client all --mode defaults
+aptly set default
 aptly --version
 ```
 
@@ -231,15 +231,38 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 
 `confidence`는 메타데이터이며 보정된 정답 확률로 검증되지 않았습니다. 현재 자동 적용 임계값으로 사용하지 않습니다. 현재 0과 낮은 값도 다른 적용 조건을 만족하면 허용합니다. 실제 Decisions 응답에서 값이 누락되면 오류로 거절하지만, 일반 Router·저장 결과에서는 선택 항목입니다. `keep_current`·`needs_context`는 숫자와 별개의 결과이며 기존 보류·문맥 보충 규칙을 따릅니다. 명시한 모델·effort·이력·권한은 보존합니다. 소규모 분류 평가만으로 자식 작업의 품질·총비용 개선을 주장하지 않습니다.
 
-### 외부 전송과 자동 공유 끄기
+<a id="외부-전송과-자동-공유-끄기"></a>
 
-자동 분류의 `summary`는 허용된 작업 라벨과 본문의 **첫 문단을 잘라 붙인 발췌문**입니다. 의미를 새로 요약하거나 익명화하지 않습니다. UTF-8 크기는 `min(4000, max_summary_bytes)` 이하이며 전체 HTTP 요청의 크기 제한은 아닙니다. Codex의 opaque 메시지 fallback은 본문을 해독·전송하지 않고 충분히 구체적인 `task_name`만 사용합니다. 라벨에도 민감한 정보가 들어갈 수 있습니다.
+### Decisions API 전송 범위
+
+이 절의 전송 범위 명령은 다음 릴리스 후보의 기능이며 게시된 0.1.6에는 없습니다.
+
+여기서 전송은 **로컬 작업 정보를 OpenAI Decisions API에 보내는 것**이며 Aptly 개발자에게 작업을 제공하는 기능이 아닙니다. 적용 모드 `defaults/advisory`와 전송 범위는 별개입니다. 신규 등록은 v2 정책의 `unselected` 상태이며 자동 전송하지 않습니다. 대화형 `aptly set default`는 미선택 호스트에만 범위를 묻고 Enter의 기본 선택은 `none`입니다. 비대화형 실행·postinstall은 묻거나 동의한 것으로 처리하지 않습니다.
+
+```sh
+aptly set transmission --show
+aptly set transmission none
+aptly set transmission description
+aptly set transmission excerpt
+```
+
+위 변경 명령은 세 가지 대안을 보여 줍니다. 원하는 하나만 실행하십시오. `--client codex|claude|all`로 대상을 고를 수 있습니다. `none`은 자동 전송을 끄고 원래 호출을 보존합니다. `description`은 부모 에이전트가 제공한 설명만 허용합니다. 설명이 없으면 API 호출 전에 문맥 보충을 요청하며 native 본문·라벨로 자동 대체하지 않습니다. `defaults`는 해결 전 스폰을 차단하고 `advisory`는 안내만 제공합니다. `excerpt`는 기존 native 발췌와 명시 설명을 허용합니다. 설명의 출처·크기·민감 패턴 검사는 비민감성이나 사용자 동의를 인증하지 않습니다.
+
+기존 v1은 `legacy` 출처의 `excerpt`로 표시하고 바이트 그대로 유지합니다. 명시 변경은 정책을 v2로 전환하고 소유권 기록을 함께 갱신합니다. 운영자가 수정한 정책·다른 실행 래퍼는 자동으로 인수하지 않으며 충돌 시 보존합니다. 키·원장·불명 기록은 삭제하지 않습니다. 변경 후 MCP를 재시작하십시오. 이미 시작된 전송을 회수하지 못하며 진행 중 결과·retry·fresh는 변경된 정책으로 적용되지 않습니다. 이전 호출 ID의 결합 충돌은 새 유료 ID로 우회하지 마십시오. 명시적 `recommend_agent`·`aptly recommend`는 별도 요청이며 이 자동 전송 설정으로 금지하지 않습니다.
+
+수동으로 `enabled: false`를 편집하는 기존 긴급 중단도 유효하지만 소유권 충돌이 생길 수 있습니다. 일반 변경에는 위 명령을 사용하고 소유권 기록을 직접 편집하지 마십시오.
+
+### 전송 내용과 필터 한계
+
+`excerpt` 범위에서 사전 등록 설명이 없는 자동 분류의 `summary`는 허용된 작업 라벨과 본문의 **첫 문단을 잘라 붙인 발췌문**입니다. 의미를 새로 요약하거나 익명화하지 않습니다. UTF-8 크기는 `min(4000, max_summary_bytes)` 이하이며 전체 HTTP 요청의 크기 제한은 아닙니다. Codex의 opaque 메시지 fallback은 본문을 해독·전송하지 않고 충분히 구체적인 `task_name`만 사용합니다. 라벨에도 민감한 정보가 들어갈 수 있습니다.
+
+`prepare_spawn_context`에 유효한 설명을 등록하면 고정 접두사와 그 설명이 native 발췌 대신 분류에 사용됩니다. 등록 자체는 API를 호출하지 않습니다. `retry_spawn_recommendation`은 문맥 부족 응답 이후 고정 접두사와 새 보충 설명으로 한 번 재추천하며, 이전 본문을 덧붙이지 않습니다. 두 경로 모두 원시 설명은 `min(3800, max_summary_bytes - 96)` 바이트 이하이고 접두사 포함 설명은 `min(4000, max_summary_bytes)` 바이트 이하입니다. `prepare_fresh_delegation` 자체는 완료된 추천을 재사용해 추가 분류를 호출하지 않으며, 독립 지시를 로컬의 다음 호출 인자로 반환합니다. 반환된 모델·effort를 그대로 명시한 Codex 호출은 현재 Hook에서 `explicit_model`로 분류 없이 보존됩니다. 이후 호출의 경유 검사가 추가 분류를 뜻하지는 않습니다. 어느 경로도 설명의 비민감성이나 자동 익명화를 보장하지 않습니다.
 
 Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_sufficient`와 후보 프로필 ID·모델·effort 설명 및 설정된 모델 특성이 전달됩니다. 분류용 API 키는 `Authorization` 헤더로, 요청 ID는 `X-Client-Request-Id` 헤더로 전송됩니다. 자동 경로의 ID는 해시이며 직접 추천의 ID는 호출자가 지정합니다. ID나 후보 설명에도 비밀을 넣지 마십시오.
 
 자동 공유를 끄려면 `APTLY_HOOK_POLICY_PATH`가 가리키는 기존 비공개 정책 파일에서 **`enabled`만 `false`로 변경**하십시오. 나머지 필드와 소유권 기록은 유지하십시오. 이후 자동 Hook 호출은 분류 API나 호출 바인딩 파일을 만들기 전에 원래 호출을 보존합니다. 이미 시작한 전송을 되돌리거나 서버가 받은 내용을 회수하지는 못합니다. 생성된 정책을 바꾸면 설치·설정·제거 명령의 소유권 검사에서 충돌할 수 있으며, 해당 명령은 끄기 설정을 덮어쓰지 않습니다. 소유권 기록을 수정해 검사를 우회하지 마십시오.
 
-`mode: advisory`도 분류 정보를 전송하므로 개인정보 보호용 비활성화가 아닙니다. `APTLY_HOOK_POLICY_PATH`를 지우면 기존 strict 경로로 전환될 수 있으므로 공유 끄기의 대안으로 사용하지 마십시오. `enabled: false`는 명시적인 `recommend_agent`·`aptly recommend` 요청까지 차단하지 않습니다.
+전송 범위가 허용하면 `mode: advisory`도 분류 정보를 전송하므로 개인정보 보호용 비활성화가 아닙니다. `APTLY_HOOK_POLICY_PATH`를 지우면 기존 strict 경로로 전환될 수 있으므로 공유 끄기의 대안으로 사용하지 마십시오. `enabled: false`는 명시적인 `recommend_agent`·`aptly recommend` 요청까지 차단하지 않습니다.
 
 공유할 요약을 직접 선택하려면 자동 공유를 끈 뒤 직접 추천에 필요한 정보만 작성하십시오. Aptly는 요약에 적은 URL의 문서나 소스 파일을 자동으로 읽어 첨부하지 않습니다. 알려진 키·Bearer 패턴을 거르는 검사는 완전한 비밀 탐지나 전송 안전성 보장이 아닙니다.
 
@@ -258,6 +281,8 @@ Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_suffic
 보충은 원래 호출당 한 번이며 동일 입력은 캐시를 재사용하고 변경한 설명은 충돌로 거부합니다. 재추천도 `needs_context`이거나 실패하면 중단하십시오. 결과 불명인 요청을 새 ID로 반복하지 마십시오. `spawn_application`이 `blocked`이면 추천을 적용하지 말고 제약을 보고하십시오. 적용 가능한 추천도 부모가 명시 선택·이력·역할·권한을 보존하며 새 native 호출에 미지정 모델·effort만 전달해야 합니다. Hook이 부모의 재호출이나 실제 실행까지 자동 수행하지는 않습니다. 원래 `prepare_spawn_context` 연결은 여전히 변경할 수 없습니다. [한계·비용·검증 계약](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response)을 확인하십시오.
 
 재추천 응답의 `next_call.set_if_unspecified`는 다음 native 호출에 넣을 미지정 필드만 제공합니다. 명시한 모델·effort는 포함하지 않으며 Claude에는 effort를 추가하지 않습니다. 이력 등으로 적용이 막히면 `next_call`을 제공하지 않습니다. 이 값은 실행 결과나 권한 승인이 아닙니다.
+
+캐시 재사용은 첫 결과가 완료된 경우에 한합니다. 결과가 불명이면 `outcome_unknown`으로 유지하며 새 ID로 유료 호출을 반복하지 마십시오.
 
 `context_retry_allowed: false`는 추가 설명 보충을 더 허용하지 않는다는 뜻입니다. 호환 가능한 추천에서 `caller_review_required`는 부모가 인자를 검토한다는 의미이며 새 사용자 승인을 요구하지 않습니다. 기존 위임 권한과 호스트 권한 검사는 그대로 유지됩니다.
 

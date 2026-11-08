@@ -10,7 +10,7 @@ import { createTestTemp } from '../test-support/temp.ts';
 
 test('product MCP consumes installed policy, ignores caller policy and preserves fixture defaults', async t => {
  const home=createTestTemp(t,'codex-automatic-server-');
- assert.equal(setupHosts({home,env:{},clients:['codex'],mode:'advisory'}).status,'complete');
+ assert.equal(setupHosts({home,env:{},clients:['codex'],mode:'advisory',transmission:'excerpt'}).status,'complete');
  const policyPath=join(home,'.codex','aptly','auto-policy.json');
  const env={ROUTER_PROVIDER:'fixture',APTLY_HOOK_POLICY_PATH:policyPath};
  const server=createServer({env}),client=new Client({name:'automatic-server-test',version:'1'});
@@ -36,7 +36,7 @@ test('product MCP consumes installed policy, ignores caller policy and preserves
 });
 
 for(const host of ['codex','claude'])test(`${host}: installed Hook reaches MCP before fixture native dispatch, including inherited/default history`,async t=>{
- const home=createTestTemp(t,'codex-preflight-dispatch-');setupHosts({home,env:{},clients:[host],mode:'advisory'});
+ const home=createTestTemp(t,'codex-preflight-dispatch-');setupHosts({home,env:{},clients:[host],mode:'advisory',transmission:'excerpt'});
  const dir=join(home,host==='codex'?'.codex':'.claude');
  const {readFileSync}=await import('node:fs');
  const entry=JSON.parse(readFileSync(join(dir,host==='codex'?'hooks.json':'settings.json'),'utf8')).hooks.PreToolUse[0];
@@ -68,7 +68,7 @@ for(const host of ['codex','claude'])test(`${host}: installed Hook reaches MCP b
 });
 
 test('MCP context handoff is explicit, opt-out aware, exact-event bound and revocable',async t=>{
- const home=createTestTemp(t,'codex-context-server-');setupHosts({home,env:{},clients:['codex'],mode:'advisory'});
+ const home=createTestTemp(t,'codex-context-server-');setupHosts({home,env:{},clients:['codex'],mode:'advisory',transmission:'excerpt'});
  const policyPath=join(home,'.codex/aptly/auto-policy.json');
  const server=createServer({env:{ROUTER_PROVIDER:'fixture',APTLY_HOOK_POLICY_PATH:policyPath}}),client=new Client({name:'context-test',version:'1'});
  const [left,right]=InMemoryTransport.createLinkedPair();await server.connect(right);await client.connect(left);t.after(async()=>{await client.close();await server.close();});
@@ -85,6 +85,6 @@ test('MCP context handoff is explicit, opt-out aware, exact-event bound and revo
  assert.equal((await call('cancel_spawn_context',args)).status,'cancelled');
  await call('route_spawn_hook',args);
  assert.equal((await call('get_spawn_routing_observation',args)).reason,'context_cancelled');
- writeFileSync(policyPath,JSON.stringify({schema_version:1,kind:'aptly-auto-hook',mode:'advisory',issuer:'operator_installation',enabled:false,state_directory:join(home,'.codex/aptly/state')}));
+ writeFileSync(policyPath,JSON.stringify({schema_version:2,kind:'aptly-auto-hook',mode:'advisory',transmission:'excerpt',issuer:'operator_installation',enabled:false,state_directory:join(home,'.codex/aptly/state')}));
  assert.equal((await call('prepare_spawn_context',{...args,description})).reason,'automatic_policy_disabled');
 });
