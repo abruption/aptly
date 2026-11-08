@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { closeSync, openSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadAutomaticHookPolicy } from './automatic-hook.ts';
+import { effectiveTransmission, loadAutomaticHookPolicy } from './automatic-hook.ts';
 import type { ContextRetrySeed } from './automatic-hook.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
 import type { Router } from './core.ts';
@@ -25,10 +25,13 @@ export class ContextRetries {
   const loaded=loadAutomaticHookPolicy(this.policyPath);
   if(!loaded.policy?.enabled)return loaded.reason;
   if(loaded.fingerprint!==entry.seed.policy_fingerprint)return 'automatic_policy_changed';
+  if(['none','unselected'].includes(effectiveTransmission(loaded.policy)))return 'automatic_transmission_disabled';
   if(hash(this.router.policy)!==entry.catalog)return 'catalog_changed';
   return undefined;
  }
  register(seed:ContextRetrySeed,current?:()=>string|undefined):{retry_id?:string;reason?:string} {
+  const policy=loadAutomaticHookPolicy(this.policyPath);
+  if(!policy.policy?.enabled||policy.fingerprint!==seed.policy_fingerprint||['none','unselected'].includes(effectiveTransmission(policy.policy)))return {reason:'automatic_policy_changed'};
   try{
    this.router.load();
    const original=this.router.state.requests[seed.request_id];
@@ -42,6 +45,8 @@ export class ContextRetries {
   return {retry_id};
  }
  registerAdvice(seed:ContextRetrySeed,current?:()=>string|undefined):{retry_id?:string;reason?:string} {
+  const policy=loadAutomaticHookPolicy(this.policyPath);
+  if(!policy.policy?.enabled||policy.fingerprint!==seed.policy_fingerprint||['none','unselected'].includes(effectiveTransmission(policy.policy)))return {reason:'automatic_policy_changed'};
   if(!seed.fresh_eligible||seed.application_blocked!=='inherited_context_application_unverified')return {reason:'fresh_delegation_unsupported'};
   try{this.router.load();const record=this.router.state.requests[seed.request_id];
    if(!record||record.state!=='complete'||record.result?.status!=='recommended')return {reason:'recommendation_not_available'};

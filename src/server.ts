@@ -9,7 +9,7 @@ import { VERSION } from './version.ts';
 import { hookInput, hookOutput } from './hook.ts';
 import { resolveProvenance } from './provenance.ts';
 import { loadConfiguration, loadHostContext } from './config.ts';
-import { automaticHook, loadAutomaticHookPolicy, initialHookObservation } from './automatic-hook.ts';
+import { automaticHook, effectiveTransmission, loadAutomaticHookPolicy, initialHookObservation } from './automatic-hook.ts';
 import { SpawnContexts } from './spawn-context.ts';
 import { RoutingObservations } from './routing-observations.ts';
 import { ContextRetries } from './context-retry.ts';
@@ -36,15 +36,17 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   const precedence=resolveProvenance({client,event,context:loaded.context});
   return {config,loaded,precedence};
  };
- server.registerTool('get_routing_capabilities',{description:'Advisory profile catalog, provider and local budget limits. No paid call.',annotations,inputSchema:{}},async()=>content({
+ server.registerTool('get_routing_capabilities',{description:'Advisory profile catalog, provider and local budget limits. No paid call.',annotations,inputSchema:{}},async()=>{
+ const automatic=loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH);
+ return content({
   ...router.capabilities(),provider:mode,hook_mode:loadConfiguration(env).mode,
   precedence:'per_call_effective_host_evidence_required',automatic_settings_discovery:false,
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
   credential_status:credentialStatus,
-  automatic_hook:{status:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).reason,mode:loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH).policy?.mode??'disabled',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,fresh_delegation_tool:'prepare_fresh_delegation',fresh_delegation_intent:'caller_declared_not_verified',observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported',
-   guarantee:{scope:'enabled_trusted_connected_supported_hook_only',missing_hook_detectable:false,unavailable_host_hook:'host_controls_fallback',eligible_defaults_failure:'deny',inherited_application:'defaults_deny_advisory_feedback',caller_recovery:'model_driven_not_guaranteed'}},
- }));
+  automatic_hook:{status:automatic.reason,mode:automatic.policy?.mode??'disabled',transmission:automatic.policy?effectiveTransmission(automatic.policy):null,transmission_provenance:automatic.policy?(automatic.policy.schema_version===1?'legacy_v1_default':'operator_policy_v2'):'unavailable',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,fresh_delegation_tool:'prepare_fresh_delegation',fresh_delegation_intent:'caller_declared_not_verified',observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported',
+   guarantee:{scope:'enabled_trusted_connected_supported_hook_only',missing_hook_detectable:false,unavailable_host_hook:'host_controls_fallback',eligible_defaults_failure:'deny_when_transmission_enabled',inherited_application:'defaults_deny_advisory_feedback',caller_recovery:'model_driven_not_guaranteed'}},
+ });});
  server.registerTool('get_spawn_routing_observation',{
   description:'Look up an exact spawn event OR a Hook-issued retry_id in this MCP process (128 calls, 10 minutes). Supply only {client,event} or only {retry_id}. Original preflight and context_retry outcome are separate; no provider call. Missing records never prove bypass; execution remains not_observed.',
   annotations:{...annotations,openWorldHint:false},inputSchema:observationSchema
@@ -56,6 +58,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  },async({client,event,description},extra)=>{
   const policy=loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH);
   if(!policy.policy?.enabled)return content({status:'rejected',reason:policy.reason});
+  if(['none','unselected'].includes(effectiveTransmission(policy.policy)))return content({status:'rejected',reason:'automatic_transmission_disabled'});
   if(extra.signal.aborted)return content({status:'rejected',reason:'context_cancelled'});
   return content(contexts.register(client,event,description,router.policy.max_summary_bytes));
  });

@@ -24,12 +24,12 @@ Node.js **24 이상**과 Claude Code 또는 Codex가 필요합니다. 처음 설
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
-aptly setup --client all --mode defaults
+aptly set default
 aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`aptly --version`으로 설치된 버전을 확인하십시오. `--allow-scripts=aptly`는 지원하는 npm에서 Aptly의 설치 스크립트를 허용합니다. 이 옵션을 지원하지 않는 npm은 [설치 안내](docs/guide/ko.md#설치)의 명시적 설치·설정 절차를 따르십시오.
+`aptly --version`으로 설치된 버전을 확인하십시오. `--allow-scripts=aptly`는 지원하는 npm에서 Aptly의 설치 스크립트를 허용합니다. 이 옵션을 지원하지 않는 npm은 [설치 안내](docs/guide/ko.md#설치)의 명시적 설치·설정 절차를 따르십시오. 다음 릴리스 후보에서는 신규 등록의 자동 전송을 보류하며 `aptly set default`에서 OpenAI Decisions API 전송 범위를 선택합니다.
 
 설치 시 `postinstall`은 기존 호스트 설정 디렉터리에 MCP와 `PreToolUse` Hook을 등록합니다. 명시적인 `setup`은 자동 등록을 건너뛰었거나 아직 설정 디렉터리가 없는 호스트에도 사용할 수 있습니다. 기존 다른 설정·Hook과 기존 Aptly 실행 명령·환경은 보존합니다.
 

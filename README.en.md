@@ -24,12 +24,12 @@ Requires Node.js **24 or later** and Claude Code or Codex. For first-time instal
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
-aptly setup --client all --mode defaults
+aptly set default
 aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-Check the installed version with `aptly --version`. On supported npm versions, `--allow-scripts=aptly` allows Aptly’s installation script. If your npm does not support this option, follow the explicit installation and setup steps in the [installation guide](docs/guide/en.md#installation).
+Check the installed version with `aptly --version`. On supported npm versions, `--allow-scripts=aptly` allows Aptly’s installation script. If your npm does not support this option, follow the explicit installation and setup steps in the [installation guide](docs/guide/en.md#installation). In the next release candidate, new registrations make no automatic transmission until you select an OpenAI Decisions API transmission scope with `aptly set default`.
 
 During installation, `postinstall` registers the MCP server and a `PreToolUse` Hook in existing host configuration directories. Run `setup` explicitly if automatic registration was skipped or a host has no configuration directory yet. Other settings and Hooks, and any existing Aptly launch command and environment, are preserved.
 
