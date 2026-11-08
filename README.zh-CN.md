@@ -29,7 +29,7 @@ aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-请使用 `aptly --version` 确认已安装的版本。在支持此选项的 npm 中，`--allow-scripts=aptly` 允许执行 Aptly 的安装脚本。如果 npm 不支持此选项，请按照[安装指南](docs/guide/zh-CN.md#安装)中的显式安装与配置步骤操作。 在下一版本候选中，新注册不会自动传输；请通过 `aptly set default` 选择向 OpenAI Decisions API 传输的范围。
+请使用 `aptly --version` 确认已安装的版本。在支持此选项的 npm 中，`--allow-scripts=aptly` 允许执行 Aptly 的安装脚本。如果 npm 不支持此选项，请按照[安装指南](docs/guide/zh-CN.md#安装)中的显式安装与配置步骤操作。 从 Aptly 0.1.7 起，新注册不会自动传输；请通过 `aptly set default` 选择向 OpenAI Decisions API 传输的范围。
 
 安装时的 `postinstall` 会在现有宿主配置目录中注册 MCP 和 `PreToolUse` Hook。如果跳过了自动注册，或宿主尚无配置目录，也可以显式运行 `setup`。其他现有配置与 Hook，以及 Aptly 原有的启动命令和环境均会保留。
 
@@ -41,7 +41,7 @@ aptly --version
 
 ```sh
 aptly update
-aptly setup --client all --mode defaults
+aptly setup --client all
 ```
 
 ## 使用方式

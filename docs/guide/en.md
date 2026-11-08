@@ -34,7 +34,7 @@ For npm versions without this option, or to configure explicitly instead of auto
 
 ```sh
 npm install -g aptly@latest --ignore-scripts
-aptly setup --client all --mode defaults
+aptly setup --client all
 ```
 
 Explicit `setup` works regardless of lifecycle execution. It preserves existing launchers; use the recovery steps below for stale paths. Key setup, MCP restart, and Codex `/hooks` trust review remain separate steps.
@@ -47,7 +47,7 @@ Stop other host, MCP, and CLI processes using the ledger before updating, follow
 
 ```sh
 aptly update
-aptly setup --client all --mode defaults
+aptly setup --client all
 aptly --version
 ```
 
@@ -235,7 +235,7 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 
 ### Decisions API transmission scope
 
-The transmission commands in this section are part of the next release candidate and are not in published 0.1.6.
+The transmission commands in this section are supported from Aptly 0.1.7.
 
 Transmission means **sending local task information to the OpenAI Decisions API**, not providing tasks to Aptly developers. Application mode `defaults/advisory` and transmission scope are independent. New registrations use v2 policy with `unselected` scope and make no automatic transmission. Interactive `aptly set default` asks only for unselected hosts; Enter selects `none`. Noninteractive runs and postinstall neither prompt nor count as consent.
 

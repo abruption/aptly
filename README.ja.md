@@ -29,7 +29,7 @@ aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`aptly --version` でインストール済みのバージョンを確認してください。対応する npm では、`--allow-scripts=aptly` で Aptly のインストールスクリプトを許可します。このオプションに対応していない npm では、[インストール案内](docs/guide/ja.md#インストール)の明示的なインストール・設定手順に従ってください。 次のリリース候補では、新規登録は自動送信せず、`aptly set default` で OpenAI Decisions API への送信範囲を選択します。
+`aptly --version` でインストール済みのバージョンを確認してください。対応する npm では、`--allow-scripts=aptly` で Aptly のインストールスクリプトを許可します。このオプションに対応していない npm では、[インストール案内](docs/guide/ja.md#インストール)の明示的なインストール・設定手順に従ってください。 Aptly 0.1.7 以降、新規登録は自動送信せず、`aptly set default` で OpenAI Decisions API への送信範囲を選択します。
 
 インストール時の `postinstall` は、既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。自動登録をスキップした場合や、ホストに設定ディレクトリがまだない場合も、`setup` を明示的に実行して登録できます。他の既存設定・Hook と、既存の Aptly の実行コマンド・環境は保持します。
 
@@ -41,7 +41,7 @@ npm でグローバルインストール済みの Aptly 0.1.3 以降を更新す
 
 ```sh
 aptly update
-aptly setup --client all --mode defaults
+aptly setup --client all
 ```
 
 ## 使用方法
