@@ -229,7 +229,9 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 
 ### 외부 전송과 자동 공유 끄기
 
-자동 분류의 `summary`는 허용된 작업 라벨과 본문의 **첫 문단을 잘라 붙인 발췌문**입니다. 의미를 새로 요약하거나 익명화하지 않습니다. UTF-8 크기는 `min(4000, max_summary_bytes)` 이하이며 전체 HTTP 요청의 크기 제한은 아닙니다. Codex의 opaque 메시지 fallback은 본문을 해독·전송하지 않고 충분히 구체적인 `task_name`만 사용합니다. 라벨에도 민감한 정보가 들어갈 수 있습니다.
+사전 등록 설명이 없는 자동 분류의 `summary`는 허용된 작업 라벨과 본문의 **첫 문단을 잘라 붙인 발췌문**입니다. 의미를 새로 요약하거나 익명화하지 않습니다. UTF-8 크기는 `min(4000, max_summary_bytes)` 이하이며 전체 HTTP 요청의 크기 제한은 아닙니다. Codex의 opaque 메시지 fallback은 본문을 해독·전송하지 않고 충분히 구체적인 `task_name`만 사용합니다. 라벨에도 민감한 정보가 들어갈 수 있습니다.
+
+`prepare_spawn_context`에 유효한 설명을 등록하면 고정 접두사와 그 설명이 native 발췌 대신 분류에 사용됩니다. 등록 자체는 API를 호출하지 않습니다. `retry_spawn_recommendation`은 문맥 부족 응답 이후 고정 접두사와 새 보충 설명으로 한 번 재추천하며, 이전 본문을 덧붙이지 않습니다. 두 경로 모두 원시 설명은 `min(3800, max_summary_bytes - 96)` 바이트 이하이고 접두사 포함 설명은 `min(4000, max_summary_bytes)` 바이트 이하입니다. `prepare_fresh_delegation` 자체는 완료된 추천을 재사용해 추가 분류를 호출하지 않으며, 독립 지시를 로컬의 다음 호출 인자로 반환합니다. 이후 native 호출은 별도 경유 검사를 받습니다. 어느 경로도 설명의 비민감성이나 자동 익명화를 보장하지 않습니다.
 
 Decisions에는 `client`, `task.summary`, `task.operation`, `task.context_sufficient`와 후보 프로필 ID·모델·effort 설명 및 설정된 모델 특성이 전달됩니다. 분류용 API 키는 `Authorization` 헤더로, 요청 ID는 `X-Client-Request-Id` 헤더로 전송됩니다. 자동 경로의 ID는 해시이며 직접 추천의 ID는 호출자가 지정합니다. ID나 후보 설명에도 비밀을 넣지 마십시오.
 

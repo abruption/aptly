@@ -229,7 +229,9 @@ Codex 正文不透明时，`cleanup_merged_worktrees` 等具体的短任务名�
 
 ### 对外传输与关闭自动共享
 
-自动分类的 `summary` 是由有效任务标签与正文**截取后的首段拼接成的摘录**，并不是重新进行语义摘要或匿名化。其 UTF-8 大小不超过 `min(4000, max_summary_bytes)`；这不是整个 HTTP 请求的大小限制。Codex 的 opaque 消息回退仅使用足够具体的 `task_name`，不会解码或传输该正文。标签也可能包含敏感信息。
+没有预先注册的说明时，自动分类的 `summary` 是由有效任务标签与正文**截取后的首段拼接成的摘录**，并不是重新进行语义摘要或匿名化。其 UTF-8 大小不超过 `min(4000, max_summary_bytes)`；这不是整个 HTTP 请求的大小限制。Codex 的 opaque 消息回退仅使用足够具体的 `task_name`，不会解码或传输该正文。标签也可能包含敏感信息。
+
+有效的 `prepare_spawn_context` 说明会加上固定前缀，替代 native 摘录用于分类；注册本身不调用 API。收到上下文不足的响应后，`retry_spawn_recommendation` 可使用固定前缀与新的补充说明重新推荐一次，不附加先前正文。两条路径均将原始说明限制在 `min(3800, max_summary_bytes - 96)` 字节以内，含前缀的说明限制在 `min(4000, max_summary_bytes)` 字节以内。`prepare_fresh_delegation` 本身复用已完成的推荐，不再调用分类，并将独立指令作为本地下一次调用的参数返回。后续 native 调用仍有独立的路由检查。这些路径均不保证说明不含敏感信息，也不保证自动匿名化。
 
 Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context_sufficient`，以及候选配置 ID、模型与 effort 说明、已配置的模型特性。分类 API 密钥通过 `Authorization` 请求头发送，请求 ID 通过 `X-Client-Request-Id` 发送。自动路径使用哈希 ID，直接推荐的 ID 由调用方提供。请勿在 ID 或候选说明中放入秘密信息。
 
