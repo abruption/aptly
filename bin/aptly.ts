@@ -15,30 +15,26 @@ import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.t
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { updateGlobalInstallation } from '../src/update.ts';
 import { updateNotification } from '../src/update-notifier.ts';
+import { resolveCliHelp } from '../src/cli-help.ts';
 const [command='serve',...args]=process.argv.slice(2);
 const output=(value:unknown)=>process.stdout.write(JSON.stringify(value,null,2)+'\n');
+let helpHandled=false;
 try {
- if(['--help','-h','help'].includes(command)) {
-  process.stdout.write('Aptly (preview)\n\nCommands:\n  serve                 Start the stdio MCP server (default: fixture/shadow).\n  capabilities          Print the active catalog; no API call.\n  catalog               Print the active catalog; no API call.\n  catalog refresh --output ABS_PATH  Fetch official model descriptions to a private cache.\n  recommend             Recommend for a task JSON on stdin; no host evidence required.\n  inspect CLIENT FILE   Inspect an explicit JSON settings inventory; no API call.\n  config CLIENT         Print an MCP registration fragment; does not edit settings.\n  set default           Add defaults; select API transmission scope interactively.\n  set transmission      Set/show OpenAI Decisions API transmission scope.\n  set env ENV_KEY       Prompt for an MCP environment value.\n  budget status         Show local budget limits and reserved usage.\n  setup                 Register MCP and automatic PreToolUse Hooks.\n  remove                Remove only unchanged Aptly-owned registration.\n  update                Update this verified global npm installation.\n  report                Write redacted local diagnostic attachments (default: md + json).\n    --format md|json|both  Select report formats.\n    --output-dir DIR      Private output directory (default: reports).\n  --version             Print the package version.\n\nUse aptly set env OPENAI_API_KEY for OS storage, or pass it through the MCP environment.\nPaid mode additionally requires\nROUTER_PROVIDER=decisions and an absolute ROUTER_LEDGER_PATH in a private directory.\nROUTER_CONFIG_PATH is an optional private operator configuration file.\n');
+ const help=resolveCliHelp(process.argv.slice(2),{environmentKeys:['OPENAI_API_KEY',...configurableEnvironmentKeys]});
+ if(help){
+  helpHandled=true;
+  if(help.kind==='error'){process.stderr.write('aptly: '+help.code+' (use --help)\n');process.exitCode=2;}
+  else process.stdout.write(help.text);
  } else if(command==='update'){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly update\nRequires a verified global npm installation. Stop other hosts/MCP/CLI writers first.\nUpdates the same npm prefix without lifecycle setup. Run aptly setup and restart hosts afterward; existing launchers are preserved.\n');
-  else {
-   if(args.length)throw new Error('update_invalid_options');
+  if(args.length)throw new Error('update_invalid_options');
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
    const result=updateGlobalInstallation({packageRoot});output(result);if(result.status==='error')process.exitCode=1;
-  }
  } else if(command==='budget'){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly budget status [--client codex|claude|all]\nReads registered host budget settings and ledger metadata without credentials or API calls. Zero ceilings display Unlimited; estimates are not OpenAI billing. Custom launchers or a different running environment may override this registration snapshot.\n');
-  else {
-   if(args[0]!=='status')throw new Error('budget_invalid_options');
+  if(args[0]!=='status')throw new Error('budget_invalid_options');
    let clients:('codex'|'claude')[]=['codex','claude'];
    if(args.length!==1){if(args.length!==3||args[1]!=='--client'||!['codex','claude','all'].includes(args[2]))throw new Error('budget_invalid_options');clients=args[2]==='all'?['codex','claude']:[args[2] as 'codex'|'claude'];}
    const result=showBudgetStatus({clients});output(result);if(result.status==='partial')process.exitCode=1;
-  }
  } else if(command==='--version') process.stdout.write(VERSION+'\n');
- else if(command==='report'&&args.length===1&&args[0]==='--help'){
-  process.stdout.write('Usage: aptly report [--format md|json|both] [--output-dir DIR]\nDefault: both formats in a private reports directory. No uploads or API probes.\n');
- }
  else if(command==='report'){
   const options={format:'both',outputDir:'reports'};const seen=new Set();
   for(let i=0;i<args.length;i++){const flag=args[i];if(!['--format','--output-dir'].includes(flag)||seen.has(flag)||!args[i+1]||args[i+1].startsWith('--'))throw Object.assign(new Error('report_invalid_options'),{code:'report_invalid_options'});seen.add(flag);options[flag==='--format'?'format':'outputDir']=args[++i];}
@@ -46,16 +42,12 @@ try {
   output(exportDiagnosticReport({diagnostic:collectDiagnostics(),...options}));
  }
  else if(command==='set'){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly set default [--client codex|claude|all]\n       aptly set transmission none|description|excerpt [--client codex|claude|all]\n       aptly set transmission --show [--client codex|claude|all]\n       aptly set env ENV_KEY [--client codex|claude|all] [--stdin | --check]\n--check diagnoses OPENAI_API_KEY registration without reading or storing a key.\nBudget keys: APTLY_MAX_DAILY_CALLS, APTLY_MAX_TOTAL_CALLS, APTLY_MAX_ESTIMATED_USD, APTLY_ESTIMATED_CALL_USD. Only literal 0 disables a ceiling (0.0 is rejected); the per-call rate must stay positive. Default setup fills missing budget settings without resetting usage. Restart MCP after budget changes.\nValues are entered interactively with hidden input; --stdin explicitly reads a value from standard input. Existing defaults and launchers are preserved. OPENAI_API_KEY is stored in the OS credential store; host files contain references only. Restart MCP after changes.\n');
-  else if(args[0]==='transmission'){
-   if(args[1]==='--help'&&args.length===2)process.stdout.write('Usage: aptly set transmission none|description|excerpt [--client codex|claude|all]\n       aptly set transmission --show [--client codex|claude|all]\nControls automatic transmission to OpenAI Decisions, not developer telemetry. Direct recommendations are separate explicit requests. Restart MCP after changes.\n');
-   else {
-    const scope=args[1];if(!['none','description','excerpt','--show'].includes(scope))throw new Error('set_invalid_options');
+  if(args[0]==='transmission'){
+   const scope=args[1];if(!['none','description','excerpt','--show'].includes(scope))throw new Error('set_invalid_options');
     let clients:('codex'|'claude')[]=['codex','claude'];
     if(args.length!==2){if(args.length!==4||args[2]!=='--client'||!['codex','claude','all'].includes(args[3]))throw new Error('set_invalid_options');clients=args[3]==='all'?['codex','claude']:[args[3] as 'codex'|'claude'];}
     const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
     const result=scope==='--show'?showTransmission({clients}):setTransmission(scope as 'none'|'description'|'excerpt',{clients,packageRoot});output(result);if('status' in result&&result.status==='partial')process.exitCode=1;
-   }
   }
   else {
    const action=args[0];let key:string|undefined;let start=1;
@@ -80,9 +72,7 @@ try {
   }
  }
  else if(['setup','remove'].includes(command)){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly setup [--client codex|claude|all] [--mode defaults|advisory] [--transmission none|description|excerpt] [--automatic]\n       aptly setup --client codex|claude --migrate-launcher [--include-existing] [--dry-run]\n       aptly remove [--client codex|claude|all]\nSetup merges MCP and PreToolUse registration. Codex requires native /hooks trust review.\nAutomatic setup skips CI, APTLY_SKIP_SETUP=1, and absent host directories. No keys are stored.\n');
-  else {
-   let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'|undefined;let transmission:'none'|'description'|'excerpt'|undefined;let automatic=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
+  let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'|undefined;let transmission:'none'|'description'|'excerpt'|undefined;let automatic=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
    for(let i=0;i<args.length;i++){
     const flag=args[i];if(seen.has(flag))throw new Error('setup_invalid_options');seen.add(flag);
     if(flag==='--migrate-launcher'&&command==='setup'){migrate=true;continue;}
@@ -99,15 +89,10 @@ try {
    if((migrate&&(clients.length!==1||automatic||seen.has('--mode')||seen.has('--transmission')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
    const result=migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});output(result);
    if(result.status==='partial'&&!automatic)process.exitCode=1;
-  }
  }
  else if(command==='serve'&&args.length===0)await serve();
  else if((command==='capabilities'||command==='catalog')&&args.length===0){const {router,mode,modelInfo,credentialStatus,disabledClients}=runtime();output({...router.capabilities(),provider:mode,credential_status:credentialStatus,model_information:{status:modelInfo.status,account_access_verified:false},disabled_clients:disabledClients});}
  else if(command==='catalog'&&args.length===3&&args[0]==='refresh'&&args[1]==='--output'){const snapshot=await fetchModelInfo();saveModelInfo(args[2],snapshot);output({status:'refreshed',facts:snapshot.facts.length,sources:snapshot.sources,account_access_verified:false});}
- else if(command==='catalog'&&args.length===1&&args[0]==='--help'){process.stdout.write('Usage: aptly catalog\n       aptly catalog refresh --output /absolute/private/model-info.json\nSet APTLY_MODEL_INFO_PATH to load the cache at server startup. No account access is certified.\n');}
- else if(command==='recommend'&&args.length===1&&args[0]==='--help'){
-  process.stdout.write('Usage: aptly recommend < request.json\nRequired: request_id, client (codex|claude), task {summary, operation, context_sufficient}.\nOptional: eligible_profile_ids (defaults to client catalog), constraints (declared pins only).\nRecommendations are advisory_only; no host settings are inspected or changed.\nSee examples/recommend.codex.json and examples/recommend.claude.json.\n');
- }
  else if(command==='recommend'&&args.length===0){
   const raw=readFileSync(0,'utf8');if(Buffer.byteLength(raw)>16384)throw new Error('input_too_large');
   const {router,mode}=runtime();output({...await router.advise(JSON.parse(raw)),provider:mode});
@@ -132,7 +117,7 @@ try {
  process.stderr.write('aptly: '+code+(budgetDetails.invalid_budget_keys?.length?' ['+budgetDetails.invalid_budget_keys.join(', ')+']':'')+(budgetDetails.budget_error?' ('+budgetDetails.budget_error+')':'')+'\n');process.exitCode=1;
 }
 finally {
- if(!process.exitCode){
+ if(!process.exitCode&&!helpHandled){
   try {
    const hint=await updateNotification({command,args,env:process.env,stdinIsTTY:!!process.stdin.isTTY,stderrIsTTY:!!process.stderr.isTTY,stdoutIsTTY:!!process.stdout.isTTY,currentVersion:VERSION});
    if(hint)process.stderr.write(hint+'\n');

@@ -15,12 +15,12 @@ function fixture(t){
 test('only explicit eligible interactive commands can request a bounded public update check',async t=>{
  const f=fixture(t);
  for(const changes of [
-  ...['serve','','recommend','inspect','catalog','capabilities','update','unknown'].map(command=>({command})),
+  ...['help','--help','-h','serve','','recommend','inspect','catalog','capabilities','update','unknown'].map(command=>({command})),
   {stdinIsTTY:false},{stderrIsTTY:false},{stdoutIsTTY:false},{env:{CI:'true'}},{env:{CI:'1'}},{env:{APTLY_NO_UPDATE_NOTIFIER:'1'}},
-  {command:'setup',args:['--automatic']},{command:'set',args:['transmission','--show']},{currentVersion:'1.2.3-preview.1'}
+  {command:'setup',args:['--automatic']},{command:'setup',args:['--help']},{command:'set',args:['env','OPENAI_API_KEY','-h']},{command:'set',args:['transmission','--show']},{currentVersion:'1.2.3-preview.1'}
  ])assert.equal(await updateNotification({...f.options,...changes}),null);
  assert.equal(f.calls(),0);assert.deepEqual(readdirSync(f.cacheDir),[]);
- for(const command of ['help','--help','-h','--version','config','setup','remove','set','report']){
+ for(const command of ['--version','config','setup','remove','set','report']){
   const hint=await updateNotification({...f.options,command});assert.match(hint,/Aptly 0\.2\.0 is available/);
  }
  assert.equal(f.calls(),1);

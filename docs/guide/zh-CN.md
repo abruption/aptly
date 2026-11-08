@@ -59,6 +59,23 @@ aptly --version
 
 仅向公开 npm 注册表请求 Aptly 版本元数据，不发送密钥、任务摘要或宿主配置。网络及响应读取限制为 800ms 和 16KiB，结果缓存于 `~/.cache/aptly/update-check.json`，有效期为 24 小时，失败后等待一小时。网络或缓存错误不会使原命令失败。在 CLI 环境中设置 `APTLY_NO_UPDATE_NOTIFIER=1` 可关闭检查；此变量不属于 `aptly set env` 支持的键。通知不会安装更新。
 
+<a id="command-help"></a>
+
+### 命令帮助（下一版本）
+
+统一命令及子命令帮助属于下一版本功能，已发布的 0.1.7 缺少部分路径。支持以下形式：
+
+```sh
+aptly --help
+aptly setup -h
+aptly set default --help
+aptly set env OPENAI_API_KEY --help
+aptly budget status --help
+aptly help catalog refresh
+```
+
+`--help`、`-h` 和 `aptly help <命令路径>` 只显示用法，不读取配置、指定文件、stdin 或凭据存储，不询问、不修改设置、不调用 API 或模型信息端点、不安装或更新，也不运行更新通知。可在有效选项后加帮助标志；未知路径或选项、已提供的无效值及矛盾的选项组合仍返回错误。可省略必填位置参数以查看用法。`--output --help` 这类把帮助放在选项值位置的形式按缺少选项值处理。
+
 ### 使用 CLI 设置
 
 `set` 命令需要 0.1.1 或更高版本。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
