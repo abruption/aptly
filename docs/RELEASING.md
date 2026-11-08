@@ -1,5 +1,13 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.8 릴리즈 준비
+
+[#101](https://github.com/abruption/aptly/issues/101)에서 main `a0665e4301ac205edd2729ec1713129460c17237`을 기준으로 0.1.8을 준비합니다. #98은 main에 병합됐고, #100도 기준을 main으로 바꾼 뒤 최신 main 반영·새 HEAD 검사를 거쳐 병합됐습니다. [기준 main CI](https://github.com/abruption/aptly/actions/runs/42537244834)의 7개 job이 모두 성공했습니다. 준비 PR의 정확한 HEAD 검사는 별도로 확인합니다.
+
+[한국어 릴리즈 노트 초안](release-notes/0.1.8.md)에 예산 기본값·0 의미·기존 등록의 새 기본값 적용·캐시/불명 결과 보존과 도움말 경계를 기록합니다. 버전과 4개 언어 가이드 지원 표시만 갱신하며 이전 0.1.7 게시 근거·기능별 최소 버전·고정 평가 자료는 변경하지 않습니다. 실제 PC 설정·키·원장·예산은 변경하지 않습니다.
+
+준비 PR 병합과 정확한 새 main CI 성공 뒤 별도 게시 지시에 따라 `v0.1.8` 태그를 생성합니다. 새 v* 태그 push는 실제 OIDC 게시를 시작하므로 준비 중에는 만들거나 push하지 않습니다. 실제 registry archive·서명·provenance는 새 게시 실행에 대해 별도로 확인하며 이전 버전의 근거를 재사용하지 않습니다. 이 절은 게시 완료를 뜻하지 않습니다.
+
 ## 0.1.7 게시와 검증
 
 2026-11-08에 source `79ae693cbd0a7e59e79c00db32de916ccea6af87`의 `v0.1.7` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42472447519)를 수행했습니다. 정확한 병합 main CI 7개 성공 후 태그를 생성했고 설치 시험·새 runner 패키징·게시 3개 job이 성공했습니다. npm latest는 0.1.7이며 artifact·registry SHA-256과 SHA-512 integrity·npm 서명·SLSA v1 provenance의 인증서 identity를 확인했습니다.
