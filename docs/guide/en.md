@@ -231,6 +231,8 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 
 `confidence` is metadata and has not been validated here as a calibrated probability of correctness. It is not currently used as an automatic-application threshold. Zero and low values are currently allowed when other application conditions hold. A missing value in a live Decisions response is rejected as an error; it remains optional in generic Router and stored results. `keep_current` and `needs_context` are separate outcomes with existing abstention and context-recovery rules. Explicit model, effort, history and permissions are preserved. A small classification pilot does not establish improved child-task quality or total cost.
 
+<a id="budget-limits"></a>
+
 ### Budget limits and usage (next release)
 
 This feature is under development and is not in published 0.1.7. `aptly set default` also fills missing budget environment settings for selected hosts. It adds no budget questionnaire, preserves existing values including explicit `0`, and does not reset usage, ledgers or caches. The existing transmission-scope question is separate. Existing registrations without budget variables also use the new runtime defaults after upgrade. The old implicit 20-call/50-call/$0.50 ceilings are not retained; configure any limits you require explicitly.
@@ -253,7 +255,7 @@ aptly budget status --client codex
 aptly budget status --client claude
 ```
 
-Setting commands support `--client codex|claude|all`, hidden input and explicit `--stdin`. Restart MCP after changes. Defaults also preserve existing Codex budget passthrough bindings in `env_vars` and observable inherited Claude budget values, listed as `inherited`. Direct `recommend`/`capabilities` use the CLI process environment and do not automatically read host settings files. Status briefly holds the existing gate, so a concurrent request can receive temporary `ledger_locked`. Status is a snapshot of registration and permitted current environment settings, not verification of custom wrappers or the running host. It reads no keys, API or task text and creates no ledger or gate. Unlimited ceilings display `Unlimited` with `null` remaining. Sessions sharing a ledger share its budget; other ledgers and account-wide OpenAI usage are not aggregated.
+Setting commands support `--client codex|claude|all`, hidden input and explicit `--stdin`. Restart MCP after changes. Defaults also preserve existing Codex budget passthrough bindings in `env_vars` and Claude budget values observed in this CLI process environment, listed as `inherited`. Direct `recommend`/`capabilities` use the CLI process environment and do not automatically read host settings files. Status briefly holds the existing gate, so a concurrent request can receive temporary `ledger_locked`. Status is a snapshot of registration and permitted current environment settings, not verification of custom wrappers or the running host. It reads no keys, API or task text and creates no ledger or gate. Unlimited ceilings display `Unlimited` with `null` remaining. Sessions sharing a ledger share its budget; other ledgers and account-wide OpenAI usage are not aggregated.
 
 `budget_exhausted` is local, not an OpenAI authentication or account-credit error. Direct/retry responses identify `budget_limit`; status lists `exhausted_by`. Reservations are not an actual billing cap and do not reset monthly. Changing the rate does not reprice past reservations; replacing a key or applying defaults does not refund them.
 

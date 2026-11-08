@@ -87,6 +87,9 @@ test('default setup preserves Codex inherited budget bindings and explicit inher
  assert.deepEqual(first.clients[0].budget.inherited,['APTLY_MAX_DAILY_CALLS','APTLY_MAX_TOTAL_CALLS']);assert.equal(first.clients[0].budget.limits.max_daily_calls,50);
  assert.equal(showBudgetStatus(options).clients[0].budget.limits.max_daily_calls,50);
  assert.equal(setDefaults(options).clients[0].status,'unchanged');
+ const beforeInvalid=readFileSync(path,'utf8');
+ const invalid=setDefaults({...options,env:{...o.env,APTLY_MAX_DAILY_CALLS:'private-invalid-number'}});
+ assert.equal(invalid.status,'partial');assert.deepEqual(invalid.clients[0].invalid_budget_keys,['APTLY_MAX_DAILY_CALLS']);assert.equal(readFileSync(path,'utf8'),beforeInvalid);
  // A declared passthrough remains preserved even if this CLI cannot observe its eventual value.
  assert.equal(setDefaults({...options,env:{}}).clients[0].status,'unchanged');assert.equal(registration(o,'codex').env.APTLY_MAX_DAILY_CALLS,undefined);
  assert.equal(setEnvironment('APTLY_MAX_DAILY_CALLS','75',options).status,'complete');entry=registration(o,'codex');assert.equal(entry.env.APTLY_MAX_DAILY_CALLS,'75');
@@ -99,4 +102,15 @@ test('Claude inherited values are preserved while malformed inherited values ide
  assert.equal(setDefaults(options).clients[0].status,'unchanged');
  const invalid=setDefaults({...options,env:{...o.env,APTLY_MAX_DAILY_CALLS:'private-invalid-number'}});assert.equal(invalid.status,'partial');
  assert.deepEqual(invalid.clients[0].invalid_budget_keys,['APTLY_MAX_DAILY_CALLS']);assert.ok(!JSON.stringify(invalid).includes('private-invalid-number'));
+});
+
+test('unknown inherited budget names and CLI failures reveal only static reasons and known keys',t=>{
+ const o=fixture(t);mkdirSync(join(o.home,'.codex'),{mode:0o700});const path=join(o.home,'.codex/config.toml');
+ const badKey='APTLY_MAX_UNRECOGNIZED_SETTING',badValue='private-invalid-number';
+ writeFileSync(path,'[mcp_servers.aptly]\ncommand = '+JSON.stringify(process.execPath)+'\nargs = ["custom"]\nenv_vars = ["'+badKey+'"]\n[mcp_servers.aptly.env]\nROUTER_PROVIDER = "fixture"\n',{mode:0o600});const before=readFileSync(path,'utf8');
+ const result=setDefaults({...o,clients:['codex'],env:{[badKey]:badValue}});
+ assert.equal(result.status,'partial');assert.equal(result.clients[0].budget_error,'unknown_budget_key');assert.ok(!JSON.stringify(result).includes(badKey));assert.ok(!JSON.stringify(result).includes(badValue));assert.equal(readFileSync(path,'utf8'),before);
+ const env={...process.env,CI:'1',ROUTER_PROVIDER:'fixture',APTLY_MAX_DAILY_CALLS:badValue};
+ const cli=spawnSync(process.execPath,['bin/aptly.ts','capabilities'],{cwd:resolve('.'),env,encoding:'utf8'});
+ assert.equal(cli.status,1);assert.match(cli.stderr,/invalid_budget_configuration.*APTLY_MAX_DAILY_CALLS.*invalid_value/);assert.ok(!cli.stderr.includes(badValue));assert.equal(cli.stdout,'');
 });
