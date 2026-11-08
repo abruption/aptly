@@ -74,7 +74,7 @@ test('concurrency and call/cost budgets reserve before provider invocation', asy
   const pending = r.recommend(request()); await new Promise(done => setImmediate(done));
   assert.equal((await r.recommend(request('r2'))).reason, 'concurrency_limit');
   resolve({ choice: 'codex-routine' }); await pending;
-  for (const limits of [{ max_daily_calls: 1 }, { max_total_calls: 1 }, { max_estimated_usd: 0.01 }]) {
+  for (const limits of [{ max_daily_calls: 1 }, { max_total_calls: 1 }, { max_estimated_usd: 0.01, estimated_call_usd: 0.01 }]) {
     let calls = 0; const budget = router(async () => { calls++; return { choice: 'codex-routine' }; }, { policy: policy(limits) });
     await budget.recommend(request()); assert.equal((await budget.recommend(request('second'))).reason, 'budget_exhausted'); assert.equal(calls, 1);
   }
@@ -110,7 +110,7 @@ test('secret-like task input is rejected locally before network and ledger creat
 });
 
 test('policy typos, fractional count/time limits and unsupported model/effort combinations fail closed', () => {
-  for (const override of [{ max_total_calls: 1.1 }, { timeout_ms: 1.5 }, { max_concurrency: 17 }, { max_summary_bytes: 64001 }, { max_daily_calls: 0 }, { max_estimated_usd: Infinity }, { estimated_call_usd: -0.1 }, { version: 'private prompt with spaces' }]) {
+  for (const override of [{ max_total_calls: 1.1 }, { timeout_ms: 1.5 }, { max_concurrency: 17 }, { max_summary_bytes: 64001 }, { max_daily_calls: -1 }, { max_estimated_usd: Infinity }, { estimated_call_usd: -0.1 }, { version: 'private prompt with spaces' }]) {
     assert.throws(() => router(undefined, { policy: policy(override) }), /invalid_policy/);
   }
   for (const profile of [

@@ -210,6 +210,7 @@ function bindCall(call: NativeCall, policy: AutoPolicy, policyFingerprint: strin
 export async function automaticHook({ client, event, router, policyPath, signal, context, stillCurrent, onObservation, onNeedsContext, onBlockedAdvice }: AutomaticHookOptions): Promise<AutomaticHookResult> {
   const observation=initialHookObservation(client,event);
   let activeMode:'defaults'|'advisory'|undefined;
+  let budgetLimit:string|undefined;
   const preserve = (reason: string, request_id?: string): AutomaticHookResult => {
     const result:AutomaticHookResult={output:{},observation:{...observation,status:'preserved',reason,...(request_id?{request_id}:{})}};
     if(!activeMode||signal?.aborted||reason==='call_cancelled')return result;
@@ -220,7 +221,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       result.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:`Aptly automatic routing is inactive (${effectiveTransmission(currentPolicy)}). Original arguments are preserved.`}};
       return result;
     }
-    const message=`Aptly could not select compatible subagent defaults (${reason}). Original arguments and execution constraints are preserved; no child execution is observed. Report this outcome. Do not repeat an uncertain paid request with a new ID or change history, explicit choices, roles or permissions to bypass this result.`;
+    const message=`Aptly could not select compatible subagent defaults (${reason}${reason==='budget_exhausted'&&budgetLimit?'; '+budgetLimit:''}). Original arguments and execution constraints are preserved; no child execution is observed. Report this outcome. Do not repeat an uncertain paid request with a new ID or change history, explicit choices, roles or permissions to bypass this result.`;
     result.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:message,
       ...(currentPolicy.mode==='defaults'?{permissionDecision:'deny',permissionDecisionReason:message}:{})}};
     result.observation.status=currentPolicy.mode==='defaults'?'blocked':'preserved';
@@ -318,6 +319,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       eligible_profile_ids: profiles.map(profile=>profile.id),
       constraints: { model_pinned: false, effort_pinned: false, role_pinned: false, fork_inherits: false },
     });
+    if(recommendation.reason==='budget_exhausted'&&['max_daily_calls','max_total_calls','max_estimated_usd'].includes(recommendation.budget_limit??''))budgetLimit=recommendation.budget_limit;
     observation.classification=recommendation.cached?'cache_hit':typeof recommendation.latency_ms==='number'?'provider_requested':'local_outcome';
     const profile=validatedHookProfile(client,recommendation,router.policy);
     if(profile&&profiles.some(candidate=>candidate.id===profile.id)){observation.recommendation='produced';observation.profile_id=profile.id;observation.application='blocked';}

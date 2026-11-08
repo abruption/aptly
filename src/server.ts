@@ -24,7 +24,7 @@ const observationSchema=z.object({client:hookSchema.client.optional(),event:hook
 const content=(result:Record<string,unknown>):CallToolResult=>({content:[{type:'text',text:JSON.stringify(result)}],structuredContent:result});
 
 export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
- const {router,mode,modelInfo,credentialStatus,disabledClients}=runtime(env);
+ const {router,budget,mode,modelInfo,credentialStatus,disabledClients}=runtime(env);
  const observations=new RoutingObservations();
  const contexts=new SpawnContexts();
  const retries=new ContextRetries(router,env.APTLY_HOOK_POLICY_PATH);
@@ -39,7 +39,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  server.registerTool('get_routing_capabilities',{description:'Advisory profile catalog, provider and local budget limits. No paid call.',annotations,inputSchema:{}},async()=>{
  const automatic=loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH);
  return content({
-  ...router.capabilities(),provider:mode,hook_mode:loadConfiguration(env).mode,
+  ...router.capabilities(),budget_configuration:{...budget,zero_ceiling_means_unlimited:true,settings_require_mcp_restart:true,cost_guard:'local_estimate_not_billing_cap'},provider:mode,hook_mode:loadConfiguration(env).mode,
   precedence:'per_call_effective_host_evidence_required',automatic_settings_discovery:false,
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,

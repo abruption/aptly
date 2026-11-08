@@ -41,6 +41,7 @@ try {
   assert.equal(installedMetadata.bin.aptly, 'dist/bin/aptly.js');
   const installedCli = join(prefix, 'node_modules', 'aptly', 'dist', 'bin', 'aptly.js');
   assert.equal(run(process.execPath, ['--no-experimental-strip-types', installedCli, '--version'], prefix).trim(), metadata.version);
+  assert.ok(run(process.execPath, [installedCli, 'budget', '--help'], prefix).includes('budget status'));
   // Resolve all imports from the installed prefix, not this source tree.
   writeFileSync(join(prefix, 'smoke.mjs'), `
 import assert from 'node:assert/strict';
@@ -62,6 +63,11 @@ try {
   await client.connect(transport);
   const names = (await client.listTools()).tools.map(tool => tool.name);
   assert.ok(names.includes('recommend_agent'));
+  const capabilities = (await client.callTool({name:'get_routing_capabilities',arguments:{}})).structuredContent;
+  assert.equal(capabilities.budget_configuration.limits.max_daily_calls,200);
+  assert.equal(capabilities.budget_configuration.limits.max_total_calls,0);
+  assert.equal(capabilities.budget_configuration.limits.max_estimated_usd,0);
+  assert.equal(capabilities.budget_configuration.limits.estimated_call_usd,0.002);
   const args = {request_id:'installed-smoke',client:'codex',task:{
     summary:'Sort the synthetic numbers 3, 1, 2.',operation:'analysis',context_sufficient:true}};
   const first = (await client.callTool({name:'recommend_agent',arguments:args})).structuredContent;

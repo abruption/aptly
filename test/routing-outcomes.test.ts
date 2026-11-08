@@ -42,7 +42,7 @@ test('enabled eligible defaults deny bounded failures; advisory provides safe fe
    if(scenario==='network')throw Object.assign(Error('SYNTHETIC_PRIVATE_RAW_ERROR'),{code:'network'});
    return {choice:scenario==='choice'?'foreign-profile':'codex-simple'};
   },routerPolicy:scenario==='budget'?{max_total_calls:1}:undefined});
-  if(scenario==='budget'){await f.run();f.router.policy.max_total_calls=0;}
+  if(scenario==='budget'){await f.run();assert.equal(f.calls(),1);}
   const ev=event();if(scenario==='budget')ev.tool_use_id='second-synthetic-call';
   const result=await f.run(ev,scenario==='throw'?{context:()=>{throw Error('SYNTHETIC_PRIVATE_RAW_ERROR');}}:{});
   assert.equal(result.observation.reason,{network:'network',choice:'invalid_choice',budget:'budget_exhausted',throw:'automatic_hook_unavailable'}[scenario]);
@@ -50,6 +50,7 @@ test('enabled eligible defaults deny bounded failures; advisory provides safe fe
   assert.equal(result.output.hookSpecificOutput.permissionDecision,mode==='defaults'?'deny':undefined);
   assert.equal(Object.hasOwn(result.output.hookSpecificOutput,'updatedInput'),false);
   assert.equal(JSON.stringify(result).includes('SYNTHETIC_PRIVATE_RAW_ERROR'),false);
+  if(scenario==='budget')assert.equal(f.calls(),1);
   if(scenario==='network'){const next=await f.run(ev);assert.equal(next.observation.reason,'outcome_unknown');assert.equal(f.calls(),1);}
  }
 });

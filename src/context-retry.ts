@@ -26,7 +26,7 @@ export class ContextRetries {
   if(!loaded.policy?.enabled)return loaded.reason;
   if(loaded.fingerprint!==entry.seed.policy_fingerprint)return 'automatic_policy_changed';
   if(['none','unselected'].includes(effectiveTransmission(loaded.policy)))return 'automatic_transmission_disabled';
-  if(hash(this.router.policy)!==entry.catalog)return 'catalog_changed';
+  if(hash(this.router.semanticPolicy())!==entry.catalog)return 'catalog_changed';
   return undefined;
  }
  register(seed:ContextRetrySeed,current?:()=>string|undefined):{retry_id?:string;reason?:string} {
@@ -41,7 +41,7 @@ export class ContextRetries {
   const previous=this.entries.get(retry_id);
   if(previous)return {retry_id}; // No renewal or replacement of a ticket.
   if(this.entries.size>=128)return {reason:'context_retry_capacity'};
-  this.entries.set(retry_id,{seed:structuredClone(seed),at:this.now(),catalog:hash(this.router.policy),current});
+  this.entries.set(retry_id,{seed:structuredClone(seed),at:this.now(),catalog:hash(this.router.semanticPolicy()),current});
   return {retry_id};
  }
  registerAdvice(seed:ContextRetrySeed,current?:()=>string|undefined):{retry_id?:string;reason?:string} {
@@ -54,7 +54,7 @@ export class ContextRetries {
   const retry_id=hash(['aptly-blocked-advice-v1',seed.request_id]);
   if(this.entries.has(retry_id))return {retry_id};
   if(this.entries.size>=128)return {reason:'context_retry_capacity'};
-  this.entries.set(retry_id,{seed:structuredClone(seed),at:this.now(),catalog:hash(this.router.policy),current,recommendation_id:seed.request_id});return {retry_id};
+  this.entries.set(retry_id,{seed:structuredClone(seed),at:this.now(),catalog:hash(this.router.semanticPolicy()),current,recommendation_id:seed.request_id});return {retry_id};
  }
  async retry(retry_id:string,description:string,signal?:AbortSignal):Promise<Record<string,unknown>> {
   const entry=this.entries.get(retry_id);
