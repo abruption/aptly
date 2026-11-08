@@ -9,6 +9,7 @@ import { collectDiagnostics } from '../src/diagnostics.ts';
 import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
+import { budgetErrorDetails } from '../src/budget.ts';
 import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus } from '../src/setup.ts';
 import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
@@ -127,7 +128,8 @@ try {
  const configCode=[caughtCode,message].find(value=>typeof value==='string'&&safeConfigurationCodes.includes(value));
  const setCodes=['set_environment_key_unsupported','set_invalid_options','set_value_too_large','set_interactive_input_required','set_input_cancelled'];
  const code=command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):budgetCode??configCode??'operation_failed';
- process.stderr.write('aptly: '+code+'\n');process.exitCode=1;
+ const budgetDetails=budgetErrorDetails(error);
+ process.stderr.write('aptly: '+code+(budgetDetails.invalid_budget_keys?.length?' ['+budgetDetails.invalid_budget_keys.join(', ')+']':'')+(budgetDetails.budget_error?' ('+budgetDetails.budget_error+')':'')+'\n');process.exitCode=1;
 }
 finally {
  if(!process.exitCode){

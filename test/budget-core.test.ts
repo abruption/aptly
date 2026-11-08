@@ -6,7 +6,7 @@ import { chmodSync, existsSync, readFileSync, readdirSync, statSync, writeFileSy
 import { createTestTemp } from '../test-support/temp.ts';
 import { Router, defaultPolicy } from '../src/core.ts';
 import { acquireLedgerLock } from '../src/ledger-lock.ts';
-import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings } from '../src/budget.ts';
+import { budgetEnvironmentDefaults, budgetEnvironmentKeys, budgetErrorDetails, parseBudgetValue, resolveBudgetSettings } from '../src/budget.ts';
 import { ContextRetries } from '../src/context-retry.ts';
 import { loadAutomaticHookPolicy } from '../src/automatic-hook.ts';
 import { runtime } from '../src/runtime.ts';
@@ -275,4 +275,28 @@ test('two independent processes recover one legacy unpaid denial with at most on
   assert.equal(state.calls,1);assert.equal(state.estimated_usd,.002);
   assert.equal(state.requests['legacy-request'].state,'complete');
   assert.deepEqual(Object.keys(state.requests),['legacy-request']);
+});
+
+
+test('unlimited monetary ceiling requires literal zero and diagnostic details never echo values or unknown names',()=>{
+  for(const value of ['0.0','0.00','0.000000'])assert.throws(()=>parseBudgetValue('APTLY_MAX_ESTIMATED_USD',value),/invalid_budget_configuration/);
+  assert.equal(parseBudgetValue('APTLY_MAX_ESTIMATED_USD','0'),0);
+  const secret='SYNTHETIC_PRIVATE_VALUE';
+  let valueError;
+  try{parseBudgetValue('APTLY_MAX_DAILY_CALLS',secret);}catch(error){valueError=error;}
+  assert.equal(valueError.message,'invalid_budget_configuration');
+  assert.deepEqual(budgetErrorDetails(valueError),{invalid_budget_keys:['APTLY_MAX_DAILY_CALLS'],budget_error:'invalid_value'});
+  assert.equal(JSON.stringify(valueError).includes(secret),false);
+  assert.equal(JSON.stringify(budgetErrorDetails(valueError)).includes(secret),false);
+  let aggregateError;
+  try{resolveBudgetSettings({APTLY_MAX_ESTIMATED_USD:'0.001'});}catch(error){aggregateError=error;}
+  assert.deepEqual(budgetErrorDetails(aggregateError),{invalid_budget_keys:['APTLY_MAX_ESTIMATED_USD','APTLY_ESTIMATED_CALL_USD'],budget_error:'rate_exceeds_ceiling'});
+  let unknownError;
+  try{resolveBudgetSettings({['APTLY_MAX_'+secret]:secret});}catch(error){unknownError=error;}
+  assert.deepEqual(budgetErrorDetails(unknownError),{budget_error:'unknown_budget_key'});
+  assert.equal(JSON.stringify(unknownError).includes(secret),false);
+  assert.deepEqual(budgetErrorDetails({budget_error:'invalid_value',invalid_budget_keys:[secret,'APTLY_MAX_TOTAL_CALLS','APTLY_MAX_TOTAL_CALLS'],secret}),{invalid_budget_keys:['APTLY_MAX_TOTAL_CALLS'],budget_error:'invalid_value'});
+  assert.deepEqual(budgetErrorDetails({budget_error:secret,invalid_budget_keys:['APTLY_MAX_TOTAL_CALLS']}),{});
+  assert.deepEqual(budgetErrorDetails(new Error(secret)),{});
+  assert.deepEqual(budgetErrorDetails(null),{});
 });

@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
-import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings } from './budget.ts';
+import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings, budgetErrorDetails } from './budget.ts';
 import { Router, defaultPolicy } from './core.ts';
 import { loadAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
 import { assertPrivateStatePath } from './files.ts';
@@ -25,7 +25,7 @@ export interface SetupOptions {
   selectUnselectedOnly?: boolean;
 }
 export type TransmissionScope = 'none' | 'description' | 'excerpt';
-export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; restart_required:boolean } }
+export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; invalid_budget_keys?:string[]; budget_error?:string; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; inherited:string[]; restart_required:boolean } }
 export interface SetupResult { status: 'complete' | 'partial' | 'skipped'; clients: SetupClientResult[] }
 type Snapshot = { path: string; before: string | null; after: string | null; mode: number };
 type Ownership = { schema_version: 1; kind: 'aptly-setup-ownership'; client: Client; hook: ObjectValue; mcp_created: boolean; mcp?: ObjectValue; policy: ObjectValue; policy_created: boolean; env_added: Record<string, string>; toml_block?: string };
@@ -117,24 +117,33 @@ function validateEnvironmentValue(key: string, value: string) {
   if (!(configurableEnvironmentKeys as readonly string[]).includes(key)) fail(/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL/i.test(key) ? 'environment_secret_key_unsupported' : 'environment_key_unsupported');
   if (typeof value !== 'string' || !value || Buffer.byteLength(value) > 8192 || /[\x00-\x1f\x7f]/.test(value)) fail('environment_invalid_value');
   if (/\bsk-[A-Za-z0-9_-]{8,}|\bBearer\s+\S+|https?:\/\/[^/\s]+:[^/\s]+@/i.test(value)) fail('environment_sensitive_value');
-  if (budgetEnvironmentKeys.includes(key)) { try {parseBudgetValue(key,value);} catch {fail('environment_invalid_value');} }
+  if (budgetEnvironmentKeys.includes(key)) { try {parseBudgetValue(key,value);} catch(error) {throw Object.assign(new Error('environment_invalid_value'),budgetErrorDetails(error));} }
   if (key === 'ROUTER_PROVIDER' && !['fixture','decisions'].includes(value)) fail('environment_invalid_value');
   if (key === 'APTLY_MODEL_INFO_PATH') { try { assertPrivateStatePath(value); } catch { fail('environment_invalid_value'); } }
 }
-function editEnvironment(current: ObjectValue, edit: EnvironmentEdit, client: Client): Record<string,string> {
+function budgetInheritance(entry:ObjectValue, environment:NodeJS.ProcessEnv, client:Client) {
+  if(client==='codex'&&entry.env_vars!==undefined&&(!Array.isArray(entry.env_vars)||entry.env_vars.some((key:unknown)=>typeof key!=='string')))fail('configuration_shape_conflict');
+  const permitted=client==='codex'?(entry.env_vars??[]):[],keys=new Set<string>(),values:Record<string,unknown>={};
+  for(const key of budgetEnvironmentKeys){
+    if(client==='codex'?permitted.includes(key):environment[key]!==undefined){keys.add(key);if(environment[key]!==undefined)values[key]=environment[key];}
+  }
+  for(const key of Object.keys(environment))if((key.startsWith('APTLY_MAX_')||key.startsWith('APTLY_ESTIMATED_'))&&(client==='claude'||permitted.includes(key)))values[key]=environment[key];
+  return {keys,values};
+}
+function editEnvironment(current: ObjectValue, edit: EnvironmentEdit, client: Client, inherited:{keys:Set<string>;values:Record<string,unknown>}): Record<string,string> {
   const updates: Record<string,string> = {};
   if ('defaults' in edit) {
     for (const [key,value] of Object.entries(defaultEnvironment)) {
       const alias = key === 'APTLY_CLAUDE_MODELS' ? 'CLAUDE_MODELS' : key === 'APTLY_CODEX_MODELS' ? 'CODEX_MODELS' : null;
-      if (current[key] === undefined && (!alias || current[alias] === undefined)) updates[key] = value;
+      if (current[key] === undefined && (!alias || current[alias] === undefined) && !(budgetEnvironmentKeys.includes(key)&&inherited.keys.has(key))) updates[key] = value;
     }
   } else if ('credential' in edit) {
     updates.APTLY_SECRET_BACKEND = 'os';
     updates.APTLY_SECRET_CLIENT = client;
   } else if (!('migrate' in edit) && !('transmission' in edit)) { validateEnvironmentValue(edit.key, edit.value); updates[edit.key] = edit.value; }
-  const effective = { ...current, ...updates };
+  const effective = { ...inherited.values, ...current, ...updates };
   if (effective.ROUTER_PROVIDER !== undefined && !['fixture','decisions'].includes(effective.ROUTER_PROVIDER)) fail('environment_invalid_value');
-  try { resolveCatalog(effective); resolveBudgetSettings(effective); } catch { fail('environment_invalid_value'); }
+  try { resolveCatalog(effective); resolveBudgetSettings(effective); } catch(error) { throw Object.assign(new Error('environment_invalid_value'),budgetErrorDetails(error)); }
   return Object.fromEntries(Object.entries(updates).filter(([key,value]) => current[key] !== value));
 }
 /** Change only selected single-line scalar env assignments; refuse ambiguous TOML layouts. */
@@ -276,8 +285,8 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     }
     if (edit && ('credential' in edit || 'migrate' in edit)) requireCredentialRuntime(servers.aptly,root);
     const currentEnv = map(servers.aptly, 'env');
-    const originalEnvKeys=new Set(Object.keys(currentEnv));
-    const updates = edit ? editEnvironment(currentEnv,edit,client) : {};
+    const originalEnvKeys=new Set(Object.keys(currentEnv)),inheritedBudget=budgetInheritance(servers.aptly,env,client);
+    const updates = edit ? editEnvironment(currentEnv,edit,client,inheritedBudget) : {};
     Object.assign(currentEnv,updates);
     if (created) {
       if (client === 'codex') { tomlBlock = newTomlBlock(servers.aptly); mcp.after = (mcp.before ?? '') + ((mcp.before ?? '').endsWith('\n') || !mcp.before ? '\n' : '\n\n') + tomlBlock; }
@@ -341,10 +350,11 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     }
     if (requestedScope !== undefined) owner.policy = structuredClone(policyValue);
     if (edit && ('defaults' in edit || ('key' in edit && budgetEnvironmentKeys.includes(edit.key)))) {
-      const budget=resolveBudgetSettings(currentEnv);
+      const budget=resolveBudgetSettings({...inheritedBudget.values,...currentEnv});
       result.budget={limits:{...budget.limits},added:budgetEnvironmentKeys.filter(key=>Object.hasOwn(updates,key)&&!originalEnvKeys.has(key)),
         updated:budgetEnvironmentKeys.filter(key=>Object.hasOwn(updates,key)&&originalEnvKeys.has(key)),
-        preserved:budgetEnvironmentKeys.filter(key=>!Object.hasOwn(updates,key)&&currentEnv[key]!==undefined),restart_required:budgetEnvironmentKeys.some(key=>Object.hasOwn(updates,key))};
+        preserved:budgetEnvironmentKeys.filter(key=>!Object.hasOwn(updates,key)&&currentEnv[key]!==undefined),
+        inherited:budgetEnvironmentKeys.filter(key=>currentEnv[key]===undefined&&inheritedBudget.keys.has(key)),restart_required:budgetEnvironmentKeys.some(key=>Object.hasOwn(updates,key))};
     }
     result.transmission = effectiveTransmission(policyValue);
     result.transmission_source = policyValue.schema_version === 1 ? 'legacy' : policyValue.transmission === 'unselected' ? 'unselected' : 'explicit';
@@ -389,7 +399,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   if (options.transmission !== undefined && !['none','description','excerpt'].includes(options.transmission)) return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
   if (!removing && options.automatic && (env.APTLY_SKIP_SETUP === '1' || !!env.CI)) return { status: 'skipped', clients: clients.map(client => ({ client, status: 'skipped', codes: [env.APTLY_SKIP_SETUP === '1' ? 'setup_disabled' : 'ci_environment'] })) };
   const prepared = captured ?? clients.map(client => {
-    try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: { client, status: 'error', codes: [safeCode(e)] } as SetupClientResult }; }
+    try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: { client, status: 'error', codes: [safeCode(e)], ...budgetErrorDetails(e) } as SetupClientResult }; }
   });
   const results = prepared.map(plan => plan.result);
   if (edit && results.some(result => result.status === 'error')) return { status: 'partial', clients: results.map(result => result.status === 'error' ? result : { ...result, status: 'skipped', codes: ['other_host_validation_failed'] }) };
@@ -423,7 +433,7 @@ export function removeSetup(options: SetupOptions = {}): SetupResult { return ex
 
 export function setDefaults(options: SetupOptions = {}): SetupResult { return execute(options,false,{ defaults:true }); }
 export function setEnvironment(key: string, value: string, options: SetupOptions = {}): SetupResult {
-  try { validateEnvironmentValue(key,value); } catch (error) { return { status:'partial',clients:(options.clients ?? ['codex','claude']).map(client=>({client,status:'error',codes:[safeCode(error)]})) }; }
+  try { validateEnvironmentValue(key,value); } catch (error) { return { status:'partial',clients:(options.clients ?? ['codex','claude']).map(client=>({client,status:'error',codes:[safeCode(error)],...budgetErrorDetails(error)})) }; }
   return execute(options,false,{key,value});
 }
 
@@ -518,8 +528,8 @@ export function showBudgetStatus(options: SetupOptions = {}) {
       const entry=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly;
       if(entry===undefined)return {client,status:'skipped',codes:['host_not_configured']};
       if(!object(entry)||entry.env!==undefined&&!object(entry.env))fail('configuration_shape_conflict');
-      if(entry.env_vars!==undefined&&(!Array.isArray(entry.env_vars)||entry.env_vars.some((key:unknown)=>typeof key!=='string')))fail('configuration_shape_conflict');
-      const permitted=entry.env_vars??[];
+      if(client==='codex'&&entry.env_vars!==undefined&&(!Array.isArray(entry.env_vars)||entry.env_vars.some((key:unknown)=>typeof key!=='string')))fail('configuration_shape_conflict');
+      const permitted=client==='codex'?(entry.env_vars??[]):[];
       const settings:Record<string,unknown>={};
       const budgetKeys=[...new Set([...budgetEnvironmentKeys,...Object.keys(entry.env??{}).filter(key=>key.startsWith('APTLY_MAX_')||key.startsWith('APTLY_ESTIMATED_')),...Object.keys(environment).filter(key=>(key.startsWith('APTLY_MAX_')||key.startsWith('APTLY_ESTIMATED_'))&&(client==='claude'||permitted.includes(key)))])];
       for(const key of [...budgetKeys,'ROUTER_LEDGER_PATH']){
@@ -537,7 +547,7 @@ export function showBudgetStatus(options: SetupOptions = {}) {
         next_utc_day:new Date(Date.parse(snapshot.utc_day+'T00:00:00Z')+86_400_000).toISOString(),
         cost_guard:'local_estimate_not_billing_cap',snapshot_source:'host_registration_and_allowed_process_environment',
         running_host_verified:false,settings_require_mcp_restart:true}};
-    }catch(error){return {client,status:'error',codes:[safeCode(error)]};}
+    }catch(error){return {client,status:'error',codes:[safeCode(error)],...budgetErrorDetails(error)};}
   });
   return {status:clients.some(client=>client.status==='error')?'partial':'complete',clients};
 }

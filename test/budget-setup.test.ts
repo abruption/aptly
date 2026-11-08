@@ -32,6 +32,7 @@ test('invalid budget settings are rejected without changes and rate zero is dist
  const o=fixture(t);setDefaults(o);const path=join(o.home,'.codex/config.toml'),before=readFileSync(path,'utf8');
  for(const value of ['-1','1e3','1.5','1.0','Infinity','NaN',' 200',''])assert.equal(setEnvironment('APTLY_MAX_DAILY_CALLS',value,o).status,'partial');
  assert.equal(setEnvironment('APTLY_ESTIMATED_CALL_USD','0',o).status,'partial');
+ for(const value of ['0.0','0.000000'])assert.equal(setEnvironment('APTLY_MAX_ESTIMATED_USD',value,o).status,'partial');
  assert.equal(readFileSync(path,'utf8'),before);
 });
 
@@ -41,6 +42,7 @@ test('default setup refuses pre-existing invalid budget values rather than overw
  const config={mcpServers:{aptly:{command:process.execPath,args:['custom-launcher'],env:{APTLY_MAX_DAILY_CALLS:'bad'}}}};
  writeFileSync(path,JSON.stringify(config),{mode:0o600});const before=readFileSync(path,'utf8');
  const result=setDefaults({...o,clients:['claude']});assert.equal(result.status,'partial');assert.ok(result.clients[0].codes.includes('environment_invalid_value'));
+ assert.deepEqual(result.clients[0].invalid_budget_keys,['APTLY_MAX_DAILY_CALLS']);assert.equal(result.clients[0].budget_error,'invalid_value');assert.ok(!JSON.stringify(result).includes('bad'));
  assert.equal(readFileSync(path,'utf8'),before);assert.equal(existsSync(join(o.home,'.claude/aptly/setup-ownership.json')),false);
 });
 
@@ -73,4 +75,28 @@ test('CLI accepts budget env settings and read-only registered status; rejects m
  assert.equal(b.display_limits.max_daily_calls,'Unlimited');assert.equal(b.provenance.max_daily_calls,'environment');
  assert.equal(run(['budget','reset']).status,1);assert.equal(run(['budget','status','--client','bad']).status,1);
  assert.equal(run(['set','env','APTLY_ESTIMATED_CALL_USD','--stdin'],'0\n').status,1);
+});
+
+test('default setup preserves Codex inherited budget bindings and explicit inherited values',t=>{
+ const o=fixture(t);mkdirSync(join(o.home,'.codex'),{mode:0o700});
+ const path=join(o.home,'.codex/config.toml');
+ writeFileSync(path,'[mcp_servers.aptly]\ncommand = '+JSON.stringify(process.execPath)+'\nargs = ["custom"]\nenv_vars = ["APTLY_MAX_DAILY_CALLS", "APTLY_MAX_TOTAL_CALLS"]\n[mcp_servers.aptly.env]\nROUTER_PROVIDER = "fixture"\n',{mode:0o600});
+ o.env={APTLY_MAX_DAILY_CALLS:'50',APTLY_MAX_TOTAL_CALLS:'0'};
+ const options={...o,clients:['codex']};const first=setDefaults(options);assert.equal(first.status,'complete');
+ let entry=registration(o,'codex');assert.equal(entry.env.APTLY_MAX_DAILY_CALLS,undefined);assert.equal(entry.env.APTLY_MAX_TOTAL_CALLS,undefined);
+ assert.deepEqual(first.clients[0].budget.inherited,['APTLY_MAX_DAILY_CALLS','APTLY_MAX_TOTAL_CALLS']);assert.equal(first.clients[0].budget.limits.max_daily_calls,50);
+ assert.equal(showBudgetStatus(options).clients[0].budget.limits.max_daily_calls,50);
+ assert.equal(setDefaults(options).clients[0].status,'unchanged');
+ // A declared passthrough remains preserved even if this CLI cannot observe its eventual value.
+ assert.equal(setDefaults({...options,env:{}}).clients[0].status,'unchanged');assert.equal(registration(o,'codex').env.APTLY_MAX_DAILY_CALLS,undefined);
+ assert.equal(setEnvironment('APTLY_MAX_DAILY_CALLS','75',options).status,'complete');entry=registration(o,'codex');assert.equal(entry.env.APTLY_MAX_DAILY_CALLS,'75');
+});
+
+test('Claude inherited values are preserved while malformed inherited values identify only safe keys',t=>{
+ const o=fixture(t);o.env={APTLY_MAX_DAILY_CALLS:'30',APTLY_MAX_TOTAL_CALLS:'0'};
+ const options={...o,clients:['claude']};const result=setDefaults(options);assert.equal(result.status,'complete');
+ assert.equal(registration(o,'claude').env.APTLY_MAX_DAILY_CALLS,undefined);assert.equal(result.clients[0].budget.limits.max_daily_calls,30);
+ assert.equal(setDefaults(options).clients[0].status,'unchanged');
+ const invalid=setDefaults({...options,env:{...o.env,APTLY_MAX_DAILY_CALLS:'private-invalid-number'}});assert.equal(invalid.status,'partial');
+ assert.deepEqual(invalid.clients[0].invalid_budget_keys,['APTLY_MAX_DAILY_CALLS']);assert.ok(!JSON.stringify(invalid).includes('private-invalid-number'));
 });
