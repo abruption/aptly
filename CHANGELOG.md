@@ -1,13 +1,13 @@
 # Changelog
 
-## 0.1.7 — 릴리즈 준비
+## 0.1.7 — 2026-11-08
 
 - OpenAI Decisions API 전송 범위를 `none`·`description`·`excerpt`로 분리합니다. 신규 등록은 v2 `unselected`로 자동 전송하지 않으며, 대화형 `aptly set default`에서 미선택 호스트에만 범위를 묻습니다. Enter는 `none`이고 비대화형 설치는 자동 선택하지 않습니다. 적용 모드 `defaults/advisory`와 전송 범위는 별개입니다. (#15, PR #92)
 - `aptly set transmission`과 `--show`, 명시적 `setup --transmission`을 제공합니다. 기존 v1은 legacy excerpt로 보존하고 명시 선택 시 정책·소유권 기록을 함께 전환합니다. 설정 쓰기 실패 복구·다른 작성자의 선택 보존·기존 advisory 모드 보존을 검증하며 키·원장·불명 요청은 초기화하지 않습니다.
 - `description`은 호출자 설명만 전송하고, 없으면 유료 요청 전에 한 번의 문맥 보충을 요청합니다. native 본문·라벨로 자동 대체하지 않습니다. `none`·미선택은 자동 분류 없이 원래 호출을 보존하며, 명시적 직접 추천은 별도입니다. 정책 변경 시 진행 중 결과·retry·fresh의 적용을 중단하고 이미 전송된 내용의 회수를 보장하지 않습니다.
 - confidence 기본 동작을 유지하고 8개 합성 작업 × 2회의 실제 분류 파일럿과 무료 회귀를 기록합니다. 기대 분류와 14/16회 일치했으며 번역 검토 2회는 routine 기대와 달리 simple을 추천했습니다. 이는 작업 품질 실패나 숫자 임계값의 타당성을 입증하지 않습니다. 실제 provider의 누락 거절과 일반 Router의 선택 메타데이터를 구분합니다. (#14, PR #91)
 - 공유 경계 문서와 4개 언어 가이드에서 사전 설명 등록·한 번의 재추천·추가 분류 없는 fresh 준비를 구분합니다. 전송 대상은 Aptly 개발자가 아닌 OpenAI Decisions API이며, 설명 작성과 필터 검사는 익명화나 사용자 동의를 인증하지 않습니다. (#89, PR #90)
-- 준비는 #93에서 진행합니다. 태그·npm·GitHub Release 게시와 새 버전 provenance 검증은 아직 수행하지 않았습니다.
+- 준비는 #93·PR #94에서 진행했고, `v0.1.7`의 Actions OIDC 게시·registry 파일 일치·서명·provenance 검증을 완료했습니다. #95와 [실제 게시 기록](docs/releases/0.1.7.md)에 근거를 기록합니다.
 
 ## 0.1.6 — 2026-11-07
 

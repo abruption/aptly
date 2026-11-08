@@ -1,12 +1,12 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.7 릴리즈 준비
+## 0.1.7 게시와 검증
 
-[#93](https://github.com/abruption/aptly/issues/93)에서 0.1.7을 준비합니다. 기준 main은 `e2e4c48cade4316e06c03f6ab5e299c8133b8b13`이며 [main CI](https://github.com/abruption/aptly/actions/runs/42470133835)가 성공했습니다. #92는 처음 #90 브랜치에 병합됐고, #90의 main 통합으로 #91과 함께 포함됐습니다. [한국어 릴리즈 노트 초안](release-notes/0.1.7.md)에 이슈·변경·전환 조건을 기록합니다.
+2026-11-08에 source `79ae693cbd0a7e59e79c00db32de916ccea6af87`의 `v0.1.7` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42472447519)를 수행했습니다. 정확한 병합 main CI 7개 성공 후 태그를 생성했고 설치 시험·새 runner 패키징·게시 3개 job이 성공했습니다. npm latest는 0.1.7이며 artifact·registry SHA-256과 SHA-512 integrity·npm 서명·SLSA v1 provenance의 인증서 identity를 확인했습니다.
 
-후보 버전·네 README/가이드의 지원 표시를 0.1.7로 갱신합니다. 과거 0.1.6 게시 기록과 기능별 최소 버전·confidence 파일럿의 원본 입력/관측값은 그대로 보존합니다. 신규 미선택은 자동 전송하지 않으며 기존 v1은 excerpt로 유지합니다. 기존 원장·키·명시 모델·이력·권한을 변경하지 않습니다.
+[한국어 릴리즈 노트](release-notes/0.1.7.md)와 [불변 게시 근거](releases/0.1.7.md)에 소스·태그·run/attempt·digest와 범위를 기록합니다. 준비는 #93·PR #94, 게시 기록은 #95입니다. #92가 #90 브랜치에 먼저 병합된 뒤 main으로 통합된 경로를 확인했으며 준비 기반 main과 실제 게시 SHA를 구분합니다.
 
-준비 PR 병합 후 **정확한 새 main SHA의 CI 성공**을 확인하고 별도 게시 지시에 따라 `v0.1.7` 태그를 생성합니다. 새 v* 태그 push는 실제 Actions OIDC 게시를 시작하므로 준비 단계에서 만들거나 push하지 않습니다. 실제 registry 파일·서명·provenance는 새 게시 실행에 대해 별도로 검증하며 이전 버전 근거를 재사용하지 않습니다. 현재 이 절은 게시 성공을 뜻하지 않습니다.
+attestation 초기 404 후 7번째 조회에서 200을 확인할 때까지 같은 게시물을 읽기 전용으로 기다렸습니다. 이번 검증에서는 실패한 npm 설치·서명 재시도나 태그·게시 재실행이 없었습니다. 신규 미선택 무전송·기존 v1 호환·confidence 기본 동작 유지의 구현 범위와 실제 자식 품질 평가는 구분합니다. 전역 설치·운영 원장·호스트 설정·키·보호 규칙은 변경하지 않았습니다. 다음 버전 게시도 준비 PR 병합과 정확한 main CI 확인 후 별도 지시를 따릅니다.
 
 ## 0.1.6 게시와 검증
 
