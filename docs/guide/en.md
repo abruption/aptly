@@ -59,6 +59,23 @@ Existing MCP launchers and user wrappers are not automatically migrated. Follow 
 
 Only public Aptly version metadata is requested from the npm registry; no key, task summary, or host configuration is sent. Network and body reads are limited to 800ms and 16KiB. Results are cached at `~/.cache/aptly/update-check.json` for 24 hours, with a one-hour cooldown after failure. Network/cache errors cannot fail the requested command. Set `APTLY_NO_UPDATE_NOTIFIER=1` in the CLI environment to disable checks; it is not a supported key for `aptly set env`. Notifications never install updates.
 
+<a id="command-help"></a>
+
+### Command help (next release)
+
+Consistent per-command and nested help is a next-release feature; published 0.1.7 lacks some paths. Use these forms:
+
+```sh
+aptly --help
+aptly setup -h
+aptly set default --help
+aptly set env OPENAI_API_KEY --help
+aptly budget status --help
+aptly help catalog refresh
+```
+
+`--help`, `-h` and `aptly help <command path>` only show usage. They do not read settings, supplied files, stdin or credential stores; prompt; change settings; call APIs or model metadata endpoints; install/update; or run update notifications. Help can follow valid options, but unknown paths/options, invalid supplied values and contradictory option combinations remain errors. Required positional arguments may be omitted to discover usage. A form such as `--output --help` is a missing option value, not a help request that supplies an output path.
+
 ### Configure with the CLI
 
 The `set` commands require 0.1.1 or later. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.

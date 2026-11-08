@@ -59,6 +59,23 @@ aptly --version
 
 공개 npm 레지스트리의 Aptly 버전 메타데이터만 조회하며 키·작업 요약·호스트 설정은 보내지 않습니다. 네트워크와 응답 읽기는 최대 800ms·16KiB로 제한하고, 결과는 `~/.cache/aptly/update-check.json`에 24시간 캐시합니다. 실패 후에는 1시간 대기하며, 조회·캐시 오류로 원래 명령을 실패시키지 않습니다. 버전 조회를 끄려면 CLI 실행 환경에 `APTLY_NO_UPDATE_NOTIFIER=1`을 설정하십시오. 이 변수는 MCP 키 설정용 `aptly set env`의 지원 대상이 아닙니다. 알림은 업데이트를 설치하지 않습니다.
 
+<a id="command-help"></a>
+
+### 명령 도움말 (다음 릴리스)
+
+명령·하위 명령별 도움말을 통일하는 기능은 다음 릴리스용이며 게시된 0.1.7에는 일부 경로가 없습니다. 다음 형식을 사용할 수 있습니다.
+
+```sh
+aptly --help
+aptly setup -h
+aptly set default --help
+aptly set env OPENAI_API_KEY --help
+aptly budget status --help
+aptly help catalog refresh
+```
+
+`--help`·`-h` 또는 `aptly help <명령 경로>`는 사용법만 표시합니다. 설정·지정 파일·stdin·자격 저장소를 읽거나 질문·설정 변경·API/모델 정보 조회·설치/업데이트·업데이트 알림을 실행하지 않습니다. 유효한 옵션 뒤에도 도움말을 붙일 수 있지만 잘못된 경로·옵션·제공된 값과 모순된 옵션 조합은 오류입니다. 필수 위치 인자를 생략해 사용법을 조회할 수 있습니다. `--output --help`처럼 도움말을 옵션 값 자리에 놓으면 값 누락 오류로 처리합니다.
+
 ### CLI로 설정하기
 
 `set` 명령은 0.1.1부터 지원합니다. 명령은 기존 실행 경로를 자동 전환하지 않습니다. API 키 설정은 현재 패키지의 표준 Node/서버 등록과 OS 자격 저장소 참조 지원이 확인된 실행 경로에만 허용됩니다. 사용자 지정 래퍼·구버전·다른 설치 위치는 `credential_launcher_unverified`로 거절하며, 등록을 명시적으로 전환하거나 업그레이드한 뒤 다시 실행해야 합니다.
