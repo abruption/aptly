@@ -43,13 +43,15 @@ export function resolveCliHelp(argv:readonly string[],{environmentKeys=[]}:{envi
  const seen=new Set<string>(),values=new Map<string,string>(),positionals:string[]=[],options=spec.options??{};
  for(let i=0;i<tail.length;i++){
   const token=tail[i];if(helpFlag(token))continue;
-  if(token.startsWith('-')){
+  const filePosition=spec.positional?.[positionals.length]==='file';
+  if(token.startsWith('-')&&!filePosition){
    if(!Object.hasOwn(options,token)||seen.has(token))return {kind:'error',code:'invalid_help_options'};
+   if(path==='set transmission'&&token==='--show'&&(seen.size||positionals.length))return {kind:'error',code:'invalid_help_options'};
    seen.add(token);const type=options[token];if(type===true)continue;
-   const value=tail[++i];if(!value||value.startsWith('-')||(type!=='path'&&!type.includes(value)))return {kind:'error',code:'invalid_help_options'};
+   const value=tail[++i];if(!value||helpFlag(value)||(type==='path'?value.startsWith('--'):value.startsWith('-'))||(type!=='path'&&!type.includes(value)))return {kind:'error',code:'invalid_help_options'};
    values.set(token,value);
    if(path==='catalog refresh'&&token==='--output'&&!isAbsolute(value))return {kind:'error',code:'invalid_help_options'};
-  }else {if(!token)return {kind:'error',code:'invalid_help_options'};positionals.push(token);}
+  }else {if(!token||seen.size)return {kind:'error',code:'invalid_help_options'};positionals.push(token);}
  }
  if(positionals.length>(spec.positional?.length??0))return {kind:'error',code:'invalid_help_options'};
  for(let i=0;i<positionals.length;i++){
@@ -63,6 +65,6 @@ export function resolveCliHelp(argv:readonly string[],{environmentKeys=[]}:{envi
   if((seen.has('--dry-run')||seen.has('--include-existing'))&&!migrate)return {kind:'error',code:'invalid_help_options'};
   if(migrate&&(seen.has('--automatic')||seen.has('--mode')||seen.has('--transmission')||values.get('--client')==='all'))return {kind:'error',code:'invalid_help_options'};
  }
- const text='Usage: '+spec.usage+'\n\n'+spec.description.replace('$ENV_KEYS',environmentKeys.join(', '))+'\n\nHelp: --help, -h, or aptly help '+path+'\n';
+ const text='Usage: '+spec.usage+'\n\n'+spec.description.replace('$ENV_KEYS',environmentKeys.join(', '))+'\n\nHelp: --help, -h, or aptly help'+(path?' '+path:'')+'\n';
  return {kind:'help',text};
 }

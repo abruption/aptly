@@ -56,6 +56,8 @@ test('help accepts valid options and optional known environment keys without per
     ['setup', '--migrate-launcher', '--client', 'codex', '--dry-run', '--help'],
     ['catalog', 'refresh', '--output', '/nonexistent/path', '--help'],
     ['inspect', 'codex', '/nonexistent/path', '--help'],
+    ['inspect', 'codex', '-inv.json', '--help'],
+    ['report', '--output-dir', '-out', '--help'],
     ['set', 'env', 'OPENAI_API_KEY', '--client', 'codex', '--stdin', '--help'],
     ['set', 'env', 'APTLY_CODEX_MODELS', '--help'],
     ['budget', 'status', '--client', 'codex', '-h'],
@@ -80,10 +82,17 @@ test('invalid paths and arguments remain errors even when help is requested', { 
     ['set', 'env', 'OPENAI_API_KEY', '--stdin', '--check', '--help'],
     ['set', 'env', 'APTLY_CODEX_MODELS', '--check', '--help'],
     ['set', 'transmission', 'none', '--show', '--help'],
+    ['set', 'transmission', '--client', 'codex', 'none', '--help'],
+    ['set', 'transmission', '--client', 'codex', '--show', '-h'],
+    ['set', 'env', '--client', 'codex', 'OPENAI_API_KEY', '--help'],
+    ['set', 'env', '--stdin', 'APTLY_CODEX_MODELS', '--help'],
+    ['', '--help'], ['inspect', 'codex', '', '--help'],
   ]) {
     const result = f.run(args);
     assert.ifError(result.error);
-    assert.notEqual(result.status, 0, args.join(' '));
+    assert.equal(result.status, 2, args.join(' '));
+    assert.equal(result.stderr, 'aptly: invalid_help_options (use --help)\n', args.join(' '));
+    assert.equal(result.stdout, '', args.join(' '));
   }
   f.assertUntouched();
 });
