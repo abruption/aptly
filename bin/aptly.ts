@@ -9,7 +9,8 @@ import { collectDiagnostics } from '../src/diagnostics.ts';
 import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
-import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission } from '../src/setup.ts';
+import { budgetErrorDetails } from '../src/budget.ts';
+import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus } from '../src/setup.ts';
 import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { updateGlobalInstallation } from '../src/update.ts';
@@ -18,13 +19,21 @@ const [command='serve',...args]=process.argv.slice(2);
 const output=(value:unknown)=>process.stdout.write(JSON.stringify(value,null,2)+'\n');
 try {
  if(['--help','-h','help'].includes(command)) {
-  process.stdout.write('Aptly (preview)\n\nCommands:\n  serve                 Start the stdio MCP server (default: fixture/shadow).\n  capabilities          Print the active catalog; no API call.\n  catalog               Print the active catalog; no API call.\n  catalog refresh --output ABS_PATH  Fetch official model descriptions to a private cache.\n  recommend             Recommend for a task JSON on stdin; no host evidence required.\n  inspect CLIENT FILE   Inspect an explicit JSON settings inventory; no API call.\n  config CLIENT         Print an MCP registration fragment; does not edit settings.\n  set default           Add defaults; select API transmission scope interactively.\n  set transmission      Set/show OpenAI Decisions API transmission scope.\n  set env ENV_KEY       Prompt for an MCP environment value.\n  setup                 Register MCP and automatic PreToolUse Hooks.\n  remove                Remove only unchanged Aptly-owned registration.\n  update                Update this verified global npm installation.\n  report                Write redacted local diagnostic attachments (default: md + json).\n    --format md|json|both  Select report formats.\n    --output-dir DIR      Private output directory (default: reports).\n  --version             Print the package version.\n\nUse aptly set env OPENAI_API_KEY for OS storage, or pass it through the MCP environment.\nPaid mode additionally requires\nROUTER_PROVIDER=decisions and an absolute ROUTER_LEDGER_PATH in a private directory.\nROUTER_CONFIG_PATH is an optional private operator configuration file.\n');
+  process.stdout.write('Aptly (preview)\n\nCommands:\n  serve                 Start the stdio MCP server (default: fixture/shadow).\n  capabilities          Print the active catalog; no API call.\n  catalog               Print the active catalog; no API call.\n  catalog refresh --output ABS_PATH  Fetch official model descriptions to a private cache.\n  recommend             Recommend for a task JSON on stdin; no host evidence required.\n  inspect CLIENT FILE   Inspect an explicit JSON settings inventory; no API call.\n  config CLIENT         Print an MCP registration fragment; does not edit settings.\n  set default           Add defaults; select API transmission scope interactively.\n  set transmission      Set/show OpenAI Decisions API transmission scope.\n  set env ENV_KEY       Prompt for an MCP environment value.\n  budget status         Show local budget limits and reserved usage.\n  setup                 Register MCP and automatic PreToolUse Hooks.\n  remove                Remove only unchanged Aptly-owned registration.\n  update                Update this verified global npm installation.\n  report                Write redacted local diagnostic attachments (default: md + json).\n    --format md|json|both  Select report formats.\n    --output-dir DIR      Private output directory (default: reports).\n  --version             Print the package version.\n\nUse aptly set env OPENAI_API_KEY for OS storage, or pass it through the MCP environment.\nPaid mode additionally requires\nROUTER_PROVIDER=decisions and an absolute ROUTER_LEDGER_PATH in a private directory.\nROUTER_CONFIG_PATH is an optional private operator configuration file.\n');
  } else if(command==='update'){
   if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly update\nRequires a verified global npm installation. Stop other hosts/MCP/CLI writers first.\nUpdates the same npm prefix without lifecycle setup. Run aptly setup and restart hosts afterward; existing launchers are preserved.\n');
   else {
    if(args.length)throw new Error('update_invalid_options');
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
    const result=updateGlobalInstallation({packageRoot});output(result);if(result.status==='error')process.exitCode=1;
+  }
+ } else if(command==='budget'){
+  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly budget status [--client codex|claude|all]\nReads registered host budget settings and ledger metadata without credentials or API calls. Zero ceilings display Unlimited; estimates are not OpenAI billing. Custom launchers or a different running environment may override this registration snapshot.\n');
+  else {
+   if(args[0]!=='status')throw new Error('budget_invalid_options');
+   let clients:('codex'|'claude')[]=['codex','claude'];
+   if(args.length!==1){if(args.length!==3||args[1]!=='--client'||!['codex','claude','all'].includes(args[2]))throw new Error('budget_invalid_options');clients=args[2]==='all'?['codex','claude']:[args[2] as 'codex'|'claude'];}
+   const result=showBudgetStatus({clients});output(result);if(result.status==='partial')process.exitCode=1;
   }
  } else if(command==='--version') process.stdout.write(VERSION+'\n');
  else if(command==='report'&&args.length===1&&args[0]==='--help'){
@@ -37,7 +46,7 @@ try {
   output(exportDiagnosticReport({diagnostic:collectDiagnostics(),...options}));
  }
  else if(command==='set'){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly set default [--client codex|claude|all]\n       aptly set transmission none|description|excerpt [--client codex|claude|all]\n       aptly set transmission --show [--client codex|claude|all]\n       aptly set env ENV_KEY [--client codex|claude|all] [--stdin | --check]\n--check diagnoses OPENAI_API_KEY registration without reading or storing a key.\nValues are entered interactively with hidden input; --stdin explicitly reads a value from standard input. Existing defaults and launchers are preserved. OPENAI_API_KEY is stored in the OS credential store; host files contain references only. Restart MCP after changes.\n');
+  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly set default [--client codex|claude|all]\n       aptly set transmission none|description|excerpt [--client codex|claude|all]\n       aptly set transmission --show [--client codex|claude|all]\n       aptly set env ENV_KEY [--client codex|claude|all] [--stdin | --check]\n--check diagnoses OPENAI_API_KEY registration without reading or storing a key.\nBudget keys: APTLY_MAX_DAILY_CALLS, APTLY_MAX_TOTAL_CALLS, APTLY_MAX_ESTIMATED_USD, APTLY_ESTIMATED_CALL_USD. Only literal 0 disables a ceiling (0.0 is rejected); the per-call rate must stay positive. Default setup fills missing budget settings without resetting usage. Restart MCP after budget changes.\nValues are entered interactively with hidden input; --stdin explicitly reads a value from standard input. Existing defaults and launchers are preserved. OPENAI_API_KEY is stored in the OS credential store; host files contain references only. Restart MCP after changes.\n');
   else if(args[0]==='transmission'){
    if(args[1]==='--help'&&args.length===2)process.stdout.write('Usage: aptly set transmission none|description|excerpt [--client codex|claude|all]\n       aptly set transmission --show [--client codex|claude|all]\nControls automatic transmission to OpenAI Decisions, not developer telemetry. Direct recommendations are separate explicit requests. Restart MCP after changes.\n');
    else {
@@ -108,17 +117,19 @@ try {
  }else if(command==='config'&&args.length===1&&['codex','claude'].includes(args[0])){
   const node=process.execPath,server=fileURLToPath(new URL(`../src/server${import.meta.url.endsWith('.ts')?'.ts':'.js'}`,import.meta.url));
   if(args[0]==='claude')output({mcpServers:{'aptly':{command:node,args:[server],env:{ROUTER_PROVIDER:'fixture'}}}});
-  else process.stdout.write('[mcp_servers.aptly]\ncommand = '+JSON.stringify(node)+'\nargs = ['+JSON.stringify(server)+']\nenv_vars = ["OPENAI_API_KEY", "ROUTER_PROVIDER", "ROUTER_LEDGER_PATH", "ROUTER_CONFIG_PATH", "APTLY_CLAUDE_MODELS", "APTLY_CODEX_MODELS", "CLAUDE_MODELS", "CODEX_MODELS", "APTLY_MODEL_INFO_PATH"]\n');
+  else process.stdout.write('[mcp_servers.aptly]\ncommand = '+JSON.stringify(node)+'\nargs = ['+JSON.stringify(server)+']\nenv_vars = ["OPENAI_API_KEY", "ROUTER_PROVIDER", "ROUTER_LEDGER_PATH", "ROUTER_CONFIG_PATH", "APTLY_CLAUDE_MODELS", "APTLY_CODEX_MODELS", "CLAUDE_MODELS", "CODEX_MODELS", "APTLY_MODEL_INFO_PATH", "APTLY_MAX_DAILY_CALLS", "APTLY_MAX_TOTAL_CALLS", "APTLY_MAX_ESTIMATED_USD", "APTLY_ESTIMATED_CALL_USD"]\n');
  }else{process.stderr.write('aptly: invalid_command (use --help)\n');process.exitCode=2;}
 }catch(error){
  const codes=['report_invalid_options','report_invalid_diagnostic','report_invalid_format','report_already_exists','report_output_unavailable'];
  const caughtCode=errorCode(error);
  const safeConfigurationCodes=['catalog_configuration_invalid','catalog_configuration_conflict','catalog_environment_typo','catalog_facts_invalid','model_info_fetch_failed','model_info_unavailable','model_info_invalid','model_info_output_unavailable','model_info_path_invalid','model_info_refresh_failed','model_info_options_invalid','model_info_too_large','model_info_timeout','model_info_parse_failed','model_info_save_failed'];
  const message=error instanceof Error?error.message:undefined;
+ const budgetCode=[caughtCode,message].find(value=>typeof value==='string'&&['invalid_budget_configuration','budget_invalid_options'].includes(value));
  const configCode=[caughtCode,message].find(value=>typeof value==='string'&&safeConfigurationCodes.includes(value));
  const setCodes=['set_environment_key_unsupported','set_invalid_options','set_value_too_large','set_interactive_input_required','set_input_cancelled'];
- const code=command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):configCode??'operation_failed';
- process.stderr.write('aptly: '+code+'\n');process.exitCode=1;
+ const code=command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):budgetCode??configCode??'operation_failed';
+ const budgetDetails=budgetErrorDetails(error);
+ process.stderr.write('aptly: '+code+(budgetDetails.invalid_budget_keys?.length?' ['+budgetDetails.invalid_budget_keys.join(', ')+']':'')+(budgetDetails.budget_error?' ('+budgetDetails.budget_error+')':'')+'\n');process.exitCode=1;
 }
 finally {
  if(!process.exitCode){

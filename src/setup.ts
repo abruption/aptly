@@ -6,6 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
+import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings, budgetErrorDetails } from './budget.ts';
+import { Router, defaultPolicy } from './core.ts';
 import { loadAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
 import { assertPrivateStatePath } from './files.ts';
 import { assertWindowsPrivatePath, protectNewWindowsPrivateDirectory, copyWindowsFilePermissions } from './windows-private.ts';
@@ -23,7 +25,7 @@ export interface SetupOptions {
   selectUnselectedOnly?: boolean;
 }
 export type TransmissionScope = 'none' | 'description' | 'excerpt';
-export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected' }
+export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; invalid_budget_keys?:string[]; budget_error?:string; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; inherited:string[]; restart_required:boolean } }
 export interface SetupResult { status: 'complete' | 'partial' | 'skipped'; clients: SetupClientResult[] }
 type Snapshot = { path: string; before: string | null; after: string | null; mode: number };
 type Ownership = { schema_version: 1; kind: 'aptly-setup-ownership'; client: Client; hook: ObjectValue; mcp_created: boolean; mcp?: ObjectValue; policy: ObjectValue; policy_created: boolean; env_added: Record<string, string>; toml_block?: string };
@@ -108,30 +110,40 @@ function removeTomlEnv(text: string, additions: Record<string, string>): string 
   }
   if (!isDeepStrictEqual(toml(text), target)) fail('managed_entry_changed'); return text;
 }
-export const configurableEnvironmentKeys: readonly string[] = Object.freeze(['ROUTER_PROVIDER', 'APTLY_CLAUDE_MODELS', 'APTLY_CODEX_MODELS', 'CLAUDE_MODELS', 'CODEX_MODELS', 'APTLY_MODEL_INFO_PATH'] as const);
+export const configurableEnvironmentKeys: readonly string[] = Object.freeze([...budgetEnvironmentKeys, 'ROUTER_PROVIDER', 'APTLY_CLAUDE_MODELS', 'APTLY_CODEX_MODELS', 'CLAUDE_MODELS', 'CODEX_MODELS', 'APTLY_MODEL_INFO_PATH'] as const);
 type EnvironmentEdit = { defaults: true } | { key: string; value: string } | { credential: true } | { migrate: true; includeExisting?: boolean } | { transmission: TransmissionScope };
-const defaultEnvironment = { ROUTER_PROVIDER: 'decisions', APTLY_CLAUDE_MODELS: '["haiku","sonnet","opus"]', APTLY_CODEX_MODELS: '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]' };
+const defaultEnvironment = { ...budgetEnvironmentDefaults, ROUTER_PROVIDER: 'decisions', APTLY_CLAUDE_MODELS: '["haiku","sonnet","opus"]', APTLY_CODEX_MODELS: '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]' };
 function validateEnvironmentValue(key: string, value: string) {
   if (!(configurableEnvironmentKeys as readonly string[]).includes(key)) fail(/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL/i.test(key) ? 'environment_secret_key_unsupported' : 'environment_key_unsupported');
   if (typeof value !== 'string' || !value || Buffer.byteLength(value) > 8192 || /[\x00-\x1f\x7f]/.test(value)) fail('environment_invalid_value');
   if (/\bsk-[A-Za-z0-9_-]{8,}|\bBearer\s+\S+|https?:\/\/[^/\s]+:[^/\s]+@/i.test(value)) fail('environment_sensitive_value');
+  if (budgetEnvironmentKeys.includes(key)) { try {parseBudgetValue(key,value);} catch(error) {throw Object.assign(new Error('environment_invalid_value'),budgetErrorDetails(error));} }
   if (key === 'ROUTER_PROVIDER' && !['fixture','decisions'].includes(value)) fail('environment_invalid_value');
   if (key === 'APTLY_MODEL_INFO_PATH') { try { assertPrivateStatePath(value); } catch { fail('environment_invalid_value'); } }
 }
-function editEnvironment(current: ObjectValue, edit: EnvironmentEdit, client: Client): Record<string,string> {
+function budgetInheritance(entry:ObjectValue, environment:NodeJS.ProcessEnv, client:Client) {
+  if(client==='codex'&&entry.env_vars!==undefined&&(!Array.isArray(entry.env_vars)||entry.env_vars.some((key:unknown)=>typeof key!=='string')))fail('configuration_shape_conflict');
+  const permitted=client==='codex'?(entry.env_vars??[]):[],keys=new Set<string>(),values:Record<string,unknown>={};
+  for(const key of budgetEnvironmentKeys){
+    if(client==='codex'?permitted.includes(key):environment[key]!==undefined){keys.add(key);if(environment[key]!==undefined)values[key]=environment[key];}
+  }
+  for(const key of Object.keys(environment))if((key.startsWith('APTLY_MAX_')||key.startsWith('APTLY_ESTIMATED_'))&&(client==='claude'||permitted.includes(key)))values[key]=environment[key];
+  return {keys,values};
+}
+function editEnvironment(current: ObjectValue, edit: EnvironmentEdit, client: Client, inherited:{keys:Set<string>;values:Record<string,unknown>}): Record<string,string> {
   const updates: Record<string,string> = {};
   if ('defaults' in edit) {
     for (const [key,value] of Object.entries(defaultEnvironment)) {
       const alias = key === 'APTLY_CLAUDE_MODELS' ? 'CLAUDE_MODELS' : key === 'APTLY_CODEX_MODELS' ? 'CODEX_MODELS' : null;
-      if (current[key] === undefined && (!alias || current[alias] === undefined)) updates[key] = value;
+      if (current[key] === undefined && (!alias || current[alias] === undefined) && !(budgetEnvironmentKeys.includes(key)&&inherited.keys.has(key))) updates[key] = value;
     }
   } else if ('credential' in edit) {
     updates.APTLY_SECRET_BACKEND = 'os';
     updates.APTLY_SECRET_CLIENT = client;
   } else if (!('migrate' in edit) && !('transmission' in edit)) { validateEnvironmentValue(edit.key, edit.value); updates[edit.key] = edit.value; }
-  const effective = { ...current, ...updates };
+  const effective = { ...inherited.values, ...current, ...updates };
   if (effective.ROUTER_PROVIDER !== undefined && !['fixture','decisions'].includes(effective.ROUTER_PROVIDER)) fail('environment_invalid_value');
-  try { resolveCatalog(effective); } catch { fail('environment_invalid_value'); }
+  try { resolveCatalog(effective); resolveBudgetSettings(effective); } catch(error) { throw Object.assign(new Error('environment_invalid_value'),budgetErrorDetails(error)); }
   return Object.fromEntries(Object.entries(updates).filter(([key,value]) => current[key] !== value));
 }
 /** Change only selected single-line scalar env assignments; refuse ambiguous TOML layouts. */
@@ -273,7 +285,8 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     }
     if (edit && ('credential' in edit || 'migrate' in edit)) requireCredentialRuntime(servers.aptly,root);
     const currentEnv = map(servers.aptly, 'env');
-    const updates = edit ? editEnvironment(currentEnv,edit,client) : {};
+    const originalEnvKeys=new Set(Object.keys(currentEnv)),inheritedBudget=budgetInheritance(servers.aptly,env,client);
+    const updates = edit ? editEnvironment(currentEnv,edit,client,inheritedBudget) : {};
     Object.assign(currentEnv,updates);
     if (created) {
       if (client === 'codex') { tomlBlock = newTomlBlock(servers.aptly); mcp.after = (mcp.before ?? '') + ((mcp.before ?? '').endsWith('\n') || !mcp.before ? '\n' : '\n\n') + tomlBlock; }
@@ -336,11 +349,18 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
       for (const [key,value] of Object.entries(updates)) if (priorEnv[key] === undefined) owner.env_added[key] = value;
     }
     if (requestedScope !== undefined) owner.policy = structuredClone(policyValue);
+    if (edit && ('defaults' in edit || ('key' in edit && budgetEnvironmentKeys.includes(edit.key)))) {
+      const budget=resolveBudgetSettings({...inheritedBudget.values,...currentEnv});
+      result.budget={limits:{...budget.limits},added:budgetEnvironmentKeys.filter(key=>Object.hasOwn(updates,key)&&!originalEnvKeys.has(key)),
+        updated:budgetEnvironmentKeys.filter(key=>Object.hasOwn(updates,key)&&originalEnvKeys.has(key)),
+        preserved:budgetEnvironmentKeys.filter(key=>!Object.hasOwn(updates,key)&&currentEnv[key]!==undefined),
+        inherited:budgetEnvironmentKeys.filter(key=>currentEnv[key]===undefined&&inheritedBudget.keys.has(key)),restart_required:budgetEnvironmentKeys.some(key=>Object.hasOwn(updates,key))};
+    }
     result.transmission = effectiveTransmission(policyValue);
     result.transmission_source = policyValue.schema_version === 1 ? 'legacy' : policyValue.transmission === 'unselected' ? 'unselected' : 'explicit';
     manifest.after = stringify(owner);
     if (client === 'codex') result.requires_hook_review = true;
-    result.codes = [...(client === 'codex' ? ['requires_hook_review'] : []), ...(result.transmission === 'unselected' ? ['transmission_selection_required'] : result.transmission_source === 'legacy' ? ['legacy_transmission_excerpt'] : []), ...(requestedScope !== undefined ? ['mcp_restart_required'] : [])];
+    result.codes = [...(client === 'codex' ? ['requires_hook_review'] : []), ...(result.transmission === 'unselected' ? ['transmission_selection_required'] : result.transmission_source === 'legacy' ? ['legacy_transmission_excerpt'] : []), ...(requestedScope !== undefined || result.budget?.restart_required ? ['mcp_restart_required'] : [])];
     dirs.push(dir, privateDir, stateDir);
   }
   // Validate complete desired data before any host file is changed.
@@ -379,7 +399,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   if (options.transmission !== undefined && !['none','description','excerpt'].includes(options.transmission)) return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
   if (!removing && options.automatic && (env.APTLY_SKIP_SETUP === '1' || !!env.CI)) return { status: 'skipped', clients: clients.map(client => ({ client, status: 'skipped', codes: [env.APTLY_SKIP_SETUP === '1' ? 'setup_disabled' : 'ci_environment'] })) };
   const prepared = captured ?? clients.map(client => {
-    try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: { client, status: 'error', codes: [safeCode(e)] } as SetupClientResult }; }
+    try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: { client, status: 'error', codes: [safeCode(e)], ...budgetErrorDetails(e) } as SetupClientResult }; }
   });
   const results = prepared.map(plan => plan.result);
   if (edit && results.some(result => result.status === 'error')) return { status: 'partial', clients: results.map(result => result.status === 'error' ? result : { ...result, status: 'skipped', codes: ['other_host_validation_failed'] }) };
@@ -406,14 +426,14 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   }
   return { status: results.some(result => result.status === 'error') ? 'partial' : results.every(result => result.status === 'skipped') ? 'skipped' : 'complete', clients: results };
 }
-const codes = new Set(['transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
+const codes = new Set(['unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
 function safeCode(error: unknown) { return error instanceof Error && codes.has(error.message) ? error.message : 'configuration_io_error'; }
 export function setupHosts(options: SetupOptions = {}): SetupResult { return execute(options, false); }
 export function removeSetup(options: SetupOptions = {}): SetupResult { return execute(options, true); }
 
 export function setDefaults(options: SetupOptions = {}): SetupResult { return execute(options,false,{ defaults:true }); }
 export function setEnvironment(key: string, value: string, options: SetupOptions = {}): SetupResult {
-  try { validateEnvironmentValue(key,value); } catch (error) { return { status:'partial',clients:(options.clients ?? ['codex','claude']).map(client=>({client,status:'error',codes:[safeCode(error)]})) }; }
+  try { validateEnvironmentValue(key,value); } catch (error) { return { status:'partial',clients:(options.clients ?? ['codex','claude']).map(client=>({client,status:'error',codes:[safeCode(error)],...budgetErrorDetails(error)})) }; }
   return execute(options,false,{key,value});
 }
 
@@ -495,4 +515,39 @@ export function showTransmission(options: SetupOptions = {}) {
         transmission:effectiveTransmission(loaded.policy),transmission_source:loaded.policy.schema_version===1?'legacy':effectiveTransmission(loaded.policy)==='unselected'?'unselected':'explicit'};
     }catch(error){return {client,status:'error',code:safeCode(error)};}
   })};
+}
+
+/** Registration snapshot only. Never loads credentials, starts a server or creates a ledger/gate. */
+export function showBudgetStatus(options: SetupOptions = {}) {
+  const environment=options.env??process.env;
+  const clients=(options.clients??['codex','claude']).map(client=>{
+    try {
+      const {mcpPath}=resolved(options,client),source=read(mcpPath);
+      if(source.text===null)return {client,status:'skipped',codes:['host_not_configured']};
+      const config=client==='codex'?toml(source.text):json(source.text);
+      const entry=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly;
+      if(entry===undefined)return {client,status:'skipped',codes:['host_not_configured']};
+      if(!object(entry)||entry.env!==undefined&&!object(entry.env))fail('configuration_shape_conflict');
+      if(client==='codex'&&entry.env_vars!==undefined&&(!Array.isArray(entry.env_vars)||entry.env_vars.some((key:unknown)=>typeof key!=='string')))fail('configuration_shape_conflict');
+      const permitted=client==='codex'?(entry.env_vars??[]):[];
+      const settings:Record<string,unknown>={};
+      const budgetKeys=[...new Set([...budgetEnvironmentKeys,...Object.keys(entry.env??{}).filter(key=>key.startsWith('APTLY_MAX_')||key.startsWith('APTLY_ESTIMATED_')),...Object.keys(environment).filter(key=>(key.startsWith('APTLY_MAX_')||key.startsWith('APTLY_ESTIMATED_'))&&(client==='claude'||permitted.includes(key)))])];
+      for(const key of [...budgetKeys,'ROUTER_LEDGER_PATH']){
+        const value=Object.hasOwn(entry.env??{},key)?entry.env[key]:(client==='claude'||permitted.includes(key)?environment[key]:undefined);
+        if(value!==undefined)settings[key]=value;
+      }
+      const budget=resolveBudgetSettings(settings),ledgerPath=settings.ROUTER_LEDGER_PATH;
+      if(typeof ledgerPath!=='string')fail('budget_ledger_unconfigured');
+      assertPrivateStatePath(ledgerPath);
+      const router=new Router({policy:{...defaultPolicy,...budget.limits},budgetConfigurable:true,ledgerPath,
+        provider:async()=>{throw new Error('status_provider_forbidden');}});
+      const snapshot=router.budgetStatus();
+      return {client,status:'ok',budget:{...snapshot,provenance:budget.provenance,
+        display_limits:Object.fromEntries(Object.entries(snapshot.limits).map(([key,value])=>[key,key!=='estimated_call_usd'&&value===0?'Unlimited':value])),
+        next_utc_day:new Date(Date.parse(snapshot.utc_day+'T00:00:00Z')+86_400_000).toISOString(),
+        cost_guard:'local_estimate_not_billing_cap',snapshot_source:'host_registration_and_allowed_process_environment',
+        running_host_verified:false,settings_require_mcp_restart:true}};
+    }catch(error){return {client,status:'error',codes:[safeCode(error)],...budgetErrorDetails(error)};}
+  });
+  return {status:clients.some(client=>client.status==='error')?'partial':'complete',clients};
 }

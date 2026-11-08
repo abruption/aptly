@@ -3,20 +3,22 @@ import { openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSyn
 import { isRecord, errorCode } from './types.ts';
 import { builtInProfiles, resolveCatalog, isSupportedProfile } from './catalog.ts';
 import { acquireLedgerLock } from './ledger-lock.ts';
+import { defaultBudgetLimits } from './budget.ts';
+import type { BudgetLimits } from './budget.ts';
 import type { LedgerLock } from './ledger-lock.ts';
 const defaultCatalog = resolveCatalog({});
-import type { Client, Profile, RoutingInput, RoutingPolicy, RoutingProvider, RoutingResult, RoutingStatus, UnknownRecord, Usage } from './types.ts';
+import type { BudgetLimit, Client, Profile, RoutingInput, RoutingPolicy, RoutingProvider, RoutingResult, RoutingStatus, UnknownRecord, Usage } from './types.ts';
 
 export const defaultPolicy: Readonly<RoutingPolicy> = Object.freeze<RoutingPolicy>({
   version: 'aptly-v010', catalog_version: defaultCatalog.version, max_summary_bytes: 4000,
-  max_concurrency: 1, max_daily_calls: 20, max_total_calls: 50,
-  estimated_call_usd: 0.01, max_estimated_usd: 0.5, timeout_ms: 10000,
+  max_concurrency: 1, max_daily_calls:defaultBudgetLimits.max_daily_calls, max_total_calls:defaultBudgetLimits.max_total_calls,
+  estimated_call_usd:defaultBudgetLimits.estimated_call_usd, max_estimated_usd:defaultBudgetLimits.max_estimated_usd, timeout_ms: 10000,
   profiles: Object.freeze(builtInProfiles().map(profile=>Object.freeze(profile))),
   profile_descriptions: Object.freeze(defaultCatalog.descriptions),
 });
 interface LedgerRecord { digest: string; state: 'complete' | 'unknown'; result?: RoutingResult; }
 interface LedgerState { version: 1; calls: number; estimated_usd: number; days: Record<string, number>; requests: Record<string, LedgerRecord>; }
-interface RouterOptions { policy?: RoutingPolicy; provider?: RoutingProvider; ledgerPath?: string; }
+interface RouterOptions { policy?: RoutingPolicy; provider?: RoutingProvider; ledgerPath?: string; budgetConfigurable?: boolean; }
 type Metadata = Pick<RoutingResult, 'latency_ms' | 'confidence' | 'usage'>;
 const clone = <T>(value: T): T => structuredClone(value);
 const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : isRecord(value) ? Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])])) : value;
@@ -71,15 +73,17 @@ export class Router {
   ledgerPath: string | undefined;
   state: LedgerState;
   active: number;
+  private budgetConfigurable: boolean;
   private heldLedgerLock: LedgerLock | undefined;
-  constructor({ policy = defaultPolicy, provider, ledgerPath }: RouterOptions = {}) {
+  constructor({ policy = defaultPolicy, provider, ledgerPath, budgetConfigurable = policy === defaultPolicy }: RouterOptions = {}) {
+    this.budgetConfigurable = budgetConfigurable;
     this.policy = clone(policy);
     const integerCaps = { max_summary_bytes: 64000, max_concurrency: 16, max_daily_calls: 100000, max_total_calls: 1000000, timeout_ms: 60000 } as const;
     if (!safeVersion(policy.version) || !safeVersion(policy.catalog_version)) throw new Error('invalid_policy');
     for (const k of Object.keys(integerCaps) as (keyof typeof integerCaps)[]) {
-      if (!safeInt(this.policy[k], integerCaps[k]) || this.policy[k] === 0) throw new Error('invalid_policy');
+      if (!safeInt(this.policy[k], integerCaps[k]) || (this.policy[k] === 0 && k !== 'max_daily_calls' && k !== 'max_total_calls')) throw new Error('invalid_policy');
     }
-    for (const k of ['estimated_call_usd', 'max_estimated_usd'] as const) if (!Number.isFinite(policy[k]) || policy[k] <= 0 || policy[k] > 100) throw new Error('invalid_policy');
+    for (const k of ['estimated_call_usd', 'max_estimated_usd'] as const) if (!Number.isFinite(policy[k]) || (policy[k] < 0 || (k === 'estimated_call_usd' && policy[k] === 0)) || policy[k] > 100) throw new Error('invalid_policy');
     if (typeof provider !== 'function') throw new Error('invalid_provider');
     if (!Array.isArray(policy.profiles) || policy.profiles.length > 20 || policy.profiles.some(p => !p || typeof p !== 'object') || new Set(policy.profiles.map(p => p.id)).size !== policy.profiles.length) throw new Error('invalid_policy');
     for (const p of policy.profiles) {
@@ -87,6 +91,34 @@ export class Router {
     }
     if (policy.profile_descriptions !== undefined && (!isRecord(policy.profile_descriptions) || Object.entries(policy.profile_descriptions).some(([id,value]) => !/^[a-z0-9-]{1,64}$/.test(id) || typeof value!=='string' || !value.trim() || Buffer.byteLength(value)>2400))) throw new Error('invalid_policy');
     this.provider = provider; this.ledgerPath = ledgerPath; this.state = empty(); this.active = 0;
+  }
+  /** Stable legacy-default projection for runtime budget knobs only. Custom library policies retain their full identity. */
+  semanticPolicy(): RoutingPolicy {
+    return this.budgetConfigurable ? { ...clone(this.policy), max_daily_calls:20, max_total_calls:50, estimated_call_usd:0.01, max_estimated_usd:0.5 } : clone(this.policy);
+  }
+  private budgetSnapshot(utc_day=new Date().toISOString().slice(0,10)) {
+    const limits:BudgetLimits={max_daily_calls:this.policy.max_daily_calls,max_total_calls:this.policy.max_total_calls,max_estimated_usd:this.policy.max_estimated_usd,estimated_call_usd:this.policy.estimated_call_usd};
+    const daily_calls=this.state.days[utc_day]??0;
+    const exhausted_by:BudgetLimit[]=[];
+    if(limits.max_daily_calls>0&&daily_calls>=limits.max_daily_calls)exhausted_by.push('max_daily_calls');
+    if(limits.max_total_calls>0&&this.state.calls>=limits.max_total_calls)exhausted_by.push('max_total_calls');
+    if(limits.max_estimated_usd>0&&this.state.estimated_usd+limits.estimated_call_usd>limits.max_estimated_usd+1e-12)exhausted_by.push('max_estimated_usd');
+    return {limits,usage:{daily_calls,total_calls:this.state.calls,estimated_usd:this.state.estimated_usd},
+      remaining:{daily_calls:limits.max_daily_calls===0?null:Math.max(0,limits.max_daily_calls-daily_calls),
+        total_calls:limits.max_total_calls===0?null:Math.max(0,limits.max_total_calls-this.state.calls),
+        estimated_usd:limits.max_estimated_usd===0?null:Math.max(0,limits.max_estimated_usd-this.state.estimated_usd)},
+      utc_day,timezone:'UTC' as const,local_estimate:true as const,
+      exhausted_by};
+  }
+  /** No provider, secret lookup, reservation or file creation. Existing ledgers use their existing gate. */
+  budgetStatus() {
+    if(this.active)throw Object.assign(new Error('ledger_locked'),{code:'ledger_locked'});
+    if(!this.ledgerPath)return this.budgetSnapshot();
+    try{lstatSync(this.ledgerPath);}catch(error){if(errorCode(error)==='ENOENT'){this.state=empty();return this.budgetSnapshot();}throw error;}
+    const lock=acquireLedgerLock(this.ledgerPath,{initialize:false});
+    this.heldLedgerLock=lock;
+    try{this.load({readOnly:true});return this.budgetSnapshot();}
+    finally{this.heldLedgerLock=undefined;lock.release();}
   }
   capabilities() {
     return { policy_version: this.policy.version, catalog_version: this.policy.catalog_version,
@@ -110,13 +142,13 @@ export class Router {
       if (!isStoredProfile(result.profile) || result.profile_id !== result.profile.id) throw new Error('invalid_outcome');
     } else if (own(result, 'profile') || own(result, 'profile_id')) throw new Error('invalid_outcome');
   }
-  load(): void {
+  load({readOnly=false}:{readOnly?:boolean}={}): void {
     if (!this.ledgerPath) return;
     this.heldLedgerLock?.assertHeld();
     try {
       const stat = lstatSync(this.ledgerPath);
-      if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('unsafe_ledger');
-      chmodSync(this.ledgerPath, 0o600);
+      if (!stat.isFile() || stat.isSymbolicLink() || (readOnly && process.platform!=='win32' && ((stat.mode&0o077)!==0 || (process.getuid && stat.uid!==process.getuid())))) throw new Error('unsafe_ledger');
+      if(!readOnly)chmodSync(this.ledgerPath, 0o600);
       const state: unknown = JSON.parse(readFileSync(this.ledgerPath, 'utf8'));
       if (!keysOnly(state, ['version', 'calls', 'estimated_usd', 'days', 'requests']) || state.version !== 1 || !safeInt(state.calls) || typeof state.estimated_usd !== 'number' || !Number.isFinite(state.estimated_usd) || state.estimated_usd < 0 ||
         !isRecord(state.days) || !isRecord(state.requests)) throw new Error('invalid_ledger');
@@ -186,7 +218,7 @@ export class Router {
     // Keep historical strict-path hashes unchanged. Advice has a separate digest
     // namespace within the SAME request ledger, so cross-purpose ID reuse cannot
     // reuse results or automatically retry a previously uncertain paid request.
-    const hash = kind === 'hook' ? digest({ input: req, policy: this.policy }) : digest({ kind: 'advisory-v1', input: req, policy: this.policy });
+    const hash = kind === 'hook' ? digest({ input: req, policy: this.semanticPolicy() }) : digest({ kind: 'advisory-v1', input: req, policy: this.semanticPolicy() });
     if (this.active >= this.policy.max_concurrency) return this.result('unavailable', 'concurrency_limit');
     let lock: LedgerLock | undefined;
     if (this.ledgerPath) {
@@ -204,7 +236,9 @@ export class Router {
         this.validateOutcome(previous.result);
         if (previous.result.policy_version !== this.policy.version || previous.result.catalog_version !== this.policy.catalog_version ||
           (previous.result.status === 'recommended' && !profiles.some(p => p.id === previous.result?.profile_id && digest(p) === digest(previous.result?.profile)))) return this.result('unavailable', 'ledger_error');
-        return { ...clone(previous.result), cached: true };
+        if (!(previous.result.status === 'unavailable' && previous.result.reason === 'budget_exhausted')) return { ...clone(previous.result), cached: true };
+        // A verified historical local denial did not reserve or dispatch a call.
+        // Only this known completion can proceed again under the same ID.
       }
       const complete = (result: RoutingResult): RoutingResult => {
         this.state.requests[req.request_id] = { digest: hash, state: 'complete', result };
@@ -218,7 +252,8 @@ export class Router {
       try { this.provider.preflight?.(); }
       catch (e) { return this.result('unavailable', errorCode(e) === 'unauthorized' ? 'unauthorized' : 'provider_error'); }
       const day = new Date().toISOString().slice(0, 10);
-      if (this.state.calls >= this.policy.max_total_calls || (this.state.days[day] ?? 0) >= this.policy.max_daily_calls || this.state.estimated_usd + this.policy.estimated_call_usd > this.policy.max_estimated_usd + 1e-12) return complete(this.result('unavailable', 'budget_exhausted'));
+      const exhausted=this.budgetSnapshot(day).exhausted_by;
+      if (exhausted.length) return this.result('unavailable', 'budget_exhausted', {budget_limit:exhausted[0]});
       this.state.calls++; this.state.days[day] = (this.state.days[day] ?? 0) + 1;
       this.state.estimated_usd += this.policy.estimated_call_usd;
       this.state.requests[req.request_id] = { digest: hash, state: 'unknown' };

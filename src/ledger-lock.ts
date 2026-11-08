@@ -66,7 +66,7 @@ export interface LedgerLock {
 }
 
 /** Local, hard-link-capable filesystems only; no PID or stale-age recovery. */
-export function acquireLedgerLock(ledgerPath: string): LedgerLock {
+export function acquireLedgerLock(ledgerPath: string, options: { initialize?: boolean } = {}): LedgerLock {
   let connection: Connection | undefined, transaction = false;
   try {
     const path = `${ledgerPath}.lock`;
@@ -76,7 +76,7 @@ export function acquireLedgerLock(ledgerPath: string): LedgerLock {
     // Load only for persistent ledgers. Fixture-only callers need no SQLite.
     const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
     try { lstatSync(path); }
-    catch (error) { if (codeOf(error) !== 'ENOENT') throw error; initialize(path, DatabaseSync); }
+    catch (error) { if (codeOf(error) !== 'ENOENT') throw error; if(options.initialize===false)fail('ledger_error'); initialize(path, DatabaseSync); }
     assertPrivateStatePath(path);
     const before = identity(path);
     // Do not let SQLite initialize an existing empty legacy ownership marker.

@@ -89,12 +89,13 @@ test('strict native recommendation still preserves missing or unverified evidenc
 
 test('strict persisted request hashes retain their previous canonical input-policy contract', async t => {
   const ledgerPath = join(createTestTemp(t, 'codex-advice-digest-'), 'ledger.json'), input = strict('legacy');
-  await router(undefined, { ledgerPath }).recommend(input);
+  const policy=structuredClone(defaultPolicy);
+  await router(undefined, { ledgerPath, policy }).recommend(input);
   const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ?
     Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-  const oldHash = createHash('sha256').update(JSON.stringify(canonical({ input, policy: defaultPolicy }))).digest('hex');
+  const oldHash = createHash('sha256').update(JSON.stringify(canonical({ input, policy }))).digest('hex');
   assert.equal(JSON.parse(readFileSync(ledgerPath, 'utf8')).requests.legacy.digest, oldHash);
-  let calls = 0; const restarted = router(async () => { calls++; }, { ledgerPath });
+  let calls = 0; const restarted = router(async () => { calls++; }, { ledgerPath, policy });
   assert.equal((await restarted.recommend(input)).cached, true); assert.equal(calls, 0);
 });
 

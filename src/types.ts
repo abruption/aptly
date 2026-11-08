@@ -7,7 +7,8 @@ export interface RoutingTask { summary: string; operation: 'read_only' | 'write'
 export interface RoutingInput { request_id: string; client: Client; task: RoutingTask; eligible_profile_ids: string[]; constraints: RoutingConstraints; }
 export interface Usage { input_tokens: number; output_tokens: number; total_tokens: number; }
 export type RoutingStatus = 'recommended' | 'keep_current' | 'needs_context' | 'unavailable';
-export interface RoutingResult { status: RoutingStatus; reason: string; application: 'advisory_only'; policy_version: string; catalog_version: string; profile_id?: string; profile?: Profile; usage?: Usage; latency_ms?: number; confidence?: number; cached?: boolean; }
+export type BudgetLimit = 'max_daily_calls' | 'max_total_calls' | 'max_estimated_usd';
+export interface RoutingResult { budget_limit?: BudgetLimit; status: RoutingStatus; reason: string; application: 'advisory_only'; policy_version: string; catalog_version: string; profile_id?: string; profile?: Profile; usage?: Usage; latency_ms?: number; confidence?: number; cached?: boolean; }
 export interface RoutingPolicy { version: string; catalog_version: string; max_summary_bytes: number; max_concurrency: number; max_daily_calls: number; max_total_calls: number; estimated_call_usd: number; max_estimated_usd: number; timeout_ms: number; profiles: readonly Profile[]; provider_id?: string; profile_descriptions?: Record<string,string>; }
 export interface ProviderArguments { input: RoutingInput; profiles: Profile[]; signal: AbortSignal; }
 export interface ProviderAnswer { choice: string; confidence?: number; usage?: unknown; }

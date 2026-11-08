@@ -180,8 +180,9 @@ test('invalid provider choices and local budget failure leave native arguments u
     const f = fixture(t, { provider: async () => ({ choice }) });
     assert.equal((await f.run()).output.hookSpecificOutput.permissionDecision, 'deny');
   }
-  const f = fixture(t); f.router.policy.max_total_calls = 0;
-  assert.equal((await f.run()).observation.reason, 'budget_exhausted'); assert.equal(f.calls.length, 0);
+  const f = fixture(t,{routerPolicy:{max_total_calls:1}}), reserved=event('codex');reserved.tool_use_id='budget-reservation';
+  assert.equal((await f.run('codex',reserved)).observation.classification,'provider_requested');assert.equal(f.calls.length,1);
+  assert.equal((await f.run()).observation.reason, 'budget_exhausted'); assert.equal(f.calls.length, 1);
 });
 
 test('automatic installation never retries strict-path same-call records with a new paid ID', async t => {
@@ -294,7 +295,9 @@ test('inherited calls retain cache, budget, cancellation, unknown and same-call 
  const f=fixture(t);const ev=inherited();const first=await f.run('codex',ev);assert.equal(first.observation.classification,'provider_requested');
  assert.equal((await f.run('codex',ev)).observation.classification,'cache_hit');assert.equal(f.calls.length,1);
  const changed=structuredClone(ev);changed.tool_input.fork_turns='none';assert.equal((await f.run('codex',changed)).observation.reason,'call_conflict');assert.equal(f.calls.length,1);
- const budget=fixture(t);budget.router.policy.max_total_calls=0;assert.equal((await budget.run('codex',inherited())).observation.reason,'budget_exhausted');assert.equal(budget.calls.length,0);
+ const budget=fixture(t,{routerPolicy:{max_total_calls:1}}),reserved=inherited();reserved.tool_use_id='budget-reservation';
+ assert.equal((await budget.run('codex',reserved)).observation.classification,'provider_requested');assert.equal(budget.calls.length,1);
+ assert.equal((await budget.run('codex',inherited())).observation.reason,'budget_exhausted');assert.equal(budget.calls.length,1);
  const cancelled=fixture(t),controller=new AbortController();controller.abort();assert.equal((await cancelled.run('codex',inherited(),{signal:controller.signal})).observation.reason,'call_cancelled');assert.equal(cancelled.calls.length,0);
  const unknown=fixture(t,{provider:async()=>{throw Object.assign(Error('synthetic'),{code:'network'});}});
  assert.equal((await unknown.run('codex',inherited())).observation.reason,'network');assert.equal((await unknown.run('codex',inherited())).observation.reason,'outcome_unknown');assert.equal(unknown.calls.length,1);
@@ -401,13 +404,14 @@ test('revocation or expiry while provider is pending suppresses output without h
 
 test('context-bound unknown outcomes and budgets never issue a replacement request',async t=>{
  for(const limited of [false,true]){
-  const f=fixture(t,{provider:async()=>{throw Object.assign(new Error('synthetic'),{code:'network'});}}),ev=contextEvent61(),contexts=new SpawnContexts();
-  if(limited)f.router.policy.max_total_calls=0;
+  const f=fixture(t,{routerPolicy:limited?{max_total_calls:1}:undefined,provider:async()=>{throw Object.assign(new Error('synthetic'),{code:'network'});}}),ev=contextEvent61(),contexts=new SpawnContexts();
+  if(limited){const reserved=event('codex');reserved.tool_use_id='budget-reservation';assert.equal((await f.run('codex',reserved)).observation.reason,'network');assert.equal(f.calls.length,1);}
+  const priorCalls=f.calls.length;
   contexts.register('codex',ev,description61,4000);const extra={context:()=>contexts.lookup('codex',ev)};
   const first=await f.run('codex',ev,extra),second=await f.run('codex',ev,extra);
   assert.equal(first.observation.reason,limited?'budget_exhausted':'network');
   assert.equal(second.observation.reason,limited?'budget_exhausted':'outcome_unknown');
-  assert.equal(f.calls.length,limited?0:1);
+  assert.equal(f.calls.length,priorCalls+(limited?0:1));
   assert.equal(first.observation.request_id,second.observation.request_id);
  }
 });
