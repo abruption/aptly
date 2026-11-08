@@ -227,6 +227,10 @@ Codex 본문이 불투명할 때 `cleanup_merged_worktrees`처럼 구체적인 �
 | `retry_spawn_recommendation` | Hook의 `retry_id`로 작업 설명을 한 번 보충해 재추천합니다 |
 | `prepare_fresh_delegation` | 완료된 상속 추천으로 별도의 독립 Codex 호출 인자를 준비하며 실행하지 않습니다 |
 
+### confidence와 추천 보류
+
+`confidence`는 메타데이터이며 보정된 정답 확률로 검증되지 않았습니다. 현재 자동 적용 임계값으로 사용하지 않습니다. 현재 0과 낮은 값도 다른 적용 조건을 만족하면 허용합니다. 실제 Decisions 응답에서 값이 누락되면 오류로 거절하지만, 일반 Router·저장 결과에서는 선택 항목입니다. `keep_current`·`needs_context`는 숫자와 별개의 결과이며 기존 보류·문맥 보충 규칙을 따릅니다. 명시한 모델·effort·이력·권한은 보존합니다. 소규모 분류 평가만으로 자식 작업의 품질·총비용 개선을 주장하지 않습니다.
+
 <a id="외부-전송과-자동-공유-끄기"></a>
 
 ### Decisions API 전송 범위

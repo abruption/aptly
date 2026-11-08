@@ -227,6 +227,10 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 | `retry_spawn_recommendation` | Accepts one task-description supplement using a Hook-issued retry_id |
 | `prepare_fresh_delegation` | Prepares a separate independent Codex call from completed inherited advice; never executes it |
 
+### Confidence and abstention
+
+`confidence` is metadata and has not been validated here as a calibrated probability of correctness. It is not currently used as an automatic-application threshold. Zero and low values are currently allowed when other application conditions hold. A missing value in a live Decisions response is rejected as an error; it remains optional in generic Router and stored results. `keep_current` and `needs_context` are separate outcomes with existing abstention and context-recovery rules. Explicit model, effort, history and permissions are preserved. A small classification pilot does not establish improved child-task quality or total cost.
+
 <a id="outbound-data-and-disabling-automatic-sharing"></a>
 
 ### Decisions API transmission scope
