@@ -9,8 +9,8 @@ import { collectDiagnostics } from '../src/diagnostics.ts';
 import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
-import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher } from '../src/setup.ts';
-import { readEnvironmentValue } from '../src/cli-input.ts';
+import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission } from '../src/setup.ts';
+import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { updateGlobalInstallation } from '../src/update.ts';
 import { updateNotification } from '../src/update-notifier.ts';
@@ -18,7 +18,7 @@ const [command='serve',...args]=process.argv.slice(2);
 const output=(value:unknown)=>process.stdout.write(JSON.stringify(value,null,2)+'\n');
 try {
  if(['--help','-h','help'].includes(command)) {
-  process.stdout.write('Aptly (preview)\n\nCommands:\n  serve                 Start the stdio MCP server (default: fixture/shadow).\n  capabilities          Print the active catalog; no API call.\n  catalog               Print the active catalog; no API call.\n  catalog refresh --output ABS_PATH  Fetch official model descriptions to a private cache.\n  recommend             Recommend for a task JSON on stdin; no host evidence required.\n  inspect CLIENT FILE   Inspect an explicit JSON settings inventory; no API call.\n  config CLIENT         Print an MCP registration fragment; does not edit settings.\n  set default           Add missing default MCP environment settings.\n  set env ENV_KEY       Prompt for an MCP environment value.\n  setup                 Register MCP and automatic PreToolUse Hooks.\n  remove                Remove only unchanged Aptly-owned registration.\n  update                Update this verified global npm installation.\n  report                Write redacted local diagnostic attachments (default: md + json).\n    --format md|json|both  Select report formats.\n    --output-dir DIR      Private output directory (default: reports).\n  --version             Print the package version.\n\nUse aptly set env OPENAI_API_KEY for OS storage, or pass it through the MCP environment.\nPaid mode additionally requires\nROUTER_PROVIDER=decisions and an absolute ROUTER_LEDGER_PATH in a private directory.\nROUTER_CONFIG_PATH is an optional private operator configuration file.\n');
+  process.stdout.write('Aptly (preview)\n\nCommands:\n  serve                 Start the stdio MCP server (default: fixture/shadow).\n  capabilities          Print the active catalog; no API call.\n  catalog               Print the active catalog; no API call.\n  catalog refresh --output ABS_PATH  Fetch official model descriptions to a private cache.\n  recommend             Recommend for a task JSON on stdin; no host evidence required.\n  inspect CLIENT FILE   Inspect an explicit JSON settings inventory; no API call.\n  config CLIENT         Print an MCP registration fragment; does not edit settings.\n  set default           Add defaults; select API transmission scope interactively.\n  set transmission      Set/show OpenAI Decisions API transmission scope.\n  set env ENV_KEY       Prompt for an MCP environment value.\n  setup                 Register MCP and automatic PreToolUse Hooks.\n  remove                Remove only unchanged Aptly-owned registration.\n  update                Update this verified global npm installation.\n  report                Write redacted local diagnostic attachments (default: md + json).\n    --format md|json|both  Select report formats.\n    --output-dir DIR      Private output directory (default: reports).\n  --version             Print the package version.\n\nUse aptly set env OPENAI_API_KEY for OS storage, or pass it through the MCP environment.\nPaid mode additionally requires\nROUTER_PROVIDER=decisions and an absolute ROUTER_LEDGER_PATH in a private directory.\nROUTER_CONFIG_PATH is an optional private operator configuration file.\n');
  } else if(command==='update'){
   if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly update\nRequires a verified global npm installation. Stop other hosts/MCP/CLI writers first.\nUpdates the same npm prefix without lifecycle setup. Run aptly setup and restart hosts afterward; existing launchers are preserved.\n');
   else {
@@ -37,7 +37,17 @@ try {
   output(exportDiagnosticReport({diagnostic:collectDiagnostics(),...options}));
  }
  else if(command==='set'){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly set default [--client codex|claude|all]\n       aptly set env ENV_KEY [--client codex|claude|all] [--stdin | --check]\n--check diagnoses OPENAI_API_KEY registration without reading or storing a key.\nValues are entered interactively with hidden input; --stdin explicitly reads a value from standard input. Existing defaults and launchers are preserved. OPENAI_API_KEY is stored in the OS credential store; host files contain references only. Restart MCP after changes.\n');
+  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly set default [--client codex|claude|all]\n       aptly set transmission none|description|excerpt [--client codex|claude|all]\n       aptly set transmission --show [--client codex|claude|all]\n       aptly set env ENV_KEY [--client codex|claude|all] [--stdin | --check]\n--check diagnoses OPENAI_API_KEY registration without reading or storing a key.\nValues are entered interactively with hidden input; --stdin explicitly reads a value from standard input. Existing defaults and launchers are preserved. OPENAI_API_KEY is stored in the OS credential store; host files contain references only. Restart MCP after changes.\n');
+  else if(args[0]==='transmission'){
+   if(args[1]==='--help'&&args.length===2)process.stdout.write('Usage: aptly set transmission none|description|excerpt [--client codex|claude|all]\n       aptly set transmission --show [--client codex|claude|all]\nControls automatic transmission to OpenAI Decisions, not developer telemetry. Direct recommendations are separate explicit requests. Restart MCP after changes.\n');
+   else {
+    const scope=args[1];if(!['none','description','excerpt','--show'].includes(scope))throw new Error('set_invalid_options');
+    let clients:('codex'|'claude')[]=['codex','claude'];
+    if(args.length!==2){if(args.length!==4||args[2]!=='--client'||!['codex','claude','all'].includes(args[3]))throw new Error('set_invalid_options');clients=args[3]==='all'?['codex','claude']:[args[3] as 'codex'|'claude'];}
+    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
+    const result=scope==='--show'?showTransmission({clients}):setTransmission(scope as 'none'|'description'|'excerpt',{clients,packageRoot});output(result);if('status' in result&&result.status==='partial')process.exitCode=1;
+   }
+  }
   else {
    const action=args[0];let key:string|undefined;let start=1;
    if(action==='env'){key=args[1];start=2;if(!key||(key!=='OPENAI_API_KEY'&&!configurableEnvironmentKeys.includes(key)))throw new Error('set_environment_key_unsupported');}
@@ -51,14 +61,19 @@ try {
    if(credential&&(checkOnly||credential.result.status==='partial')){output(credential.result);if(credential.result.status==='partial')process.exitCode=1;}
    else try{
     if(action==='env')value=await readEnvironmentValue({key:key!,fromStdin});
-    const result=action==='default'?setDefaults({clients,packageRoot}):key==='OPENAI_API_KEY'?credential!.apply(value):setEnvironment(key!,value,{clients,packageRoot});output(result);if(result.status==='partial')process.exitCode=1;
+    let result=action==='default'?setDefaults({clients,packageRoot}):key==='OPENAI_API_KEY'?credential!.apply(value):setEnvironment(key!,value,{clients,packageRoot});
+    if(action==='default'&&result.status==='complete'&&process.stdin.isTTY&&process.stdout.isTTY){
+      const pending=result.clients.filter(client=>client.transmission==='unselected').map(client=>client.client);
+      if(pending.length){const scope=await readTransmissionChoice();const selected=setTransmission(scope,{clients:pending,packageRoot,selectUnselectedOnly:true});result={status:selected.status,clients:result.clients.map(client=>selected.clients.find(item=>item.client===client.client)??client)};}
+    }
+    output(result);if(result.status==='partial')process.exitCode=1;
    }finally{value='';}
   }
  }
  else if(['setup','remove'].includes(command)){
-  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly setup [--client codex|claude|all] [--mode defaults|advisory] [--automatic]\n       aptly setup --client codex|claude --migrate-launcher [--include-existing] [--dry-run]\n       aptly remove [--client codex|claude|all]\nSetup merges MCP and PreToolUse registration. Codex requires native /hooks trust review.\nAutomatic setup skips CI, APTLY_SKIP_SETUP=1, and absent host directories. No keys are stored.\n');
+  if(args.length===1&&args[0]==='--help')process.stdout.write('Usage: aptly setup [--client codex|claude|all] [--mode defaults|advisory] [--transmission none|description|excerpt] [--automatic]\n       aptly setup --client codex|claude --migrate-launcher [--include-existing] [--dry-run]\n       aptly remove [--client codex|claude|all]\nSetup merges MCP and PreToolUse registration. Codex requires native /hooks trust review.\nAutomatic setup skips CI, APTLY_SKIP_SETUP=1, and absent host directories. No keys are stored.\n');
   else {
-   let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'='defaults';let automatic=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
+   let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'|undefined;let transmission:'none'|'description'|'excerpt'|undefined;let automatic=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
    for(let i=0;i<args.length;i++){
     const flag=args[i];if(seen.has(flag))throw new Error('setup_invalid_options');seen.add(flag);
     if(flag==='--migrate-launcher'&&command==='setup'){migrate=true;continue;}
@@ -67,12 +82,13 @@ try {
     if(flag==='--automatic'&&command==='setup'){automatic=true;continue;}
     const value=args[++i];
     if(flag==='--client'&&['codex','claude','all'].includes(value))clients=value==='all'?['codex','claude']:[value as 'codex'|'claude'];
+    else if(flag==='--transmission'&&command==='setup'&&['none','description','excerpt'].includes(value))transmission=value as 'none'|'description'|'excerpt';
     else if(flag==='--mode'&&command==='setup'&&['defaults','advisory'].includes(value))mode=value as 'defaults'|'advisory';
     else throw new Error('setup_invalid_options');
    }
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   if((migrate&&(clients.length!==1||automatic||seen.has('--mode')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
-   const result=migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot}):removeSetup({clients});output(result);
+   if((migrate&&(clients.length!==1||automatic||seen.has('--mode')||seen.has('--transmission')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
+   const result=migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});output(result);
    if(result.status==='partial'&&!automatic)process.exitCode=1;
   }
  }

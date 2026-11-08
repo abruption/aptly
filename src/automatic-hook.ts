@@ -10,13 +10,17 @@ import type { HookOutput } from './hook.ts';
 import { digestToolInput } from './provenance.ts';
 import type { Client, RoutingPolicy, UnknownRecord } from './types.ts';
 
-export interface AutoPolicy {
-  schema_version: 1;
+interface AutoPolicyBase {
   kind: 'aptly-auto-hook';
   mode: 'defaults' | 'advisory';
   issuer: 'operator_installation';
   enabled: boolean;
   state_directory: string;
+}
+export type Transmission = 'none' | 'description' | 'excerpt' | 'unselected';
+export type AutoPolicy = AutoPolicyBase & ({schema_version: 1} | {schema_version: 2; transmission: Transmission});
+export function effectiveTransmission(policy: AutoPolicy): Transmission {
+  return policy.schema_version === 1 ? 'excerpt' : policy.transmission;
 }
 export interface AutomaticHookObservation {
   status: 'arguments_updated' | 'advisory' | 'preserved' | 'pending' | 'awaiting_context' | 'blocked';
@@ -81,13 +85,15 @@ export function loadAutomaticHookPolicy(path: unknown): { policy: AutoPolicy | n
   try {
     assertPrivateStatePath(path);
     const value: unknown = JSON.parse(readRegularFile(path, { privateFile: true, maxBytes: 4096 }).toString('utf8'));
-    if (!plain(value) || Object.keys(value).length !== policyKeys.length || Object.keys(value).some(key => !policyKeys.includes(key)) ||
-      value.schema_version !== 1 || value.kind !== 'aptly-auto-hook' || (typeof value.mode !== 'string' || !['defaults', 'advisory'].includes(value.mode)) ||
+    if (!plain(value)) throw new Error('invalid_policy');
+    const keys = value.schema_version === 2 ? [...policyKeys, 'transmission'] : policyKeys;
+    if (Object.keys(value).length !== keys.length || Object.keys(value).some(key => !keys.includes(key)) ||
+      ![1,2].includes(value.schema_version as number) || (value.schema_version === 2 && !['none','description','excerpt','unselected'].includes(value.transmission as string)) || value.kind !== 'aptly-auto-hook' || (typeof value.mode !== 'string' || !['defaults', 'advisory'].includes(value.mode)) ||
       value.issuer !== 'operator_installation' || typeof value.enabled !== 'boolean' ||
       typeof value.state_directory !== 'string' || !isAbsolute(value.state_directory)) throw new Error('invalid_policy');
     // Validate an existing private state directory, without creating a path from untrusted event data.
     assertPrivateStatePath(join(value.state_directory, '.aptly-state-check'));
-    const policy = Object.fromEntries(policyKeys.map(key => [key, value[key]])) as unknown as AutoPolicy;
+    const policy = Object.fromEntries(keys.map(key => [key, value[key]])) as unknown as AutoPolicy;
     return { policy, fingerprint: hash(policy), reason: policy.enabled ? 'automatic_policy_enabled' : 'automatic_policy_disabled' };
   } catch { return { policy: null, reason: 'automatic_policy_invalid' }; }
 }
@@ -210,6 +216,10 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     // Respect an operator revocation rather than blocking under a disabled policy.
     const currentPolicy=loadAutomaticHookPolicy(policyPath).policy;
     if(!currentPolicy?.enabled)return result;
+    if(['none','unselected'].includes(effectiveTransmission(currentPolicy))) {
+      result.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:`Aptly automatic routing is inactive (${effectiveTransmission(currentPolicy)}). Original arguments are preserved.`}};
+      return result;
+    }
     const message=`Aptly could not select compatible subagent defaults (${reason}). Original arguments and execution constraints are preserved; no child execution is observed. Report this outcome. Do not repeat an uncertain paid request with a new ID or change history, explicit choices, roles or permissions to bypass this result.`;
     result.output={hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:message,
       ...(currentPolicy.mode==='defaults'?{permissionDecision:'deny',permissionDecisionReason:message}:{})}};
@@ -219,6 +229,10 @@ export async function automaticHook({ client, event, router, policyPath, signal,
   try {
     const loaded = loadAutomaticHookPolicy(policyPath);
     if (!loaded.policy || !loaded.policy.enabled || !loaded.fingerprint) return preserve(loaded.reason);
+    if (['none','unselected'].includes(effectiveTransmission(loaded.policy))) {
+      activeMode=loaded.policy.mode;
+      return preserve(`transmission_${effectiveTransmission(loaded.policy)}`);
+    }
     const call = readCall(client, event);
     if (!call) return preserve('invalid_event');
     const pinned = preservation(call);
@@ -260,11 +274,16 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     };
     const supplied = context?.();
     if (supplied?.reason) return preserve(supplied.reason);
-    const summary = supplied?.summary ? supplied : boundedSummary(call, router.policy.max_summary_bytes);
+    const summary = supplied?.summary ? supplied : effectiveTransmission(loaded.policy)==='description'
+      ? {reason:'insufficient_context'} : boundedSummary(call, router.policy.max_summary_bytes);
     if (Buffer.byteLength(summary.summary ?? '') > Math.min(4000,router.policy.max_summary_bytes)) return preserve('insufficient_context');
     if (!summary.summary) {
       if(summary.reason!=='insufficient_context'||!onNeedsContext)return preserve(summary.reason??'insufficient_context');
       if(signal?.aborted||(stillCurrent&&await stillCurrent()!==true))return preserve('call_cancelled');
+      const currentPolicy=loadAutomaticHookPolicy(policyPath),currentCall=readCall(client,event),currentContext=context?.();
+      if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed');
+      if(!currentCall||currentCall.callKey!==call.callKey||currentCall.payloadDigest!==call.payloadDigest)return preserve('call_changed');
+      if(currentContext?.reason||currentContext?.fingerprint!==supplied?.fingerprint)return preserve(currentContext?.reason??'context_changed');
       const legacyId=hookInput({client,event,policy:router.policy})?.request_id??hash([call.client,call.event.session_id,call.event.tool_use_id??call.event.tool_call_id]);
       try{router.load();}catch{return preserve('ledger_error');}
       if(own(router.state.requests,legacyId))return preserve('legacy_request_exists',legacyId);
