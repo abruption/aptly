@@ -52,6 +52,9 @@ test('root and every documented command path provide help without creating state
 test('help accepts valid options and optional known environment keys without performing commands', { timeout: 30000 }, t => {
   const f = fixture(t);
   for (const args of [
+    ['--version','--help'], ['--help','--version'],
+    ['set','transmission','--help','--show','--client','codex'],
+    ['inspect','codex','-','--help'], ['report','--output-dir','-','--help'],
     ['setup', '--client', 'codex', '--mode', 'advisory', '--help'],
     ['setup', '--migrate-launcher', '--client', 'codex', '--dry-run', '--help'],
     ['catalog', 'refresh', '--output', '/nonexistent/path', '--help'],
@@ -68,7 +71,7 @@ test('help accepts valid options and optional known environment keys without per
 test('invalid paths and arguments remain errors even when help is requested', { timeout: 30000 }, t => {
   const f = fixture(t);
   for (const args of [
-    ['unknown', '--help'], ['help', 'unknown'], ['help', 'catalog', 'unknown'],
+    ['unknown', '--help'], ['set env', '--help'], ['catalog refresh', '--output', '/x', '-h'], ['help', 'budget status'], ['help', 'catalog refresh'], ['--version','setup','--help'], ['help', 'unknown'], ['help', 'catalog', 'unknown'],
     ['setup', '--unknown', '--help'], ['setup', '--client', 'invalid', '--help'],
     ['setup', '--client', 'codex', '--client', 'claude', '--help'],
     ['setup', '--dry-run', '--help'], ['setup', '--include-existing', '--help'],

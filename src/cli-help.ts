@@ -34,7 +34,7 @@ export function resolveCliHelp(argv:readonly string[],{environmentKeys=[]}:{envi
  const tokens=prefixed?argv.slice(1):[...argv],clean=tokens.filter(token=>!helpFlag(token));
  let path='',count=0;
  if(clean.length&&clean[0]!=='--version'){
-  if(!clean[0]||!Object.hasOwn(entries,clean[0]))return {kind:'error',code:'invalid_help_options'};
+  if(!clean[0]||clean[0].includes(' ')||!Object.hasOwn(entries,clean[0]))return {kind:'error',code:'invalid_help_options'};
   path=clean[0];count=1;
   if(['set','catalog','budget'].includes(path)&&clean[1]&&Object.hasOwn(entries,path+' '+clean[1])){path+=' '+clean[1];count=2;}
  }
