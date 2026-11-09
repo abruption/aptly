@@ -1,5 +1,11 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.9 릴리스 준비
+
+[Issue #111](https://github.com/abruption/aptly/issues/111)에서 0.1.9 버전·[한국어 릴리스 노트](release-notes/0.1.9.md)와 통합 검증을 준비합니다. Linux 키 저장소 사전 진단(#105·PR #107), 설정 홈 간 정책 충돌과 읽기 전용 점검(#106·PR #108), 보안 CI(#109·PR #110)를 포함합니다. 일반 설치는 계속 `aptly@latest`를 사용하며 과거 기능의 최소 지원 버전은 유지합니다.
+
+준비 PR 병합과 정확한 main CI 성공 후 별도 게시 지시를 받아 새 `v0.1.9` 태그로 Actions OIDC 배포를 진행합니다. 현재는 태그·npm 게시·0.1.9의 registry 파일·서명·provenance 검증을 수행하지 않았습니다. 기존 키·정책·원장·사용량·완료/불명 결과와 Hook 신뢰는 보존하며 실제 호스트 설정이나 Linux 저장소 의존성을 자동 변경하지 않습니다.
+
 ## 0.1.8 게시와 검증
 
 2026-11-09에 source `783402345d9dddb8fcbacc4f615b95791e27f6d1`의 `v0.1.8` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42538795929)를 수행했습니다. 정확한 병합 main CI 7개 성공 후 태그를 생성했고 설치 시험·새 runner 패키징·게시 3개 job이 성공했습니다. npm latest는 0.1.8이며 artifact·registry SHA-256/512 일치·npm 서명·SLSA v1 인증서의 소스·태그·workflow·run/attempt identity를 확인했습니다.

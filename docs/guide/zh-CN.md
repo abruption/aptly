@@ -116,7 +116,7 @@ API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows C
 
 密钥设置会在输入和保存前诊断所选宿主。任一宿主失败时，不提示输入，也不修改任何宿主。`--check` 不访问密钥或凭据存储。
 
-在 Linux 上，`--check` 还会检查可执行的 `secret-tool`；如果有安全的显式会话总线地址和 `gdbus`，则只读取总线元数据，不启动或访问凭据服务。确认失败时，会在输入前报告 `secure_store_unavailable`，并附带 `secure_store_secret_tool_missing`、`secure_store_bus_missing` 或 `secure_store_service_missing`。`secure_store_bus_unverified`、`secure_store_probe_unavailable` 以及服务存在或可启动的未确认代码表示准备状态未知；服务存在或可启动并不能证明它已解锁或可写。必要时请安装 `secret-tool` 和 Secret Service 提供程序，并在目标桌面会话中运行。实际保存仍可能失败。对于 SSH 或无桌面会话，当 `APTLY_SECRET_BACKEND` 不存在时，请将 `OPENAI_API_KEY` 安全地传给宿主 MCP 进程，并保留现有认证包装程序或环境。`credential_node_mismatch`、`credential_server_mismatch` 和 `credential_runtime_unsupported` 分别表示 Node 路径、服务器路径及 OS 存储支持不兼容。
+从 Aptly 0.1.9 起，在 Linux 上，`--check` 还会检查可执行的 `secret-tool`；如果有安全的显式会话总线地址和 `gdbus`，则只读取总线元数据，不启动或访问凭据服务。确认失败时，会在输入前报告 `secure_store_unavailable`，并附带 `secure_store_secret_tool_missing`、`secure_store_bus_missing` 或 `secure_store_service_missing`。`secure_store_bus_unverified`、`secure_store_probe_unavailable` 以及服务存在或可启动的未确认代码表示准备状态未知；服务存在或可启动并不能证明它已解锁或可写。必要时请安装 `secret-tool` 和 Secret Service 提供程序，并在目标桌面会话中运行。实际保存仍可能失败。对于 SSH 或无桌面会话，当 `APTLY_SECRET_BACKEND` 不存在时，请将 `OPENAI_API_KEY` 安全地传给宿主 MCP 进程，并保留现有认证包装程序或环境。`credential_node_mismatch`、`credential_server_mismatch` 和 `credential_runtime_unsupported` 分别表示 Node 路径、服务器路径及 OS 存储支持不兼容。
 
 如果只有 Claude 失败，按以下顺序诊断，仅在返回 `launcher_migration_available` 时考虑迁移：
 
@@ -129,7 +129,7 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` 不修改文件。迁移仅将与所有权记录一致的 Aptly 标准注册的 Node 和服务器路径更新到当前构建，保留环境设置、Hook、策略及其他宿主，不访问凭据，也不执行旧启动程序。自定义包装程序、缺少所有权记录或已修改的注册会被拒绝。请在本地检查此类注册，使用包装程序的安全环境传递方式，或切换到另行审核的标准注册。不要编辑或删除所有权记录以绕过验证。
 
-`aptly setup --check --client codex|claude|all` 只读取常规设置计划，不会写入文件或创建目录。结果是当前时点的快照，不验证运行中的主机。`--check` 只能与 `--client` 组合使用。如果出现 `hook_policy_path_conflict`，请在本地检查所选主机配置目录和现有策略引用，选择预期的主机目录后重试。设置会保留现有配置，不会移动或复制策略；迁移启动器不能解决此不匹配。
+从 Aptly 0.1.9 起，`aptly setup --check --client codex|claude|all` 只读取常规设置计划，不会写入文件或创建目录。结果是当前时点的快照，不验证运行中的主机。`--check` 只能与 `--client` 组合使用。如果出现 `hook_policy_path_conflict`，请在本地检查所选主机配置目录和现有策略引用，选择预期的主机目录后重试。设置会保留现有配置，不会移动或复制策略；迁移启动器不能解决此不匹配。
 
 如果 `launcher_migration_not_owned` 对应的是保留的注册（`mcp_created: false`），**Aptly 0.1.3 或更高版本**提供显式选项 `--include-existing`。请安装 0.1.3 或更高版本，然后运行：
 
