@@ -31,7 +31,7 @@ function newer(candidate:string,current:string):boolean {
 }
 function eligible(o:UpdateNotificationOptions):boolean {
  return o.stdinIsTTY&&o.stderrIsTTY&&o.stdoutIsTTY!==false&&!o.env.CI&&o.env.APTLY_NO_UPDATE_NOTIFIER!=='1'&&!!version(o.currentVersion)&&
-  ['--version','config','setup','remove','set','report'].includes(o.command)&&!o.args.some(arg=>arg==='--help'||arg==='-h')&&!o.args.includes('--automatic')&&!(o.command==='set'&&o.args[0]==='transmission'&&o.args.includes('--show'));
+  ['--version','config','setup','remove','set','report'].includes(o.command)&&!o.args.some(arg=>arg==='--help'||arg==='-h')&&!o.args.includes('--automatic')&&!o.args.includes('--check')&&!(o.command==='set'&&o.args[0]==='transmission'&&o.args.includes('--show'));
 }
 function directory(path:string):void {
  if(!isAbsolute(path))throw Error('cache_path');
