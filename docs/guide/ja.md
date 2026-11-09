@@ -116,7 +116,7 @@ API キーは macOS Keychain、インストール済みの Linux `secret-tool`�
 
 キー設定は入力・保存前に対象ホストを診断します。いずれかが失敗すると入力を求めず、全ホストを変更しません。`--check` はキーや資格情報ストアにアクセスしません。
 
-Linux の `--check` は実行可能な `secret-tool` も確認し、安全な明示的セッションバスアドレスと `gdbus` がある場合、資格情報サービスを起動・アクセスせずにバスメタデータを読み取ります。確実な失敗は入力前に `secure_store_unavailable` と `secure_store_secret_tool_missing`、`secure_store_bus_missing`、`secure_store_service_missing` のいずれかで通知します。`secure_store_bus_unverified`、`secure_store_probe_unavailable`、サービスの存在・起動可能を示す未確認コードは準備状態が不明であることを意味します。サービスの存在や起動可能性はロック解除や書き込み可能を保証しません。必要に応じて `secret-tool` と Secret Service プロバイダーをインストールし、使用するデスクトップセッションで実行してください。実際の保存は失敗する場合があります。SSH やヘッドレスセッションでは、`APTLY_SECRET_BACKEND` がない場合に `OPENAI_API_KEY` をホスト MCP プロセスへ安全に渡してください。既存の認証ラッパーや環境は保持してください。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
+Aptly 0.1.9 以降、Linux の `--check` は実行可能な `secret-tool` も確認し、安全な明示的セッションバスアドレスと `gdbus` がある場合、資格情報サービスを起動・アクセスせずにバスメタデータを読み取ります。確実な失敗は入力前に `secure_store_unavailable` と `secure_store_secret_tool_missing`、`secure_store_bus_missing`、`secure_store_service_missing` のいずれかで通知します。`secure_store_bus_unverified`、`secure_store_probe_unavailable`、サービスの存在・起動可能を示す未確認コードは準備状態が不明であることを意味します。サービスの存在や起動可能性はロック解除や書き込み可能を保証しません。必要に応じて `secret-tool` と Secret Service プロバイダーをインストールし、使用するデスクトップセッションで実行してください。実際の保存は失敗する場合があります。SSH やヘッドレスセッションでは、`APTLY_SECRET_BACKEND` がない場合に `OPENAI_API_KEY` をホスト MCP プロセスへ安全に渡してください。既存の認証ラッパーや環境は保持してください。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
 
 Claude だけが失敗した場合は次の順序で診断し、`launcher_migration_available` の場合にのみ移行を検討してください。
 
@@ -129,7 +129,7 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` は変更しません。移行は所有記録と一致する Aptly の標準登録に限り、Node・サーバーパスを現在のビルドへ更新します。環境設定・Hook・ポリシー・他のホストを保持し、資格情報へのアクセスや古い起動プログラムの実行は行いません。独自ラッパー、所有記録のない登録、変更済みの登録は拒否します。その場合は登録をローカルで確認し、ラッパーの安全な環境変数受け渡しを使うか、別途確認した標準登録へ切り替えてください。検証を回避するために所有記録を編集・削除しないでください。
 
-`aptly setup --check --client codex|claude|all` は通常の設定計画を読み取るだけで、ファイルやディレクトリを作成しません。実行中のホストを検証するものではなく、確認時点の状態を示します。`--check` と組み合わせられるのは `--client` のみです。`hook_policy_path_conflict` が表示された場合は、選択したホスト設定ディレクトリと既存のポリシー参照をローカルで確認し、意図したホストディレクトリを選択してから再試行してください。設定は既存の構成を保持し、ポリシーを移動またはコピーしません。ランチャーの移行ではこの不一致を解決できません。
+Aptly 0.1.9 以降、`aptly setup --check --client codex|claude|all` は通常の設定計画を読み取るだけで、ファイルやディレクトリを作成しません。実行中のホストを検証するものではなく、確認時点の状態を示します。`--check` と組み合わせられるのは `--client` のみです。`hook_policy_path_conflict` が表示された場合は、選択したホスト設定ディレクトリと既存のポリシー参照をローカルで確認し、意図したホストディレクトリを選択してから再試行してください。設定は既存の構成を保持し、ポリシーを移動またはコピーしません。ランチャーの移行ではこの不一致を解決できません。
 
 `launcher_migration_not_owned` が既存の登録を保持した状態（`mcp_created: false`）を指す場合、**Aptly 0.1.3 以降では** `--include-existing` を明示して移行できます。0.1.3 以降をインストールし、次を実行してください。
 
