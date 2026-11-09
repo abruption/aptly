@@ -1,11 +1,11 @@
 # Changelog
 
-## 0.1.9 — 릴리스 준비
+## 0.1.9 — 2026-11-09
 
 - Linux의 API 키 입력 전에 실행 가능한 `secret-tool`과 안전하게 확인 가능한 사용자 D-Bus·Secret Service 준비 상태를 진단합니다. 확실한 부재는 입력 전에 거절하고 모호한 상태·활성화 가능한 서비스는 미확인으로 표시합니다. 키 조회·서비스 활성화·잠금 해제·자동 설치는 하지 않으며 SSH 환경 인증 대안을 4개 언어 가이드에 안내합니다. (#105, PR #107)
 - 다른 설정 홈의 Hook 정책을 가리키는 등록에 `hook_policy_path_conflict`와 경로를 노출하지 않는 복구 안내를 제공합니다. `aptly setup --check`로 일반 설정 계획을 쓰기 없이 확인하고, 점검 시 업데이트 알림의 캐시·네트워크 동작도 생략합니다. 기존 소유권·동시 변경·키·원장·신뢰 검사를 유지하며 정책을 자동 이전하지 않습니다. (#106, PR #108)
 - npm·GitHub Actions의 주간 Dependabot 업데이트, high 이상 취약점을 차단하는 전체/런타임 의존성 감사, 해시 고정 Gitleaks 이력 검사를 추가합니다. 인증된 같은 저장소의 의존성 전용 Dependabot PR만 선행 Issue를 면제하며 제목·리뷰·CI 요건은 유지합니다. Actions 제목도 필수 scope를 포함합니다. (#109, PR #110)
-- 버전과 [한국어 릴리스 노트](docs/release-notes/0.1.9.md)는 #111에서 준비합니다. 태그 생성·npm 게시·이 버전의 registry/provenance 검증은 아직 수행하지 않았습니다.
+- 준비는 #111·PR #115에서 진행했고 정확한 병합 main CI 성공 후 `v0.1.9`의 Actions OIDC 게시를 완료했습니다. npm `latest` 0.1.9와 artifact·registry SHA-256 일치를 확인했습니다. npm 서명·인증서 기반 provenance와 정식 Latest GitHub Release를 확인했으며, #118과 [실제 게시 기록](docs/releases/0.1.9.md)에 상태를 구분해 기록합니다. Dependabot PR #112·#113·#114·#116·#117은 포함하지 않았습니다.
 
 ## 0.1.8 — 2026-11-09
 
