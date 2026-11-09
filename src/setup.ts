@@ -25,7 +25,7 @@ export interface SetupOptions {
   selectUnselectedOnly?: boolean;
 }
 export type TransmissionScope = 'none' | 'description' | 'excerpt';
-export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; invalid_budget_keys?:string[]; budget_error?:string; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; inherited:string[]; restart_required:boolean } }
+export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; invalid_budget_keys?:string[]; budget_error?:string; policy_location?: 'default_home' | 'elsewhere'; selected_home_source?: 'default' | 'override'; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; inherited:string[]; restart_required:boolean } }
 export interface SetupResult { status: 'complete' | 'partial' | 'skipped'; clients: SetupClientResult[] }
 type Snapshot = { path: string; before: string | null; after: string | null; mode: number };
 type Ownership = { schema_version: 1; kind: 'aptly-setup-ownership'; client: Client; hook: ObjectValue; mcp_created: boolean; mcp?: ObjectValue; policy: ObjectValue; policy_created: boolean; env_added: Record<string, string>; toml_block?: string };
@@ -272,9 +272,15 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
       servers.aptly = { ...(client === 'claude' ? { type: 'stdio' } : {}), command: process.execPath, args: [join(root, 'dist', 'src', 'server.js')], ...(client === 'codex' ? { env_vars: ['OPENAI_API_KEY'] } : {}), env: { ROUTER_PROVIDER: edit && 'defaults' in edit ? 'decisions' : env.ROUTER_PROVIDER === 'fixture' ? 'fixture' : 'decisions', ...additions } };
     } else {
       if (!object(servers.aptly)) fail('mcp_entry_conflict');
-      if (edit && oldOwner?.mcp_created && !isDeepStrictEqual(servers.aptly,oldOwner.mcp)) fail('managed_mcp_changed');
+      const configuredPolicy = object(servers.aptly.env) ? servers.aptly.env.APTLY_HOOK_POLICY_PATH : undefined;
+      const mismatch = configuredPolicy !== undefined && configuredPolicy !== policyPath;
+      const detail = mismatch && typeof configuredPolicy === 'string' && configuredPolicy.length > 0 ? {
+        policy_location: configuredPolicy === join(resolve(options.home ?? homedir()), client === 'codex' ? '.codex' : '.claude', 'aptly', 'auto-policy.json') ? 'default_home' : 'elsewhere',
+        selected_home_source: (client === 'codex' ? env.CODEX_HOME : env.CLAUDE_CONFIG_DIR) ? 'override' : 'default',
+      } : undefined;
+      if (edit && oldOwner?.mcp_created && !isDeepStrictEqual(servers.aptly,oldOwner.mcp)) throw Object.assign(new Error('managed_mcp_changed'), detail ? {policyConflict:detail} : {});
+      if (mismatch) throw Object.assign(new Error('mcp_environment_conflict'), {policyConflict:detail});
       const currentEnv = map(servers.aptly, 'env');
-      if (currentEnv.APTLY_HOOK_POLICY_PATH !== undefined && currentEnv.APTLY_HOOK_POLICY_PATH !== policyPath) fail('mcp_environment_conflict');
       const missing = Object.fromEntries(Object.entries(additions).filter(([key]) => currentEnv[key] === undefined));
       Object.assign(currentEnv, missing);
       mcp.after = client === 'codex' ? addTomlEnv(mcp.before ?? '', missing) : stringify(config);
@@ -392,6 +398,13 @@ function replace(snapshot: Snapshot, forward: boolean) {
     staged = false;
   } finally { if (fd !== undefined) closeSync(fd); if (staged) { try { unlinkSync(stage); } catch (e: any) { if (e.code !== 'ENOENT') throw e; } } }
 }
+function policyRecovery(client: Client): string[] {
+  return [`aptly setup --check --client ${client}`, 'Review the selected host configuration directory and its existing policy reference locally; intentional sharing cannot be inferred. Preserve the registration and select the intended host directory before retrying. A policy conflict does not authenticate the launcher or other changed settings. Review all changed registration fields locally before reuse; keep custom or modified launchers unchanged and do not execute an unverified launcher. Do not copy keys, ledgers or trust settings.'];
+}
+function errorResult(client: Client, error: unknown): SetupClientResult {
+  const detail = (error as {policyConflict?: {policy_location:'default_home'|'elsewhere'; selected_home_source:'default'|'override'}})?.policyConflict;
+  return {client,status:'error',codes:[safeCode(error),...(detail?['hook_policy_path_conflict']:[])],...budgetErrorDetails(error),...(detail?{...detail,recovery:policyRecovery(client)}:{})};
+}
 function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdit, captured?: SetupPlan[]): SetupResult {
   const clients = [...new Set(options.clients ?? ['codex', 'claude'])] as Client[];
   if (clients.some(client => client !== 'codex' && client !== 'claude')) return { status: 'partial', clients: [] };
@@ -399,7 +412,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   if (options.transmission !== undefined && !['none','description','excerpt'].includes(options.transmission)) return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
   if (!removing && options.automatic && (env.APTLY_SKIP_SETUP === '1' || !!env.CI)) return { status: 'skipped', clients: clients.map(client => ({ client, status: 'skipped', codes: [env.APTLY_SKIP_SETUP === '1' ? 'setup_disabled' : 'ci_environment'] })) };
   const prepared = captured ?? clients.map(client => {
-    try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: { client, status: 'error', codes: [safeCode(e)], ...budgetErrorDetails(e) } as SetupClientResult }; }
+    try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: errorResult(client,e) }; }
   });
   const results = prepared.map(plan => plan.result);
   if (edit && results.some(result => result.status === 'error')) return { status: 'partial', clients: results.map(result => result.status === 'error' ? result : { ...result, status: 'skipped', codes: ['other_host_validation_failed'] }) };
@@ -429,6 +442,18 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
 const codes = new Set(['unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
 function safeCode(error: unknown) { return error instanceof Error && codes.has(error.message) ? error.message : 'configuration_io_error'; }
 export function setupHosts(options: SetupOptions = {}): SetupResult { return execute(options, false); }
+/** Snapshot the normal setup plan without applying it; it does not verify a running host. */
+export function checkSetup(options: SetupOptions = {}): SetupResult {
+  const clients = [...new Set(options.clients ?? ['codex','claude'])] as Client[];
+  if (!clients.length || clients.some(client=>client!=='codex'&&client!=='claude') || options.automatic !== undefined || options.mode !== undefined || options.transmission !== undefined || options.selectUnselectedOnly !== undefined) return {status:'partial',clients:[]};
+  const results = clients.map(client => {
+    try {
+      const plan = prepare(options,client,false);
+      return {...plan.result,status:'unchanged' as const,codes:[plan.changes.length?'setup_check_configure_ready':'setup_check_ok',...plan.result.codes]};
+    } catch (error) { return errorResult(client,error); }
+  });
+  return {status:results.some(result=>result.status==='error')?'partial':'complete',clients:results};
+}
 export function removeSetup(options: SetupOptions = {}): SetupResult { return execute(options, true); }
 
 export function setDefaults(options: SetupOptions = {}): SetupResult { return execute(options,false,{ defaults:true }); }
@@ -462,12 +487,14 @@ export function prepareCredentialReference(options: SetupOptions, client: Client
     plan = prepare({...options,clients:[client]},client,false,{credential:true});
     result = {client,status:'unchanged',codes:['credential_preflight_ok']};
   } catch(error) {
+    if ((error as {policyConflict?:unknown})?.policyConflict) { result=errorResult(client,error); } else {
     const reason=(error as {reason?:string})?.reason;
     const reasons=['credential_node_mismatch','credential_server_mismatch','credential_runtime_unsupported'];
     const migration=migrateLauncher({...options,clients:[client]},true);
     const canMigrate=migration.status==='complete';
     result = {client,status:'error',codes:[safeCode(error),...(reason&&reasons.includes(reason)?[reason]:[]),...(canMigrate?['launcher_migration_available']:[])],
       recovery:canMigrate?recovery(client):[`aptly set env OPENAI_API_KEY --client ${client} --check`, 'Keep custom or modified launchers unchanged. Review the host registration locally; use its secure credential environment or a separately reviewed standard registration.']};
+    }
   }
   const check = () => {
     if (!plan) return result;
@@ -476,7 +503,11 @@ export function prepareCredentialReference(options: SetupOptions, client: Client
       // Recheck runtime support, symlinks, private permissions and policy before storage.
       prepare({...options,clients:[client]},client,false,{credential:true});
       return result;
-    } catch(error) { return {client,status:'error' as const,codes:[safeCode(error)],recovery:recovery(client)}; }
+    } catch(error) {
+      // Preserve the concurrent-change guard, but surface a policy mismatch if one is now visible.
+      try { prepare({...options,clients:[client]},client,false,{credential:true}); } catch (current) { if ((current as {policyConflict?:unknown})?.policyConflict) { const detail=errorResult(client,current); return {...detail,codes:[safeCode(error),'hook_policy_path_conflict']}; } }
+      const result=errorResult(client,error); return result.recovery ? result : {...result,recovery:recovery(client)};
+    }
   };
   return {result,check,commit:():SetupClientResult => {
     const checked=check();
@@ -495,7 +526,7 @@ export function migrateLauncher(options: SetupOptions, dryRun = false, includeEx
     const result=execute(options,false,edit,[plan]);
     if(result.status==='complete') result.clients[0].codes.push('launcher_migrated','mcp_restart_required');
     return result;
-  } catch(error) { return {status:'partial',clients:[{client,status:'error',codes:[safeCode(error)]}]}; }
+  } catch(error) { return {status:'partial',clients:[errorResult(client,error)]}; }
 }
 
 /** Explicit operator change; updates policy and its receipt through normal guarded staging. */

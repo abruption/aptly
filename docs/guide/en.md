@@ -114,7 +114,9 @@ Restart MCP, then inspect `provider`, candidates, and `credential_status` with `
 
 These options require Aptly 0.1.2 or later and are not in npm 0.1.1. To test from source, run `npm ci --ignore-scripts` and `npm run build`, then replace `aptly` below with `node bin/aptly.ts`.
 
-Key setup diagnoses selected hosts before input or storage. If any host fails, it does not prompt or change any host. `--check` does not access keys or the credential store. `credential_node_mismatch`, `credential_server_mismatch`, and `credential_runtime_unsupported` identify incompatible Node paths, server paths, and OS-store support respectively.
+Key setup diagnoses selected hosts before input or storage. If any host fails, it does not prompt or change any host. `--check` does not access keys or the credential store.
+
+On Linux, `--check` also checks for an executable `secret-tool` and, when a safe explicit session-bus address and `gdbus` are available, reads bus metadata without activating or accessing the credential service. Confirmed failures report `secure_store_unavailable` with `secure_store_secret_tool_missing`, `secure_store_bus_missing`, or `secure_store_service_missing` before input. `secure_store_bus_unverified`, `secure_store_probe_unavailable`, and service-present or activatable unverified codes mean readiness is unknown; a running or activatable service does not prove it is unlocked or writable. Install `secret-tool` and a Secret Service provider, and run from the intended desktop session when needed. The actual store operation can still fail. For SSH or headless sessions, supply `OPENAI_API_KEY` securely to the host MCP process when `APTLY_SECRET_BACKEND` is absent; preserve an existing authentication wrapper or environment. `credential_node_mismatch`, `credential_server_mismatch`, and `credential_runtime_unsupported` identify incompatible Node paths, server paths, and OS-store support respectively.
 
 If only Claude failed, diagnose that host and review migration only when `launcher_migration_available` is returned:
 
@@ -126,6 +128,8 @@ aptly set env OPENAI_API_KEY --client claude
 ```
 
 `--dry-run` makes no changes. Migration replaces the Node/server paths of a receipt-matching, Aptly-owned standard registration with the current build. It preserves environment settings, Hooks, policy and other hosts, accesses no credentials, and never executes the old launcher. Custom wrappers and missing or modified ownership records are rejected. Review such registrations locally; use the wrapper's secure environment or a separately reviewed standard registration. Do not edit or delete ownership records to bypass validation.
+
+`aptly setup --check --client codex|claude|all` reads the normal setup plan without writing files or creating directories. It is a snapshot, not a check of the running host. Only `--client` can be combined with `--check`. If `hook_policy_path_conflict` appears, review the selected host configuration directory and existing policy reference locally, then select the intended host directory before retrying. Setup preserves the existing configuration and does not move or copy the policy; launcher migration does not resolve this mismatch.
 
 If `launcher_migration_not_owned` refers to a preserved registration (`mcp_created: false`), **Aptly 0.1.3 or later** offers the explicit `--include-existing` opt-in. Install 0.1.3 or later, then run:
 

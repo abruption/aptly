@@ -106,3 +106,11 @@ test('CLI interactive hints use stderr only; JSON stdout, failures and nonintera
  }
  const invalid=run(['not-a-command'],true);assert.equal(invalid.status,2);assert.doesNotMatch(invalid.stderr,/available|99\.0\.0/);
 });
+
+test('read-only checks never create notifier cache or contact registry even on interactive terminals',async t=>{
+ const home=createTestTemp(t,'codex-check-notifier-'),cachePath=join(home,'missing','nested','cache.json');let calls=0;
+ for(const [command,args] of [['setup',['--check','--client','all']],['set',['env','OPENAI_API_KEY','--check']]]){
+  const hint=await updateNotification({command,args,env:{},stderrIsTTY:true,stdoutIsTTY:true,stdinIsTTY:true,currentVersion:'0.1.8',cachePath,fetch:async()=>{calls++;return Response.json({name:'aptly',version:'9.0.0'});}});assert.equal(hint,null);
+ }
+ assert.equal(calls,0);assert.deepEqual(readdirSync(home),[]);
+});

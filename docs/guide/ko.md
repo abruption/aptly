@@ -114,7 +114,9 @@ API 키는 macOS Keychain, Linux의 설치된 `secret-tool`, 또는 Windows Cred
 
 아래 옵션은 Aptly 0.1.2부터 지원하며 npm 0.1.1에는 없습니다. 소스에서 시험하려면 `npm ci --ignore-scripts`와 `npm run build` 후 `aptly` 대신 `node bin/aptly.ts`를 사용합니다.
 
-키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
+키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다.
+
+Linux에서 `--check`는 실행 가능한 `secret-tool`도 확인하고, 안전한 명시적 세션 버스 주소와 `gdbus`가 있으면 자격 증명 서비스를 활성화하거나 접근하지 않고 버스 메타데이터를 읽습니다. 확실한 실패는 입력 전에 `secure_store_unavailable`과 함께 `secure_store_secret_tool_missing`, `secure_store_bus_missing`, `secure_store_service_missing` 중 하나로 알립니다. `secure_store_bus_unverified`, `secure_store_probe_unavailable` 및 서비스 존재·활성화 가능 미확인 코드는 준비 상태를 알 수 없다는 뜻이며, 서비스가 실행 중이거나 활성화 가능해도 잠금 해제 또는 쓰기 가능을 보장하지 않습니다. 필요한 경우 `secret-tool`과 Secret Service 제공자를 설치하고 사용할 데스크톱 세션에서 실행하십시오. 실제 저장은 여전히 실패할 수 있습니다. SSH 또는 헤드리스 세션에서는 `APTLY_SECRET_BACKEND`가 없는 경우 호스트 MCP 프로세스에 `OPENAI_API_KEY`를 안전하게 전달하십시오. 기존 인증 래퍼나 환경은 보존하십시오. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
 
 Claude만 실패했다면 다음 순서로 진단하고, `launcher_migration_available`일 때만 이전을 검토하십시오:
 
@@ -126,6 +128,8 @@ aptly set env OPENAI_API_KEY --client claude
 ```
 
 `--dry-run`은 변경하지 않습니다. 이전 명령은 소유 기록과 일치하는 Aptly 표준 등록의 Node·서버 경로를 현재 빌드로 바꿉니다. 기존 환경·Hook·정책·다른 호스트는 보존하며 키를 읽거나 저장하지 않습니다. 오래된 실행 파일을 실행하지 않습니다. 사용자 래퍼, 소유 기록이 없거나 수정된 등록은 거절합니다. 이 경우 로컬에서 등록을 검토하고 래퍼의 안전한 환경 전달을 사용하거나 별도로 검토한 표준 등록으로 전환하십시오. 소유 기록을 삭제하거나 편집해 검증을 우회하지 마십시오.
+
+`aptly setup --check --client codex|claude|all`은 일반 설정 계획을 읽기만 하며 파일이나 디렉터리를 만들지 않습니다. 실행 중인 호스트를 검증하지 않는 시점별 확인입니다. `--check`에는 `--client`만 함께 사용할 수 있습니다. `hook_policy_path_conflict`가 나타나면 선택된 호스트 설정 디렉터리와 기존 정책 참조를 로컬에서 확인하고, 의도한 호스트 디렉터리를 선택한 뒤 다시 시도하십시오. 설정은 기존 구성을 보존하며 정책을 이동하거나 복사하지 않습니다. 실행기 이전으로 이 불일치를 해결할 수는 없습니다.
 
 `launcher_migration_not_owned`가 나오고 기존 등록을 보존한 상태(`mcp_created: false`)라면, **Aptly 0.1.3부터** `--include-existing`으로 명시적으로 이전할 수 있습니다. 0.1.3 이상을 설치한 뒤 다음 명령을 실행하십시오:
 

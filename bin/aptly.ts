@@ -10,9 +10,10 @@ import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
 import { budgetErrorDetails } from '../src/budget.ts';
-import { setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus } from '../src/setup.ts';
+import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus } from '../src/setup.ts';
 import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
+import { linuxStoreReadiness } from '../src/linux-store-readiness.ts';
 import { updateGlobalInstallation } from '../src/update.ts';
 import { updateNotification } from '../src/update-notifier.ts';
 import { resolveCliHelp } from '../src/cli-help.ts';
@@ -58,6 +59,13 @@ try {
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
    if(checkOnly&&fromStdin)throw new Error('set_invalid_options');
    const credential=key==='OPENAI_API_KEY'?prepareApiKey({clients,packageRoot}):undefined;
+   if(credential && credential.result.clients.some(client=>client.status!=='error')){
+    const readiness=linuxStoreReadiness();
+    if(readiness){
+     credential.result.clients=credential.result.clients.map(client=>client.status==='error'?client:({...client,status:readiness.status==='unavailable'?'error':client.status,codes:[...client.codes,...(readiness.status==='unavailable'?['secure_store_unavailable']:[]),readiness.code]}));
+     if(readiness.status==='unavailable')credential.result.status='partial';
+    }
+   }
    let value='';
    if(credential&&(checkOnly||credential.result.status==='partial')){output(credential.result);if(credential.result.status==='partial')process.exitCode=1;}
    else try{
@@ -72,9 +80,10 @@ try {
   }
  }
  else if(['setup','remove'].includes(command)){
-  let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'|undefined;let transmission:'none'|'description'|'excerpt'|undefined;let automatic=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
+  let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'|undefined;let transmission:'none'|'description'|'excerpt'|undefined;let automatic=false;let check=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
    for(let i=0;i<args.length;i++){
     const flag=args[i];if(seen.has(flag))throw new Error('setup_invalid_options');seen.add(flag);
+    if(flag==='--check'&&command==='setup'){check=true;continue;}
     if(flag==='--migrate-launcher'&&command==='setup'){migrate=true;continue;}
     if(flag==='--include-existing'&&command==='setup'){includeExisting=true;continue;}
     if(flag==='--dry-run'&&command==='setup'){dryRun=true;continue;}
@@ -86,8 +95,8 @@ try {
     else throw new Error('setup_invalid_options');
    }
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   if((migrate&&(clients.length!==1||automatic||seen.has('--mode')||seen.has('--transmission')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
-   const result=migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});output(result);
+   if((check && [...seen].some(flag=>!['--check','--client'].includes(flag)))||(migrate&&(clients.length!==1||automatic||seen.has('--mode')||seen.has('--transmission')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
+   const result=check?checkSetup({clients,packageRoot}):migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});output(result);
    if(result.status==='partial'&&!automatic)process.exitCode=1;
  }
  else if(command==='serve'&&args.length===0)await serve();
