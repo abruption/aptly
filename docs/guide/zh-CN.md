@@ -114,7 +114,9 @@ API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows C
 
 以下选项需要 Aptly 0.1.2 或更高版本，npm 0.1.1 不包含这些选项。如需从源码测试，请运行 `npm ci --ignore-scripts` 和 `npm run build`，然后将下文的 `aptly` 替换为 `node bin/aptly.ts`。
 
-密钥设置会在输入和保存前诊断所选宿主。任一宿主失败时，不提示输入，也不修改任何宿主。`--check` 不访问密钥或凭据存储。`credential_node_mismatch`、`credential_server_mismatch` 和 `credential_runtime_unsupported` 分别表示 Node 路径、服务器路径及 OS 存储支持不兼容。
+密钥设置会在输入和保存前诊断所选宿主。任一宿主失败时，不提示输入，也不修改任何宿主。`--check` 不访问密钥或凭据存储。
+
+在 Linux 上，`--check` 还会检查可执行的 `secret-tool`；如果有安全的显式会话总线地址和 `gdbus`，则只读取总线元数据，不启动或访问凭据服务。确认失败时，会在输入前报告 `secure_store_unavailable`，并附带 `secure_store_secret_tool_missing`、`secure_store_bus_missing` 或 `secure_store_service_missing`。`secure_store_bus_unverified`、`secure_store_probe_unavailable` 以及服务存在或可启动的未确认代码表示准备状态未知；服务存在或可启动并不能证明它已解锁或可写。必要时请安装 `secret-tool` 和 Secret Service 提供程序，并在目标桌面会话中运行。实际保存仍可能失败。对于 SSH 或无桌面会话，当 `APTLY_SECRET_BACKEND` 不存在时，请将 `OPENAI_API_KEY` 安全地传给宿主 MCP 进程，并保留现有认证包装程序或环境。`credential_node_mismatch`、`credential_server_mismatch` 和 `credential_runtime_unsupported` 分别表示 Node 路径、服务器路径及 OS 存储支持不兼容。
 
 如果只有 Claude 失败，按以下顺序诊断，仅在返回 `launcher_migration_available` 时考虑迁移：
 

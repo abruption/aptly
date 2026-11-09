@@ -13,6 +13,7 @@ import { budgetErrorDetails } from '../src/budget.ts';
 import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus } from '../src/setup.ts';
 import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
+import { linuxStoreReadiness } from '../src/linux-store-readiness.ts';
 import { updateGlobalInstallation } from '../src/update.ts';
 import { updateNotification } from '../src/update-notifier.ts';
 import { resolveCliHelp } from '../src/cli-help.ts';
@@ -58,6 +59,13 @@ try {
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
    if(checkOnly&&fromStdin)throw new Error('set_invalid_options');
    const credential=key==='OPENAI_API_KEY'?prepareApiKey({clients,packageRoot}):undefined;
+   if(credential && credential.result.clients.some(client=>client.status!=='error')){
+    const readiness=linuxStoreReadiness();
+    if(readiness){
+     credential.result.clients=credential.result.clients.map(client=>client.status==='error'?client:({...client,status:readiness.status==='unavailable'?'error':client.status,codes:[...client.codes,...(readiness.status==='unavailable'?['secure_store_unavailable']:[]),readiness.code]}));
+     if(readiness.status==='unavailable')credential.result.status='partial';
+    }
+   }
    let value='';
    if(credential&&(checkOnly||credential.result.status==='partial')){output(credential.result);if(credential.result.status==='partial')process.exitCode=1;}
    else try{
