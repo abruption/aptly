@@ -72,3 +72,23 @@ test('exception fails closed for unrelated, renamed, deleted or incomplete files
 test('the English title rule also applies to Dependabot', async () => {
   assert.equal((await check({ ...bot(), title: 'invalid' })).code, 1);
 });
+
+// Exercise the contract between generated bot titles and the actual PR gate.
+test('both Dependabot ecosystems generate titles accepted by the PR policy', async () => {
+  const config = readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8');
+  const updates = config.split(/^  - package-ecosystem: /m).slice(1);
+  assert.equal(updates.length, 2);
+  for (const update of updates) {
+    const ecosystem = update.split('\n')[0].trim();
+    const message = update.split('    commit-message:')[1];
+    assert.ok(message);
+    assert.match(message, /^      include: scope$/m);
+    const prefix = message.match(/^      prefix: (\w+)$/m)?.[1];
+    assert.ok(prefix);
+    const actions = ecosystem === 'github-actions';
+    const pr = { ...bot(actions ? 'github_actions' : 'npm_and_yarn'), title: `${prefix}(deps): Bump fixture` };
+    const files = [{ filename: actions ? '.github/workflows/ci.yml' : 'package-lock.json', status: 'modified' }];
+    assert.equal((await check(pr, files)).code, 0);
+    assert.equal((await check({ ...pr, title: `${prefix}: Bump fixture` }, files)).code, 1);
+  }
+});
