@@ -114,7 +114,9 @@ API 키는 macOS Keychain, Linux의 설치된 `secret-tool`, 또는 Windows Cred
 
 아래 옵션은 Aptly 0.1.2부터 지원하며 npm 0.1.1에는 없습니다. 소스에서 시험하려면 `npm ci --ignore-scripts`와 `npm run build` 후 `aptly` 대신 `node bin/aptly.ts`를 사용합니다.
 
-키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
+키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다.
+
+Linux에서 `--check`는 실행 가능한 `secret-tool`도 확인하고, 안전한 명시적 세션 버스 주소와 `gdbus`가 있으면 자격 증명 서비스를 활성화하거나 접근하지 않고 버스 메타데이터를 읽습니다. 확실한 실패는 입력 전에 `secure_store_unavailable`과 함께 `secure_store_secret_tool_missing`, `secure_store_bus_missing`, `secure_store_service_missing` 중 하나로 알립니다. `secure_store_bus_unverified`, `secure_store_probe_unavailable` 및 서비스 존재·활성화 가능 미확인 코드는 준비 상태를 알 수 없다는 뜻이며, 서비스가 실행 중이거나 활성화 가능해도 잠금 해제 또는 쓰기 가능을 보장하지 않습니다. 필요한 경우 `secret-tool`과 Secret Service 제공자를 설치하고 사용할 데스크톱 세션에서 실행하십시오. 실제 저장은 여전히 실패할 수 있습니다. SSH 또는 헤드리스 세션에서는 `APTLY_SECRET_BACKEND`가 없는 경우 호스트 MCP 프로세스에 `OPENAI_API_KEY`를 안전하게 전달하십시오. 기존 인증 래퍼나 환경은 보존하십시오. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
 
 Claude만 실패했다면 다음 순서로 진단하고, `launcher_migration_available`일 때만 이전을 검토하십시오:
 

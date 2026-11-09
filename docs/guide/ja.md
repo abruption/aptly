@@ -114,7 +114,9 @@ API キーは macOS Keychain、インストール済みの Linux `secret-tool`�
 
 以下のオプションは Aptly 0.1.2 以降で利用でき、npm 0.1.1 には含まれません。ソースから試す場合は `npm ci --ignore-scripts` と `npm run build` を実行し、以下の `aptly` を `node bin/aptly.ts` に置き換えます。
 
-キー設定は入力・保存前に対象ホストを診断します。いずれかが失敗すると入力を求めず、全ホストを変更しません。`--check` はキーや資格情報ストアにアクセスしません。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
+キー設定は入力・保存前に対象ホストを診断します。いずれかが失敗すると入力を求めず、全ホストを変更しません。`--check` はキーや資格情報ストアにアクセスしません。
+
+Linux の `--check` は実行可能な `secret-tool` も確認し、安全な明示的セッションバスアドレスと `gdbus` がある場合、資格情報サービスを起動・アクセスせずにバスメタデータを読み取ります。確実な失敗は入力前に `secure_store_unavailable` と `secure_store_secret_tool_missing`、`secure_store_bus_missing`、`secure_store_service_missing` のいずれかで通知します。`secure_store_bus_unverified`、`secure_store_probe_unavailable`、サービスの存在・起動可能を示す未確認コードは準備状態が不明であることを意味します。サービスの存在や起動可能性はロック解除や書き込み可能を保証しません。必要に応じて `secret-tool` と Secret Service プロバイダーをインストールし、使用するデスクトップセッションで実行してください。実際の保存は失敗する場合があります。SSH やヘッドレスセッションでは、`APTLY_SECRET_BACKEND` がない場合に `OPENAI_API_KEY` をホスト MCP プロセスへ安全に渡してください。既存の認証ラッパーや環境は保持してください。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
 
 Claude だけが失敗した場合は次の順序で診断し、`launcher_migration_available` の場合にのみ移行を検討してください。
 
