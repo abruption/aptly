@@ -61,9 +61,9 @@ Only public Aptly version metadata is requested from the npm registry; no key, t
 
 <a id="command-help"></a>
 
-### Command help (next release)
+### Command help (0.1.8+)
 
-Consistent per-command and nested help is a next-release feature; published 0.1.7 lacks some paths. Use these forms:
+Consistent per-command and nested help is supported from Aptly 0.1.8. Use these forms:
 
 ```sh
 aptly --help
@@ -250,9 +250,9 @@ For genuinely independent work, the caller can intentionally choose a fresh chil
 
 <a id="budget-limits"></a>
 
-### Budget limits and usage (next release)
+### Budget limits and usage (0.1.8+)
 
-This feature is under development and is not in published 0.1.7. `aptly set default` also fills missing budget environment settings for selected hosts. It adds no budget questionnaire, preserves existing values including explicit `0`, and does not reset usage, ledgers or caches. The existing transmission-scope question is separate. Existing registrations without budget variables also use the new runtime defaults after upgrade. The old implicit 20-call/50-call/$0.50 ceilings are not retained; configure any limits you require explicitly.
+Budget environment settings and usage status are supported from Aptly 0.1.8. `aptly set default` also fills missing budget environment settings for selected hosts. It adds no budget questionnaire, preserves existing values including explicit `0`, and does not reset usage, ledgers or caches. The existing transmission-scope question is separate. Existing registrations without budget variables also use the new runtime defaults after upgrade. The old implicit 20-call/50-call/$0.50 ceilings are not retained; configure any limits you require explicitly.
 
 | Environment variable | Default | Meaning |
 |---|---:|---|
