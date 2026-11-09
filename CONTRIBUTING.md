@@ -14,6 +14,8 @@ All changes, including documentation, CI, and release metadata, follow this sequ
 4. Describe the resulting behavior and validation, and wait for all required CI checks to pass.
 5. Leave the PR open for review. Merge only when the user separately instructs you to do so.
 
+The only issue-first exception is an automated dependency PR whose GitHub-authenticated author is `dependabot[bot]` (a Bot), whose head belongs to this repository, and whose branch is under `dependabot/npm_and_yarn/` or `dependabot/github_actions/`. npm updates may change only the root `package.json` and `package-lock.json`; Actions updates may change only `.github/workflows/*.yml` or `*.yaml`. Removed, renamed, empty, incomplete or oversized (over 100 files) change lists fail closed and require manual handling. The English title format, normal review, required CI and separate merge authorization still apply. Human-authored and other bot PRs keep the earlier-open-issue requirement; labels, body text and the workflow actor cannot grant an exception.
+
 These rules also apply to repository administrators. Do not bypass branch protection, force-push to `main`, or delete `main`. A successful CI run does not authorize a merge, release tag, or npm publication. The linked Issue closes when the PR is merged; opening a PR does not complete the Issue by itself.
 
 ## Local development
