@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Require an earlier issue linked with Closed
+      - name: Validate issue-first policy and scoped Dependabot updates
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -36,16 +36,35 @@ jobs:
             const pr = await get(`pulls/${process.env.PR_NUMBER}`);
             const titlePattern = /^(?:fix|chore|feat|docs|test|ci|refactor|perf|build|style|revert)\([a-zA-Z0-9._/-]*\): [\x20-\x7E]+$/;
             if (!titlePattern.test(pr.title)) throw new Error('Use an English title such as chore(workflow): describe the change.');
-            const links = [...(pr.body ?? '').matchAll(/\bClosed\s+#([1-9][0-9]*)\b/g)];
-            if (!links.length) throw new Error('Add Closed #n to the PR body, using an issue created before this PR.');
-            for (const [, number] of links) {
-              const issue = await get(`issues/${number}`);
-              if (!titlePattern.test(issue.title)) throw new Error('Use the same English type(scope): title format for linked issues.');
-              if (issue.pull_request || issue.state !== 'open' || Date.parse(issue.created_at) > Date.parse(pr.created_at)) {
-                throw new Error('Each Closed #n reference must identify an open issue created before this PR.');
+            // GitHub-authenticated PR author metadata, not actor, labels or body text.
+            // Only same-repository dependency updates may use the no-issue path.
+            const dependabot = pr.user?.login === 'dependabot[bot]' && pr.user?.type === 'Bot'
+              && pr.head?.repo?.full_name === repository
+              && /^dependabot\/(?:npm_and_yarn|github_actions)\//.test(pr.head?.ref ?? '');
+            if (dependabot) {
+              const files = await get(`pulls/${process.env.PR_NUMBER}/files?per_page=100`);
+              const npmUpdate = pr.head.ref.startsWith('dependabot/npm_and_yarn/');
+              const allowedFile = (path) => npmUpdate
+                ? ['package.json', 'package-lock.json'].includes(path)
+                : /^\.github\/workflows\/[^/]+\.ya?ml$/.test(path);
+              if (!Array.isArray(files) || !Number.isInteger(pr.changed_files)
+                  || files.length === 0 || files.length > 100 || files.length !== pr.changed_files
+                  || !files.every(file => ['added', 'modified'].includes(file.status) && allowedFile(file.filename))) {
+                throw new Error('Dependabot exception requires a complete, dependency-only file list.');
               }
+              console.log('Scoped Dependabot policy passed; normal review and CI are still required.');
+            } else {
+              const links = [...(pr.body ?? '').matchAll(/\bClosed\s+#([1-9][0-9]*)\b/g)];
+              if (!links.length) throw new Error('Add Closed #n to the PR body, using an issue created before this PR.');
+              for (const [, number] of links) {
+                const issue = await get(`issues/${number}`);
+                if (!titlePattern.test(issue.title)) throw new Error('Use the same English type(scope): title format for linked issues.');
+                if (issue.pull_request || issue.state !== 'open' || Date.parse(issue.created_at) > Date.parse(pr.created_at)) {
+                  throw new Error('Each Closed #n reference must identify an open issue created before this PR.');
+                }
+              }
+              console.log('Issue-first PR policy passed.');
             }
-            console.log('Issue-first PR policy passed.');
           } catch (error) {
             console.error(error.message);
             process.exitCode = 1;
