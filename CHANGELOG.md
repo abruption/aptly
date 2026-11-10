@@ -1,12 +1,12 @@
 # Changelog
 
-## 0.1.10 — 릴리스 준비
+## 0.1.10 — 2026-11-10
 
 - `aptly stats`, `stats enable`, `stats disable`로 기본 비활성인 로컬 실행 통계를 조회·설정합니다. 추천, 실제 도구 인자 확인, 호스트가 보고한 모델 증거를 구분하고 모호한 연결·누락·별칭은 일치로 간주하지 않습니다. 수집은 POSIX에서 지원하며 기존 설치·postinstall은 자동 활성화하지 않습니다. (#120, PR #121)
 - 통계는 별도의 비공개 HMAC 키·설정·SQLite와 소유권 기록을 사용합니다. 수집 해제 시 기존 데이터·키와 수정된 사용자 Hook은 보존하고, Codex native 메타데이터 접근 동의는 해제합니다. 명시적 추가 동의가 있을 때만 정확한 자식 ID의 native 메타데이터를 조회하며 신뢰를 자동 승인하지 않습니다.
 - `model_match`·`model_mismatch`·`model_changed`·미확인/대기 상태를 분리합니다. 실제 effort, 사용자 수용·품질, 토큰·비용 합계와 계정 할당량은 측정하지 않습니다. 통계는 보존된 증거 기준이며 누락된 이벤트나 전체 실행 이력을 인증하지 않습니다.
 - Actions checkout 7.0.1, setup-node 7.1.0, download-artifact 8.0.2, upload-artifact 7.0.2로 해시 고정 버전을 갱신합니다. 개발용 `@types/node`는 26.6.6으로 갱신하며 Node.js 최소 지원 버전 24와 CI의 24·26 검증을 유지합니다. (PR #112, #117, #116, #113, #114)
-- [한국어 릴리스 노트](docs/release-notes/0.1.10.md)와 4개 언어 가이드에 사용법·관측 한계를 정리합니다. 준비는 #122에서 진행하며 태그 생성·npm 게시·provenance 검증은 아직 수행하지 않았습니다.
+- [한국어 릴리스 노트](docs/release-notes/0.1.10.md)와 4개 언어 가이드에 사용법·관측 한계를 정리합니다. 준비는 #122·PR #123에서 진행했고 정확한 병합 main CI 성공 후 annotated `v0.1.10` 태그의 Actions OIDC 게시를 완료했습니다. npm `latest` 0.1.10·archive 일치·서명·인증서 기반 provenance와 정식 Latest GitHub Release를 확인했습니다. #124와 [실제 게시 기록](docs/releases/0.1.10.md)에 근거를 기록합니다.
 
 ## 0.1.9 — 2026-11-09
 
