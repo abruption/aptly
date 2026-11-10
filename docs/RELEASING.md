@@ -1,5 +1,13 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.9 게시와 검증
+
+2026-11-09에 source `0b77bec4ecf402ccf3d6bd278499631bd12d76c0`의 annotated `v0.1.9` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42610755012/attempts/1)를 수행했습니다. 준비 PR #115 검사 19개와 정확한 병합 main CI 7개 성공을 구분해 확인한 뒤 태그를 생성했습니다. 설치 시험·새 runner 검증/pack·게시 3개 job이 성공했고 npm `latest`는 0.1.9로 확인했습니다. 이번 artifact와 registry archive의 SHA-256이 일치했습니다.
+
+Linux 키 저장소 사전 진단(#105·PR #107), 설정 홈 간 정책 충돌과 읽기 전용 점검(#106·PR #108), 보안 CI(#109·PR #110)를 포함합니다. Dependabot PR #112·#113·#114·#116·#117은 포함하지 않았고 기존 승인된 Actions 핀을 유지했습니다. 준비는 #111·PR #115, 게시 기록은 [#118](https://github.com/abruption/aptly/issues/118)에서 관리합니다. [한국어 릴리스 노트](release-notes/0.1.9.md)와 [실제 게시 근거](releases/0.1.9.md)에 소스·태그·실행·digest·범위를 기록합니다.
+
+npm 서명 검증의 invalid·missing 0건과 정확한 0.1.9의 SLSA v1 bundle·인증서 identity를 확인했습니다. 실제 archive의 소스 SHA·태그·workflow·run/attempt 결합도 검증했습니다. attestation 초기 404를 보존하고 7번째 조회에서 200을 확인했으며 태그·게시 job은 재실행하지 않았습니다. [한국어 GitHub Release](https://github.com/abruption/aptly/releases/tag/v0.1.9)는 정식 Latest이며 공개 시각은 `2026-11-09T11:44:09Z`입니다. 기존 키·정책·원장·사용량·완료/불명 결과와 Hook 신뢰를 보존하며 실제 호스트 설정이나 Linux 저장소 의존성을 자동 변경하지 않습니다. CLI 버전·수동 진단·fixture 성공은 실행 중 MCP의 갱신·실제 키 저장·native 적용·API 품질과 별개입니다. 다음 게시도 준비 PR 병합·정확한 main CI 성공과 별도 게시 지시를 따릅니다.
+
 ## 0.1.8 게시와 검증
 
 2026-11-09에 source `783402345d9dddb8fcbacc4f615b95791e27f6d1`의 `v0.1.8` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42538795929)를 수행했습니다. 정확한 병합 main CI 7개 성공 후 태그를 생성했고 설치 시험·새 runner 패키징·게시 3개 job이 성공했습니다. npm latest는 0.1.8이며 artifact·registry SHA-256/512 일치·npm 서명·SLSA v1 인증서의 소스·태그·workflow·run/attempt identity를 확인했습니다.

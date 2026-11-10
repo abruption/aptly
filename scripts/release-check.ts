@@ -81,7 +81,7 @@ function packageAllowed(path:string): boolean {
   if(privateArtifact(path)||segments.some(part=>forbiddenSegments.has(part)))return false;
   if(packagedRootFiles.has(path))return true;
   if(path.startsWith('examples/'))return true;
-  if(path.startsWith('dist/bin/'))return ['dist/bin/aptly.js','dist/bin/aptly.d.ts'].includes(path);
+  if(path.startsWith('dist/bin/'))return ['dist/bin/aptly.js','dist/bin/aptly.d.ts','dist/bin/aptly-observe.js','dist/bin/aptly-observe.d.ts'].includes(path);
   return path.startsWith('dist/src/')&&(/\.js$/.test(path)||/\.d\.ts$/.test(path));
 }
 

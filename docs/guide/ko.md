@@ -116,7 +116,7 @@ API 키는 macOS Keychain, Linux의 설치된 `secret-tool`, 또는 Windows Cred
 
 키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다.
 
-Linux에서 `--check`는 실행 가능한 `secret-tool`도 확인하고, 안전한 명시적 세션 버스 주소와 `gdbus`가 있으면 자격 증명 서비스를 활성화하거나 접근하지 않고 버스 메타데이터를 읽습니다. 확실한 실패는 입력 전에 `secure_store_unavailable`과 함께 `secure_store_secret_tool_missing`, `secure_store_bus_missing`, `secure_store_service_missing` 중 하나로 알립니다. `secure_store_bus_unverified`, `secure_store_probe_unavailable` 및 서비스 존재·활성화 가능 미확인 코드는 준비 상태를 알 수 없다는 뜻이며, 서비스가 실행 중이거나 활성화 가능해도 잠금 해제 또는 쓰기 가능을 보장하지 않습니다. 필요한 경우 `secret-tool`과 Secret Service 제공자를 설치하고 사용할 데스크톱 세션에서 실행하십시오. 실제 저장은 여전히 실패할 수 있습니다. SSH 또는 헤드리스 세션에서는 `APTLY_SECRET_BACKEND`가 없는 경우 호스트 MCP 프로세스에 `OPENAI_API_KEY`를 안전하게 전달하십시오. 기존 인증 래퍼나 환경은 보존하십시오. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
+Aptly 0.1.9부터 Linux에서 `--check`는 실행 가능한 `secret-tool`도 확인하고, 안전한 명시적 세션 버스 주소와 `gdbus`가 있으면 자격 증명 서비스를 활성화하거나 접근하지 않고 버스 메타데이터를 읽습니다. 확실한 실패는 입력 전에 `secure_store_unavailable`과 함께 `secure_store_secret_tool_missing`, `secure_store_bus_missing`, `secure_store_service_missing` 중 하나로 알립니다. `secure_store_bus_unverified`, `secure_store_probe_unavailable` 및 서비스 존재·활성화 가능 미확인 코드는 준비 상태를 알 수 없다는 뜻이며, 서비스가 실행 중이거나 활성화 가능해도 잠금 해제 또는 쓰기 가능을 보장하지 않습니다. 필요한 경우 `secret-tool`과 Secret Service 제공자를 설치하고 사용할 데스크톱 세션에서 실행하십시오. 실제 저장은 여전히 실패할 수 있습니다. SSH 또는 헤드리스 세션에서는 `APTLY_SECRET_BACKEND`가 없는 경우 호스트 MCP 프로세스에 `OPENAI_API_KEY`를 안전하게 전달하십시오. 기존 인증 래퍼나 환경은 보존하십시오. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
 
 Claude만 실패했다면 다음 순서로 진단하고, `launcher_migration_available`일 때만 이전을 검토하십시오:
 
@@ -129,7 +129,7 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run`은 변경하지 않습니다. 이전 명령은 소유 기록과 일치하는 Aptly 표준 등록의 Node·서버 경로를 현재 빌드로 바꿉니다. 기존 환경·Hook·정책·다른 호스트는 보존하며 키를 읽거나 저장하지 않습니다. 오래된 실행 파일을 실행하지 않습니다. 사용자 래퍼, 소유 기록이 없거나 수정된 등록은 거절합니다. 이 경우 로컬에서 등록을 검토하고 래퍼의 안전한 환경 전달을 사용하거나 별도로 검토한 표준 등록으로 전환하십시오. 소유 기록을 삭제하거나 편집해 검증을 우회하지 마십시오.
 
-`aptly setup --check --client codex|claude|all`은 일반 설정 계획을 읽기만 하며 파일이나 디렉터리를 만들지 않습니다. 실행 중인 호스트를 검증하지 않는 시점별 확인입니다. `--check`에는 `--client`만 함께 사용할 수 있습니다. `hook_policy_path_conflict`가 나타나면 선택된 호스트 설정 디렉터리와 기존 정책 참조를 로컬에서 확인하고, 의도한 호스트 디렉터리를 선택한 뒤 다시 시도하십시오. 설정은 기존 구성을 보존하며 정책을 이동하거나 복사하지 않습니다. 실행기 이전으로 이 불일치를 해결할 수는 없습니다.
+Aptly 0.1.9부터 `aptly setup --check --client codex|claude|all`은 일반 설정 계획을 읽기만 하며 파일이나 디렉터리를 만들지 않습니다. 실행 중인 호스트를 검증하지 않는 시점별 확인입니다. `--check`에는 `--client`만 함께 사용할 수 있습니다. `hook_policy_path_conflict`가 나타나면 선택된 호스트 설정 디렉터리와 기존 정책 참조를 로컬에서 확인하고, 의도한 호스트 디렉터리를 선택한 뒤 다시 시도하십시오. 설정은 기존 구성을 보존하며 정책을 이동하거나 복사하지 않습니다. 실행기 이전으로 이 불일치를 해결할 수는 없습니다.
 
 `launcher_migration_not_owned`가 나오고 기존 등록을 보존한 상태(`mcp_created: false`)라면, **Aptly 0.1.3부터** `--include-existing`으로 명시적으로 이전할 수 있습니다. 0.1.3 이상을 설치한 뒤 다음 명령을 실행하십시오:
 
@@ -281,6 +281,36 @@ aptly budget status --client claude
 `budget_exhausted`는 로컬 제한이며 OpenAI 인증·청구 잔액 오류가 아닙니다. 직접 추천·문맥 보충 응답의 `budget_limit`과 상태의 `exhausted_by`가 소진 항목을 구분합니다. 예약액은 실제 청구 상한이 아니며 월별로 자동 초기화하지 않습니다. 단가 변경은 과거 예약을 다시 계산하지 않고 키 재입력·기본값 적용도 예약을 환불하지 않습니다.
 
 새 HTTP 전 예산 거절은 캐시하지 않습니다. 검증 가능한 기존 기본 정책의 미지불 거절만 같은 ID로 다시 평가하며, 성공·보류·문맥 부족의 완료 결과와 `unknown`은 유지합니다. 한도 회복은 원래 retry 참조의 5분 만료나 프로세스 수명을 연장하지 않고 이력·권한 제약도 해제하지 않습니다. 임의의 과거 커스텀 정책 digest를 추측해 재사용하지 않으며 충돌·불명 결과를 새 ID나 원장 삭제로 우회하지 마십시오.
+
+<a id="execution-statistics"></a>
+
+### 실행 통계 (미출시)
+
+이 기능은 미출시이며 npm `aptly@0.1.9`에는 이 명령이 없습니다. 소스 체크아웃에서 설치·빌드한 뒤 아래 예제를 사용하십시오. 기존 Aptly 설정이 필요합니다. 초기 수집은 POSIX에서만 지원하며 Windows 통계 수집은 미지원입니다. Windows의 일반 Aptly 사용에는 영향이 없습니다.
+
+```sh
+npm ci --ignore-scripts
+npm run build
+node bin/aptly.ts stats
+node bin/aptly.ts stats --today --client codex
+node bin/aptly.ts stats enable --client codex
+node bin/aptly.ts stats enable --client codex --codex-native-metadata
+node bin/aptly.ts stats disable --client codex
+```
+
+명령 형식은 `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]`, `aptly stats disable [--client]`입니다. 수집은 기본적으로 꺼져 있고 postinstall에서도 자동 활성화하지 않습니다. enable은 Aptly 소유 명령 관찰자를 설치하고 별도의 `stats-ownership.json`에 기록하며 기존 receipt·MCP·launcher·키·예산·전송 설정은 유지합니다. 활성화 후 MCP와 호스트를 재시작하고 Codex에서는 `/hooks`의 native Hook 신뢰를 검토하십시오.
+
+disable은 수집을 끄고 변경되지 않은 소유 관찰자만 제거합니다. 수정되거나 사용자 정의된 관찰자는 경고와 함께 보존하며 데이터와 키도 유지합니다. `remove`는 통계 소유 정의를 검증·제거하지만 데이터는 유지합니다. 별도로 관리하는 수동 관찰자나 사용자 정의 Hook은 자동 채택하지 않습니다.
+
+비공개 상태는 예산 원장과 별개의 `stats.sqlite`, `stats-config.json`, `stats-key`(HMAC 비밀키)를 사용합니다. 키를 공유하지 마십시오. 기록에는 작업 원문·대화 기록·원시 ID·경로·오류·자격 증명이 없습니다. 통계 조회는 API·키·자격 저장소에 접근하지 않고 초기화나 알림도 실행하지 않습니다.
+
+집계는 `model_match`, `model_mismatch`, `model_changed`, `unknown`, `pending`, `expired_pending`, `application_unconfirmed`를 표시하며 advisory는 별도로 표시합니다. `blocked`, `explicit_preserved`, `unbound`는 분모에서 제외합니다. 실제 적용 effort는 측정하지 않으며 설정 effort는 실제 effort가 아닙니다. Claude 별칭 `haiku`, `sonnet`, `opus`, `fable`는 실제 정식 모델로 해석할 수 없어 `unknown`입니다. 정확한 정식 모델만 지원하며 모델 관측이 모든 별칭의 일치를 보장하지 않습니다. 사용자 수용이나 품질을 증명하는 수치가 아닙니다.
+
+직접 advisory·retry·native 연속성이 없는 새 unbound 호출은 대략적인 시간으로 결합하지 않습니다. `--today`는 바인딩 최초 생성일의 UTC 날짜를 사용합니다. 용량은 위임 10,000건과 자식 10,000건으로 고정되며 자동 정리하지 않습니다. 집계는 전체 누적이 아닌 보존된 기록 기준입니다. 용량 도달 시 새 ID를 버리고 도달 플래그를 표시합니다. 콜백 누락은 우회를 증명하지 않습니다. 토큰·비용 합계, 실시간 할당량이나 절감액은 제공하지 않습니다.
+
+Codex native 메타데이터는 명시적 옵션이 없으면 꺼져 있습니다. 정확한 자식 ID로 SQLite native 메타데이터만 읽으며 대화 기록 조회·복구·app-server 실행은 하지 않습니다. 이전된 `sqlite_home`, 미지원 스키마·경로, 모호한 결합은 unknown입니다. SQL 읽기가 기존 SHM 읽기 표시를 갱신할 수 있지만 행·스키마를 쓰거나 sidecar를 의도적으로 생성하지 않습니다.
+
+수집은 최선 노력 방식이므로 누락·지연·용량 초과로 모델 이력이 불완전할 수 있습니다. `model_match`는 보존된 증거의 일치이며 모든 요청이 해당 모델을 사용했다는 뜻이 아닙니다. Codex 수집 해제·설정 제거 또는 `--codex-native-metadata` 없는 활성화는 native 메타데이터 접근 동의도 해제합니다. Node나 패키지 경로가 바뀌면 수집을 해제한 뒤 다시 활성화하여 명령을 갱신하십시오. 사용할 수 없거나 손상된 저장소는 보존합니다. 키를 삭제하거나 사용량이 0이라고 판단하지 말고 로컬에서 검토하십시오.
 
 <a id="외부-전송과-자동-공유-끄기"></a>
 
