@@ -100,6 +100,8 @@ jobs:
         run: npm test
       - name: Check public release contents
         run: npm run check:release
+      - name: Check multilingual source and packaged documentation
+        run: npm run check:docs
       - name: Run fixture MCP smoke test
         env:
           POC_TEST_TMP_ROOT: ${{ runner.temp }}

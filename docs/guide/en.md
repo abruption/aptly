@@ -6,508 +6,83 @@
 
 Korean is the canonical documentation. This guide covers general Aptly installation and usage. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
 
-## Installation
-
-Requires Node.js 24 or later and Claude Code or Codex. Install the latest stable npm release globally:
-
-**Before upgrading an existing persistent ledger to 0.1.2 or later**, stop every host, MCP server, standalone CLI, and older process that can access it. The persistent gate cannot coexist with older writers. Fresh installations need no legacy-lock quarantine. If an old empty lock remains, follow the [ledger transition procedure](#interrupted-processes-and-ledger-locks): quarantine only a confirmed legacy lock while offline and preserve the JSON ledger, `unknown` records, costs, and completed cache.
-
-```sh
-npm install -g aptly@latest --allow-scripts=aptly
-aptly set default
-aptly --version
-```
-
-Use `aptly --version` to check the installed version. Switching Node.js environments may require reinstalling.
-
-`postinstall` registers the MCP server and a `PreToolUse` Hook in the current user's existing host configuration directories. If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, pass the same environment to installation. Automatic registration skips host directories that do not exist; explicit `setup` can create them. To register only one host, use `--client codex` or `--client claude`.
-
-New registrations set `ROUTER_PROVIDER=decisions`, the Hook's `defaults` policy, and a private ledger for each host. Other settings and Hooks, and existing Aptly commands, environments, providers, and ledger paths, are preserved. Existing fixture settings are not automatically switched to paid mode.
-
-### npm install-script approval
-
-The installation command above uses `--allow-scripts=aptly` to explicitly allow Aptly's `postinstall` for that installation. Support was checked with npm 11.19.1; the command does not change user-wide npm approval settings. See the [official npm guidance](https://docs.npmjs.com/cli/v11/commands/npm-rebuild/#allow-scripts).
-
-`npm warn install-scripts ... not yet covered by allowScripts` reports an unreviewed policy entry. In npm 11.19.1, this warning alone does not mean scripts were blocked. Behavior depends on npm version, strict policy, and `ignore-scripts`; installation success alone does not verify MCP or Hook registration. npm may hide postinstall output.
-
-For npm versions without this option, or to configure explicitly instead of automatic registration, run:
-
-```sh
-npm install -g aptly@latest --ignore-scripts
-aptly setup --client all
-```
-
-Explicit `setup` works regardless of lifecycle execution. It preserves existing launchers; use the recovery steps below for stale paths. Key setup, MCP restart, and Codex `/hooks` trust review remain separate steps.
-
-### Package updates
-
-`aptly update` requires **Aptly 0.1.3 or later**. It requires a verified global npm installation and installs `aptly@latest` into the same verified prefix as the running package. Local installations, source checkouts, and unverified paths are rejected. If the effective npm configuration has `dry-run=true`, the command refuses with `update_dry_run_enabled` before starting installation. If configuration cannot be verified, it stops with `update_configuration_unverified`. A dry-run is never reported as a successful update.
-
-Stop other host, MCP, and CLI processes using the ledger before updating, following the transition steps above. The command skips lifecycle scripts; explicitly configure afterward and restart hosts:
-
-```sh
-aptly update
-aptly setup --client all
-aptly --version
-```
-
-Existing MCP launchers and user wrappers are not automatically migrated. Follow the launcher recovery instructions below if old paths remain. Key setup and Codex `/hooks` trust review remain separate. For npm authentication, network, or permission failures, use the manual installation instructions. Updates are never installed automatically.
-
-### New-version notifications
-
-**Aptly 0.1.3 or later** checks the latest stable version during interactive human-facing CLI commands and suggests `aptly update` on stderr when a newer version exists. All three standard streams must be terminals. MCP serving, automatic setup, recommendation/classification paths, pipes, and CI skip checks. JSON stdout and MCP/Hook payloads stay unchanged.
-
-Only public Aptly version metadata is requested from the npm registry; no key, task summary, or host configuration is sent. Network and body reads are limited to 800ms and 16KiB. Results are cached at `~/.cache/aptly/update-check.json` for 24 hours, with a one-hour cooldown after failure. Network/cache errors cannot fail the requested command. Set `APTLY_NO_UPDATE_NOTIFIER=1` in the CLI environment to disable checks; it is not a supported key for `aptly set env`. Notifications never install updates.
-
-<a id="command-help"></a>
-
-### Command help (0.1.8+)
-
-Consistent per-command and nested help is supported from Aptly 0.1.8. Use these forms:
-
-```sh
-aptly --help
-aptly setup -h
-aptly set default --help
-aptly set env OPENAI_API_KEY --help
-aptly budget status --help
-aptly help catalog refresh
-```
-
-`--help`, `-h` and `aptly help <command path>` only show usage. They do not read settings, supplied files, stdin or credential stores; prompt; change settings; call APIs or model metadata endpoints; install/update; or run update notifications. Help can follow valid options, but unknown paths/options, invalid supplied values and contradictory option combinations remain errors. Required positional arguments may be omitted to discover usage. A form such as `--output --help` is a missing option value, not a help request that supplies an output path.
-
-### Configure with the CLI
-
-The `set` commands require 0.1.1 or later. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
-
-```sh
-aptly set default
-aptly set env APTLY_CODEX_MODELS
-aptly set env OPENAI_API_KEY
-```
-
-The first command registers Claude Code and Codex and adds missing default environment settings. It preserves existing launch commands, environment whitelists, providers, custom candidates, and advisory policies. The second prompts for a value with hidden input and changes only the named variable. The third stores the API key in the OS credential store and connects it to the selected host at startup. Do not pass values as command arguments.
-
-Both hosts are selected by default. Use `--client codex`, `--client claude`, or `--client all` to select targets. For example, enter a JSON string such as `["haiku","sonnet","opus"]` for Claude candidates.
-
-```sh
-aptly set env APTLY_CLAUDE_MODELS --client claude
-```
-
-Use explicit `--stdin` for automation. This is a public-variable example; never put a real key in a `printf` command or shell history.
-
-```sh
-printf '%s\n' '["gpt-6.1-terra"]' | aptly set env APTLY_CODEX_MODELS --stdin
-```
-
-Allowed public keys are `ROUTER_PROVIDER` (`fixture` or `decisions`), `APTLY_CLAUDE_MODELS`, `APTLY_CODEX_MODELS`, `CLAUDE_MODELS`, `CODEX_MODELS`, and `APTLY_MODEL_INFO_PATH`. Candidates must be JSON array strings of supported models. Invalid values, duplicates, and primary-name/alias conflicts are rejected. `[]` disables that host; a model-cache path must be absolute and inside a private directory. Managed ledger and Hook-policy paths cannot be changed through this command.
-
-API keys are stored through macOS Keychain, an installed Linux `secret-tool`, or Windows Credential Manager. The Windows backend uses PowerShell and Win32 Generic credentials in the current-user scope, with a limit of 2,560 UTF-8 bytes. Windows CI verified synthetic key storage, lookup, update and deletion, Unicode paths, isolated host configuration, key references, and ACL preservation. It did not run actual Claude Code or Codex sessions on Windows. Unavailable credential stores return an error; there is no plaintext-file fallback. Keys use separate host accounts, while MCP files contain only `APTLY_SECRET_BACKEND=os` and `APTLY_SECRET_CLIENT` references. Once the OS source is selected, a missing or unreadable key does not silently fall back to another environment key. `set default` preserves existing wrapper/environment authentication; running `set env OPENAI_API_KEY` explicitly selects OS-store authentication.
-
-Results contain host statuses and fixed error codes, never key values. Inspect each host when the result is `partial`. `credential_store_failed` requires checking store access/support; `credential_rollback_failed` requires checking whether the previous key was restored. A failed host restores its old key where possible. Do not interpret success on another host as an atomic success across all hosts.
-
-A store timeout or malformed acknowledgement may occur after the OS has written the new value. On failure, Aptly attempts to restore the previous value (or remove the new entry if none existed), then reads it back. `credential_rollback_failed` is added to the original failure codes when recovery cannot be confirmed; do not assume either key is active. Check the OS credential store before retrying. This is best-effort recovery, not an atomic transaction across processes or hosts.
-
-Restart MCP, then inspect `provider`, candidates, and `credential_status` with `get_routing_capabilities`. `os_store` means a key was loaded, not that the API authenticated it. Default and public-variable setup continue to preserve custom wrappers. API-key setup does not change host settings for an unverified launch path and restores that host's previous key where possible if storage was already attempted. Do not assume a new key automatically takes effect through an existing wrapper. These commands do not bypass Codex `/hooks` trust or host permissions.
-
-### Recover an incompatible launcher
-
-These options require Aptly 0.1.2 or later and are not in npm 0.1.1. To test from source, run `npm ci --ignore-scripts` and `npm run build`, then replace `aptly` below with `node bin/aptly.ts`.
-
-Key setup diagnoses selected hosts before input or storage. If any host fails, it does not prompt or change any host. `--check` does not access keys or the credential store.
-
-From Aptly 0.1.9, on Linux, `--check` also checks for an executable `secret-tool` and, when a safe explicit session-bus address and `gdbus` are available, reads bus metadata without activating or accessing the credential service. Confirmed failures report `secure_store_unavailable` with `secure_store_secret_tool_missing`, `secure_store_bus_missing`, or `secure_store_service_missing` before input. `secure_store_bus_unverified`, `secure_store_probe_unavailable`, and service-present or activatable unverified codes mean readiness is unknown; a running or activatable service does not prove it is unlocked or writable. Install `secret-tool` and a Secret Service provider, and run from the intended desktop session when needed. The actual store operation can still fail. For SSH or headless sessions, supply `OPENAI_API_KEY` securely to the host MCP process when `APTLY_SECRET_BACKEND` is absent; preserve an existing authentication wrapper or environment. `credential_node_mismatch`, `credential_server_mismatch`, and `credential_runtime_unsupported` identify incompatible Node paths, server paths, and OS-store support respectively.
-
-If only Claude failed, diagnose that host and review migration only when `launcher_migration_available` is returned:
-
-```sh
-aptly set env OPENAI_API_KEY --client claude --check
-aptly setup --client claude --migrate-launcher --dry-run
-aptly setup --client claude --migrate-launcher
-aptly set env OPENAI_API_KEY --client claude
-```
-
-`--dry-run` makes no changes. Migration replaces the Node/server paths of a receipt-matching, Aptly-owned standard registration with the current build. It preserves environment settings, Hooks, policy and other hosts, accesses no credentials, and never executes the old launcher. Custom wrappers and missing or modified ownership records are rejected. Review such registrations locally; use the wrapper's secure environment or a separately reviewed standard registration. Do not edit or delete ownership records to bypass validation.
-
-From Aptly 0.1.9, `aptly setup --check --client codex|claude|all` reads the normal setup plan without writing files or creating directories. It is a snapshot, not a check of the running host. Only `--client` can be combined with `--check`. If `hook_policy_path_conflict` appears, review the selected host configuration directory and existing policy reference locally, then select the intended host directory before retrying. Setup preserves the existing configuration and does not move or copy the policy; launcher migration does not resolve this mismatch.
-
-If `launcher_migration_not_owned` refers to a preserved registration (`mcp_created: false`), **Aptly 0.1.3 or later** offers the explicit `--include-existing` opt-in. Install 0.1.3 or later, then run:
-
-```sh
-aptly setup --client claude --migrate-launcher --include-existing --dry-run
-aptly setup --client claude --migrate-launcher --include-existing
-```
-
-Review the local registration first. A valid existing Aptly ownership receipt and matching managed environment additions, Hook, and policy are required. Only an absolute Node path with a single standard server path is accepted; wrappers and registrations without a receipt remain unsupported. This does not make the entire MCP registration Aptly-owned: later removal preserves the migrated launcher and original user settings. The option applies only to explicit single-client migration, never automatic installation.
-
-A successful Codex configuration needs no reset. Retry only the affected host and restart MCP. Codex still requires `/hooks` trust review. Changes after diagnosis stop with `concurrent_configuration_change`. If recovery observes another key or cannot read the current key, it leaves the store unchanged and reports `credential_rollback_failed`. Files and the OS store do not form an atomic transaction; avoid concurrent configuration operations.
-
-### Keys and restarting
-
-Pass the classification key, `OPENAI_API_KEY`, through a secure environment or credential launcher to the MCP process. It is separate from host subscription login. Never write key values into command arguments, requests, configuration files, source, logs, or temporary files.
-
-### MCP environment setup, step by step
-
-Run `setup`, then merge the examples below into the existing `aptly` registration. Preserve `command`, `args`, credential launchers, `ROUTER_LEDGER_PATH`, and `APTLY_HOOK_POLICY_PATH`. Setup creates the private ledger/policy directories; a manual ledger path must be absolute and inside a user-owned directory with mode 700.
-
-#### Configuration file locations
-
-| Host | User registration used by Aptly |
-|---|---|
-| Codex | `$CODEX_HOME/config.toml`; `~/.codex/config.toml` when `CODEX_HOME` is unset |
-| Claude Code | `mcpServers.aptly` in `~/.claude.json`; `.claude.json` inside `CLAUDE_CONFIG_DIR` when that directory is configured |
-
-Claude Code stores Hooks in `~/.claude/settings.json` by default, or `$CLAUDE_CONFIG_DIR/settings.json` when `CLAUDE_CONFIG_DIR` is set. This is separate from MCP registration. If project `.mcp.json`, managed settings, or account-specific directories are in use, check the active entry in `/mcp` before editing or adding a registration.
-
-#### Passing the API key
-
-For a direct launch, enter the key in **Bash** without displaying or saving its value, then start the host from that shell. In zsh, run `bash` first:
-
-```sh
-read -rsp 'OpenAI API key: ' OPENAI_API_KEY
-printf '\n'
-export OPENAI_API_KEY
-codex
-```
-
-Replace `codex` with `claude` for Claude Code. This does not save the key permanently. A running GUI does not inherit another terminal’s environment; use its secure environment mechanism or preserve the existing credential launcher.
-
-#### Codex example
-
-Edit the existing `[mcp_servers.aptly]` tables; do not append duplicate tables. Add `OPENAI_API_KEY` to `env_vars` without removing existing entries. `env_vars` forwards named host variables; `.env` supplies fixed MCP values.
-
-```toml
-[mcp_servers.aptly]
-env_vars = ["OPENAI_API_KEY"]
-
-[mcp_servers.aptly.env]
-ROUTER_PROVIDER = "decisions"
-APTLY_CLAUDE_MODELS = '["haiku","sonnet","opus"]'
-APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
-```
-
-#### Claude Code example
-
-Merge these values into the existing `mcpServers.aptly.env` object:
-
-```json
-{
-  "ROUTER_PROVIDER": "decisions",
-  "APTLY_CLAUDE_MODELS": "[\"haiku\",\"sonnet\",\"opus\"]",
-  "APTLY_CODEX_MODELS": "[\"gpt-6-luna\",\"gpt-6.1-terra\",\"gpt-6.1-sol\"]"
-}
-```
-
-For direct launches, this optional reference forwards a key already present in the Claude Code environment. Do not add it to a credential-launcher setup. If the variable is missing, the key will not be supplied and the reference may remain unexpanded:
-
-```json
-{
-  "OPENAI_API_KEY": "${OPENAI_API_KEY}"
-}
-```
-
-Model candidates are **JSON strings**: leave them unset for defaults or use `[]` to disable that host’s recommendations. Aptly reads the MCP startup environment and does not load project `.env` files.
-
-Restart the host or MCP server after changes. **In Codex, review and trust the new Hook through `/hooks`.** Check `/mcp` and `get_routing_capabilities` for `provider`, candidates, and `automatic_hook.mode`. This free query does not authenticate the key; `recommend_agent` may incur a charge. For `unauthorized`, check key forwarding; for `needs_context`, check the task summary.
-
-See the official [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) and [Claude Code MCP guide](https://code.claude.com/docs/en/mcp) for configuration locations and environment forwarding.
-
-### Skipping registration and removing it
-
-```sh
-APTLY_SKIP_SETUP=1 npm install -g aptly@latest
-aptly setup --client codex --mode defaults
-aptly remove --client all
-```
-
-`CI` or npm `--ignore-scripts` also skips registration. Use `setup` to register later. To change mode, remove the registration and run setup with the desired `--mode`; `advisory` only supplies advice. For `partial`, check each host’s error codes. Removal preserves user-modified entries and reports conflicts.
-
-## Automatic Hook
-
-**The following preflight, recommendation and observation behavior requires Aptly 0.1.4 or later.** The installed `PreToolUse` matcher routes supported Codex `spawn_agent` / `collaborationspawn_agent` / `Agent` and Claude Code `Agent` calls to local `route_spawn_hook` before native execution. The host must load and trust this Hook and connect its MCP server. Aptly cannot enforce interception in an unconfigured or unsupported host, or when MCP is unavailable; native execution remains the host's responsibility.
-
-Local preflight checks explicit fields, roles/resume, policy, cache and budget. A new paid Decisions request is not required for every spawn. Model-only or effort-only Codex selections restrict candidates to matching allowlisted tuples; only the unspecified field can be filled. Both specified fields, unsupported values, fixed roles and resumed identities are preserved without classification. Input fields do not establish whether a choice came from the user or a host default.
-
-Unspecified model/effort with `fork_turns: "all"` or omitted fork now reaches recommendation. It does **not** authorize history changes: Codex model/effort application still requires explicit `fork_turns: "none"`. Otherwise the Hook reports `inherited_context_application_unverified` and preserves the original arguments. Other history fields produce `history_semantics_unverified`; Claude application remains limited to general-purpose calls without history constraints. A recommendation may therefore be produced without being applied.
-
-For opaque Codex messages, a concrete short task name such as `cleanup_merged_worktrees` can supply label-only advice. The short-name allowlist covers cleanup/remove/prune + merged + worktrees/branches, and review/fix/test + failing/broken/flaky + tests/builds; other names retain the descriptive six-word check. The body is never decoded or sent. This does not establish missing task details or permission to clean up. Inherited application is unverified for the target host, not universally impossible; public source support alone cannot certify the installed runtime.
-
-For genuinely independent work, the caller can intentionally choose a fresh child and provide sufficient standalone task context. Aptly never changes `all` to `none`, removes history or rewrites a specified model/effort. [Synthetic inherited and fresh examples](../../examples/spawn-preflight.codex.json) show the distinct requests; they are not automatic retries. Never retry an uncertain paid call with a new ID.
-
-`defaults` enables compatible argument updates; `advisory` supplies advice only. Inherited calls and partially specified calls may now share the same bounded task excerpt with Decisions even when application is blocked; history is not a privacy opt-out. Disabled policy, insufficient context, budget limits, failure and cancellation preserve execution constraints. Input, policy and catalog bindings, duplicate suppression and unknown-outcome protection remain in place. Fixture recommendations never rewrite native defaults. The strict evidence-based path without an automatic policy remains separate; host-internal patches stay paused.
-
-| MCP tool | Purpose |
-|---|---|
-| `get_routing_capabilities` | Lists candidates, limits, provider, and Hook status without a paid API call |
-| `recommend_agent` | Returns a direct recommendation for a task summary |
-| `get_routing_precedence` | Explains preserved choices and unverified configuration sources for a call |
-| `route_spawn_hook` | Selects defaults for eligible calls or passes advice only, according to the installed policy |
-| `get_spawn_routing_observation` | Looks up one exact Hook invocation; never proves native execution |
-| `prepare_spawn_context` | Registers a bounded description for one exact upcoming invocation |
-| `cancel_spawn_context` | Revokes the description association, not native execution or a request already sent |
-| `retry_spawn_recommendation` | Accepts one task-description supplement using a Hook-issued retry_id |
-| `prepare_fresh_delegation` | Prepares a separate independent Codex call from completed inherited advice; never executes it |
-
-### Confidence and abstention
-
-`confidence` is metadata and has not been validated here as a calibrated probability of correctness. It is not currently used as an automatic-application threshold. Zero and low values are currently allowed when other application conditions hold. A missing value in a live Decisions response is rejected as an error; it remains optional in generic Router and stored results. `keep_current` and `needs_context` are separate outcomes with existing abstention and context-recovery rules. Explicit model, effort, history and permissions are preserved. A small classification pilot does not establish improved child-task quality or total cost.
-
-<a id="budget-limits"></a>
-
-### Budget limits and usage (0.1.8+)
-
-Budget environment settings and usage status are supported from Aptly 0.1.8. `aptly set default` also fills missing budget environment settings for selected hosts. It adds no budget questionnaire, preserves existing values including explicit `0`, and does not reset usage, ledgers or caches. The existing transmission-scope question is separate. Existing registrations without budget variables also use the new runtime defaults after upgrade. The old implicit 20-call/50-call/$0.50 ceilings are not retained; configure any limits you require explicitly.
-
-| Environment variable | Default | Meaning |
-|---|---:|---|
-| `APTLY_MAX_DAILY_CALLS` | `200` | Per-ledger UTC daily classification-attempt ceiling |
-| `APTLY_MAX_TOTAL_CALLS` | `0` | Per-ledger cumulative attempt ceiling |
-| `APTLY_MAX_ESTIMATED_USD` | `0` | Cumulative local reservation ceiling |
-| `APTLY_ESTIMATED_CALL_USD` | `0.002` | Estimated dollars reserved for each new classification attempt |
-
-Zero means unlimited for the three ceilings. The per-attempt reservation is a rate and must stay positive. Only literal `0` means unlimited; forms such as `0.0` and `0.00` are rejected. Unset uses defaults; empty, negative, malformed or exponent notation values are rejected. Calls use whole integers; money uses fixed decimal notation with at most six fractional digits. Maximum finite settings are 100,000 daily calls, 1,000,000 cumulative calls and 100 for monetary values. A finite cost ceiling must cover one reservation. Existing invalid settings are not silently overwritten.
-
-```sh
-aptly set env APTLY_MAX_DAILY_CALLS
-aptly set env APTLY_MAX_TOTAL_CALLS
-aptly set env APTLY_MAX_ESTIMATED_USD
-aptly set env APTLY_ESTIMATED_CALL_USD
-aptly budget status --client codex
-aptly budget status --client claude
-```
-
-Setting commands support `--client codex|claude|all`, hidden input and explicit `--stdin`. Restart MCP after changes. Defaults also preserve existing Codex budget passthrough bindings in `env_vars` and Claude budget values observed in this CLI process environment, listed as `inherited`. Direct `recommend`/`capabilities` use the CLI process environment and do not automatically read host settings files. Status briefly holds the existing gate, so a concurrent request can receive temporary `ledger_locked`. Status is a snapshot of registration and permitted current environment settings, not verification of custom wrappers or the running host. It reads no keys, API or task text and creates no ledger or gate. Unlimited ceilings display `Unlimited` with `null` remaining. Sessions sharing a ledger share its budget; other ledgers and account-wide OpenAI usage are not aggregated.
-
-`budget_exhausted` is local, not an OpenAI authentication or account-credit error. Direct/retry responses identify `budget_limit`; status lists `exhausted_by`. Reservations are not an actual billing cap and do not reset monthly. Changing the rate does not reprice past reservations; replacing a key or applying defaults does not refund them.
-
-New pre-HTTP budget denials are not cached. Only verifiable known-unpaid legacy default-policy denials can be reevaluated with the same ID; completed recommendations, abstentions, context outcomes and `unknown` remain protected. Budget recovery does not extend the original five-minute retry reference or process lifetime and does not remove history or permission constraints. Arbitrary historical custom-policy digests are not guessed; do not bypass conflicts/unknowns with new IDs or ledger deletion.
-
-<a id="execution-statistics"></a>
-
-### Execution statistics (0.1.10 or later)
-
-Execution statistics require Aptly 0.1.10 or later. Install a supported version or upgrade following [package updates](#package-updates), then use the examples below. An existing Aptly setup is required. Collection is initially POSIX-only; Windows collection is unsupported and normal Aptly use on Windows is unaffected.
-
-```sh
-aptly stats
-aptly stats --today --client codex
-aptly stats enable --client codex
-aptly stats enable --client codex --codex-native-metadata
-aptly stats disable --client codex
-```
-
-The command forms are `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]` and `aptly stats disable [--client]`. Collection is off by default and postinstall does not enable it. Enable installs Aptly-owned command observers recorded separately in `stats-ownership.json`; it leaves the legacy receipt, MCP, launchers, keys, budget and transmission settings intact. Restart MCP and the host after enabling; for Codex, review native Hook trust in `/hooks`.
-
-Disable turns collection off and removes only unchanged owned observers. Modified or custom observers are preserved with a warning; data and the key remain. `remove` validates and removes stats-owned definitions but keeps the data. Independently managed collectors and custom Hooks are not adopted automatically.
-
-Private state uses `stats.sqlite`, `stats-config.json` and `stats-key` (an HMAC secret), separately from the budget ledger. Do not share the key. Records contain no task text, transcripts, raw IDs, paths, errors or credentials. Reading stats makes no API, key or credential-store calls, initializes nothing and runs no notifier.
-
-The projection reports `model_match`, `model_mismatch`, `model_changed`, `unknown`, `pending`, `expired_pending` and `application_unconfirmed`; advisory is separate. `blocked`, `explicit_preserved` and `unbound` are excluded from denominators. Effective effort is never measured; configured effort is not actual effort. Claude aliases `haiku`, `sonnet`, `opus` and `fable` cannot be resolved to an actual canonical model and are `unknown`; only exact canonical models are supported, and observing a model does not guarantee all aliases match. These figures do not establish user acceptance or quality.
-
-Direct advisory, retries and fresh unbound calls without native continuity are not joined by approximate timing. `--today` uses the UTC date when the binding was first created. Capacity is fixed at 10,000 delegations and 10,000 children, with no automatic pruning. Counts cover retained records, not lifetime totals; at capacity, new identities are dropped and the reached flag is set. Missing callbacks do not prove bypass. There are no token or cost rollups, live quota or savings figures.
-
-Codex native metadata is off unless explicitly enabled. It reads SQLite native metadata by exact child ID only: no transcripts, repairs or app-server launch. Relocated `sqlite_home`, unsupported schemas or paths, and ambiguous joins yield unknown. A SQL read may update existing SHM read marks; it writes no rows or schema and does not intentionally create sidecars.
-
-Collection is best effort: lost, delayed or capacity-dropped events can leave an incomplete model history. `model_match` means the retained evidence matches, not that every request used that model. Disabling Codex collection, removing setup or enabling without `--codex-native-metadata` revokes native metadata access. After changing the Node or package path, disable and re-enable collection to register current commands. An unavailable or corrupt store is preserved; review it locally rather than deleting the key or assuming zero usage.
-
-<a id="outbound-data-and-disabling-automatic-sharing"></a>
-
-### Decisions API transmission scope
-
-The transmission commands in this section are supported from Aptly 0.1.7.
-
-Transmission means **sending local task information to the OpenAI Decisions API**, not providing tasks to Aptly developers. Application mode `defaults/advisory` and transmission scope are independent. New registrations use v2 policy with `unselected` scope and make no automatic transmission. Interactive `aptly set default` asks only for unselected hosts; Enter selects `none`. Noninteractive runs and postinstall neither prompt nor count as consent.
-
-```sh
-aptly set transmission --show
-aptly set transmission none
-aptly set transmission description
-aptly set transmission excerpt
-```
-
-The change commands above show alternatives; run only the one you want. Use `--client codex|claude|all` to select hosts. `none` disables automatic transmission and preserves the original call. `description` permits only a parent-supplied description. Without one, it requests context before calling the API and never falls back to native body or label. `defaults` denies the unresolved spawn; `advisory` supplies feedback only. `excerpt` permits existing native excerpts and explicit descriptions. Source, size and known-secret checks establish neither non-sensitive content nor user consent.
-
-Existing v1 policies remain byte-identical and report `excerpt` with `legacy` provenance. An explicit change migrates the policy to v2 and updates its ownership receipt together. Modified policies and custom launchers are not silently adopted; conflicts preserve them. Keys, ledgers and unknown records are not deleted. Restart MCP after changes. Already-started transmission cannot be recalled; changed policy prevents in-flight results, retry and fresh preparation from applying. Do not bypass an old call-binding conflict with a new paid identity. Explicit `recommend_agent` and `aptly recommend` requests remain separate and are not prohibited by this automatic-transmission setting.
-
-Manually setting `enabled: false` remains an emergency stop, but can conflict with ownership records. Use the commands above for normal changes and never edit ownership receipts to bypass checks.
-
-### Outbound content and filtering limits
-
-Under `excerpt` scope, Without prepared context, automatic classification `summary` is an **excerpt assembled from an accepted task label and the clipped first paragraph** of the body. It is not a semantic rewrite or anonymization. Its UTF-8 size is at most `min(4000, max_summary_bytes)`; this is not a limit on the whole HTTP request. The opaque-message fallback in Codex uses only a sufficiently descriptive `task_name`, without decoding or transmitting that body. Labels can also contain sensitive information.
-
-A valid `prepare_spawn_context` description and fixed prefix replace the native excerpt for classification; registration itself makes no API call. After a needs-context response, `retry_spawn_recommendation` can classify one new supplement with a fixed prefix, without appending the earlier body. Both paths limit the raw description to `min(3800, max_summary_bytes - 96)` bytes and the prefixed summary to `min(4000, max_summary_bytes)` bytes. `prepare_fresh_delegation` itself reuses completed advice without another classification and returns standalone instructions as local next-call arguments. A Codex call submitted with the returned explicit model and effort is currently preserved by the Hook as `explicit_model`, without classification. Checking a later call does not imply another classification. None of these paths establishes that descriptions are non-sensitive or automatically anonymized.
-
-Decisions receives `client`, `task.summary`, `task.operation`, `task.context_sufficient`, candidate profile IDs, model/effort descriptions, and configured model facts. The classification API key is sent in `Authorization`; the request ID is sent in `X-Client-Request-Id`. Automatic IDs are hashes; direct recommendation IDs are caller-supplied. Do not put secrets in IDs or candidate descriptions.
-
-To disable automatic sharing, change **only `enabled` to `false`** in the existing private policy file referenced by `APTLY_HOOK_POLICY_PATH`. Preserve the other fields and ownership record. Subsequent automatic Hook calls preserve the original call before classification or creation of a call-binding file. This cannot undo a transmission already started or recall information received by the server. Editing a generated policy can cause ownership conflicts in setup, configuration, or removal commands; those commands do not overwrite the disabled policy. Do not edit ownership records to bypass the checks.
-
-When the transmission scope permits it, `mode: advisory` still transmits classification data; it is not a privacy opt-out. Removing `APTLY_HOOK_POLICY_PATH` can activate the older strict path, so do not use removal as an alternative. `enabled: false` does not block explicit `recommend_agent` or `aptly recommend` requests.
-
-For control over the shared summary, disable automatic sharing and write only the information needed for a direct recommendation. Aptly does not automatically fetch documents at URLs or attach source files mentioned in the summary. Checks for known key and Bearer patterns do not provide complete secret detection or establish that text is safe to transmit.
-
-The ledger and Hook bindings store request metadata, hashes, and cached results, not task excerpts. Aptly diagnostics also exclude raw task text. The local Hook's `updatedInput` retains the original task so the host can continue execution. Aptly does not control the host's own transcript or log retention.
-
-### Explicit description for opaque spawns (0.1.4+)
-
-An integration that knows the real upcoming session/call IDs and exact original event can call `prepare_spawn_context({client, event, description})` on the same MCP process before the Hook. Describe purpose, scope, expected output, constraints and complexity; URLs alone do not fetch content. Only the bounded description and fixed prefix replace the task excerpt, not history, files or the opaque body. `cancel_spawn_context({client, event})` revokes it. Registration needs enabled automatic policy; `enabled: false` prevents sharing. Known-secret filters are incomplete.
-
-Associations last five minutes, are immutable, and are limited to 128 per process. Changed, expired or cancelled associations block routing; an already evaluated call cannot acquire a richer-summary retry or new paid identity. A caller unable to obtain the actual upcoming event cannot use this handoff; shipped Hooks do not create descriptions or call IDs. Local `insufficient_context`, provider `provider_needs_context`, and native `inherited_context_application_unverified` are distinct. The [handoff contract](../SPAWN_CONTEXT.md) records a bounded native description-handoff check. It does not establish automatic description production or execution of the recommended model.
-
-### Retry with additional context (0.1.5+)
-
-When the automatic Hook returns `insufficient_context` or `provider_needs_context`, it provides a `retry_id` and recovery instructions. In `defaults` mode it denies that spawn; in `advisory` mode it only supplies feedback. The parent should describe purpose, scope, expected output and complexity using context it already has, then call `retry_spawn_recommendation({retry_id, description})` on the same MCP process within five minutes. No future native call ID is needed. Ask the user only for genuinely missing information.
-
-One supplement is allowed per original call. Duplicate input reuses the cache; changed descriptions conflict. Stop if the retry still needs context or fails; never replace an uncertain paid request with a new ID. If `spawn_application` is `blocked`, report the constraint without applying the profile. Otherwise the parent must preserve explicit choices, history, roles and permissions when passing only unspecified model/effort to a new compatible native call. The Hook does not itself perform the parent's retry or native execution. The original `prepare_spawn_context` association stays immutable. See the [limits, costs and validation contract](../SPAWN_CONTEXT.md#one-context-supplement-after-a-hook-response).
-
-The retry response includes `next_call.set_if_unspecified` with concrete fields for the next native call. It excludes already specified model/effort fields and never adds Claude effort. Blocked history/application results omit `next_call`. These fields are neither execution evidence nor permission approval.
-
-Cache reuse requires a completed first result. An unknown outcome remains `outcome_unknown`; do not repeat a paid call with a new ID.
-
-`context_retry_allowed: false` ends further context supplementation. For a compatible recommendation, `caller_review_required` means the parent reviews arguments; it does not request new user approval. Existing delegation authorization and host permission checks still apply.
-
-### Automatic routing guarantees and blocked outcomes (0.1.5+)
-
-The guarantee covers supported calls handled by an enabled, trusted Hook on a connected MCP process. Check `get_routing_capabilities.automatic_hook.guarantee` for this scope. The server cannot detect or enforce an absent, untrusted, disconnected or host-failed Hook; the host controls fallback. MCP connection status alone is not per-call routing evidence.
-
-After a valid enabled policy and eligible call are established, `defaults` returns a deny decision and a safe reason for incompatible application, budget exhaustion, classification failure or unknown outcomes. Original arguments and constraints remain intact, but that spawn does not proceed. For unverified inherited history, report the constraint instead of silently running parent defaults or switching to `none`. `advisory` describes the limit without blocking. Missing/disabled policy, explicit tuples, fixed roles and resume remain intentional local preservation paths rather than blanket denials.
-
-With a recovery ID, use `get_spawn_routing_observation({retry_id})` on the same MCP process, or use the existing `{client, event}` form. Mixed or partial forms are rejected. Original `awaiting_context` and `context_retry.outcome` are separate stages; rejected duplicates appear under `last_attempt` without replacing an earlier classification outcome. Lookups incur no paid request and do not renew retention. Execution always remains `not_observed`; neither advice nor argument updates establish actual child execution.
-
-### Prepare a separate independent delegation (0.1.6+)
-
-After a defaults Hook blocks inherited application, the caller may use `prepare_fresh_delegation` only when it can declare **the same independent task, no user-required inherited history, and complete standalone instructions**. Supply the Hook/retry `retry_id`, `task_name`, `standalone_task`, and `declaration: {independent_task:true, same_task:true, original_call_outcome:"blocked", history_requirement:"not_required", standalone_context_complete:true}` on the same process. It revalidates completed allowlisted advice without another classification.
-
-The original inherited invocation stays blocked. Review the separate `next_call.arguments` and submit it under existing delegation authorization and normal host permission checks. It includes `fork_turns: "none"` and preserves model/effort choices. This is caller-declared intent, not verified user intent or execution evidence. Do not use it for required/unknown history, fixed roles, resume or unverified additional execution arguments. A reference binds one task; five-minute expiry, cancellation, policy/catalog changes and changes to the original invocation block preparation. It is not offered for nonblocking advisory paths. See the [contract and limits](../SPAWN_CONTEXT.md#intentional-fresh-delegation).
-
-Use this only after the host reports the original call blocked. `original_call_outcome` values `executed` and `unknown` reject preparation. This is caller-declared, not server execution observation. Repeated identical preparation does not guarantee single child execution. The profile was selected from the original classification summary and must not be reused for a different task.
-
-## Direct recommendations
-
-The `recommend_agent` MCP tool and CLI `recommend` accept a task summary and recommend a profile. They do not spawn subagents. Pass this JSON as MCP tool arguments, or save it to a file and provide it to the CLI through standard input.
-
-```json
-{
-  "request_id": "demo-codex-sort-001",
-  "client": "codex",
-  "task": {
-    "summary": "Sort the supplied numbers [3, 1, 2] into ascending order. No files or network are needed.",
-    "operation": "analysis",
-    "context_sufficient": true
-  }
-}
-```
-
-```sh
-ROUTER_PROVIDER=fixture aptly recommend < request.json
-aptly capabilities
-aptly config codex
-aptly config claude
-```
-
-Fixture returns test results generated by local rules without a key, network access, or subagent execution. These are not actual Decisions judgments or quality-test results. `config` only prints a manual MCP registration fragment; `setup` changes configuration. For actual API use, prepare the key, provider, and private ledger described above.
-
-`task.operation` is one of `read_only`, `write`, `review`, or `analysis`. `context_sufficient` means the caller has provided the summary needed for the task; it does not verify host settings. Omitting `eligible_profile_ids` uses the active catalog for that client; specifying it narrows candidates within that catalog.
-
-If any of `model_pinned`, `effort_pinned`, `role_pinned`, or `fork_inherits` in `constraints` is true, the existing selection is preserved. Omitting these means no preservation constraints were declared for this planning request. It does not certify that the actual host has no pins. Do not use `provenance_verified` in new requests.
-
-| status | Next action |
-|---|---|
-| `recommended` | Review `profile` and decide separately whether to execute it in the existing host |
-| `keep_current` | Preserve the explicit selection or defer the recommendation |
-| `needs_context` | Supply the necessary summary details |
-| `unavailable` | Check the predefined `reason` code. Do not automatically retry a paid request with an unknown outcome under a new ID |
-
-The direct recommendation's `application: advisory_only` does not verify host settings or model access, or authorize execution. To retrieve a completed result again, keep the same ID, input, policy, and ledger. `unknown` means the outcome is uncertain; do not blindly retry with a new ID. A new request whose input has changed because context was added uses a different ID.
-
-## Models and environment variables
-
-There are six default profiles. Tiers are Aptly operational presets, not statements that the two providers' models have equivalent capabilities.
-
-| Tier | Claude Code | Codex | Typical tasks |
-|---|---|---|---|
-| simple | `haiku` | `gpt-6-luna` / `max` | Extraction, format conversion, or small mechanical edits |
-| routine | `sonnet` | `gpt-6.1-terra` / `high` | Context-aware writing or translation, or clearly scoped implementation |
-| deep | `opus` | `gpt-6.1-sol` / `medium` | Cross-component debugging, architectural judgment, or in-depth review |
-
-MCP `env` values are strings, so candidate arrays must also be passed as JSON strings.
-
-```json
-{
-  "env": {
-    "APTLY_CLAUDE_MODELS": "[\"haiku\", \"sonnet\", \"opus\"]",
-    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.1-sol\"]"
-  }
-}
-```
-
-When unset, the defaults above apply; `[]` disables recommendations for that client. Empty strings, duplicates, unsupported models, and malformed JSON are errors. `CLAUDE_MODELS` and `CODEX_MODELS` are supported aliases, but setting both the primary name and its alias for the same provider is an error. Candidate configuration does not override existing choices or certify model access for an account.
-
-### Official descriptions and caching
-
-Decisions choices include the model name, Codex effort, official characteristics, and task-tier descriptions. Bundled descriptions are available at startup; documentation is not fetched on every recommendation. Refresh explicitly to incorporate the latest official Markdown. First create a private directory you own for the output file.
-
-```sh
-mkdir -m 700 /absolute/private-aptly-state
-aptly catalog refresh --output /absolute/private-aptly-state/model-info.json
-export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
-```
-
-Refresh only reads the fixed [Claude model documentation](https://code.claude.com/docs/en/model-config.md) and [OpenAI model documentation](https://learn.chatgpt.com/docs/models.md), and requires no API key. It stores short, normalized model information and preserves the existing file on failure. The cache is read at startup; an invalid cache or one older than 7 days falls back to bundled descriptions. Restart MCP after refreshing. New models appearing in documentation are not automatically added to candidates, and account access is not certified.
-
-## Providing context
-
-When Codex passes a subagent `message` to the Hook as ciphertext, Aptly does not read or decrypt its body. It uses only a sufficiently descriptive plaintext `task_name` as a summary. Describe the task and its scope, for example `sort_supplied_numbers_3_1_2_ascending_without_tools`. Unsupported or ambiguous task names preserve the original model. Claude Code calls and calls that expose a plaintext body use a summary of the provided body.
-
-Use `get_spawn_routing_observation` with the same `client` and exact original Hook `event` to query one invocation. It returns a redacted correlation ID, preflight, classification/cache outcome, recommendation, argument-update or blocked application, and `execution: not_observed`. `arguments_updated` only describes emitted Hook arguments, never an observed child model. Records are limited to 128 calls and 10 minutes in this MCP process; `not_observed` can also mean another process, restart, expiry, eviction or mismatched input. It does not prove global Hook bypass. The process-wide `automatic_hook.last_result` is removed. No raw task, path, session ID or credential is returned.
-
-For direct recommendations, you can include repository and file URLs alongside a summary of the scope, size, and constraints derived from reading the documents. Sending a URL string differs from providing document contents. Aptly's classification request code does not fetch repository URLs or retrieve their contents. The caller performs any required retrieval and summarization.
-
-The current automatic Hook has no field for passing a URL separately as plaintext. Do not assume that adding a URL to an encrypted `message` forwards it for classification. Direct MCP recommendation followed by passing the profile as native arguments is distinct from automatic Hook application.
-
-## Cost benchmark
-
-On 2026-11-05, the [English session-peer README](https://github.com/abruption/session-peer/blob/6e9efda7588e1df638748eeb7ad1b2707e0a3bf4/README.md) was used as the canonical source for reviewing its [Korean translation](https://github.com/abruption/session-peer/blob/6e9efda7588e1df638748eeb7ad1b2707e0a3bf4/README.ko.md). Each run received the same documents, totaling 17,964 bytes, and the same instructions to produce six suggested edits. The original files were not changed.
-
-All three automatic Hook trials supplied with only the task name abstained with `needs_context`. Three `recommend_agent` requests with repository/file URLs, and three with URLs plus a document summary, all recommended Terra/high. The per-run averages below compare three actual Terra/high runs using the URL-plus-summary condition with the three immediately preceding Sol/high runs.
-
-| Standard API cost conversion | Sol/high | Terra/high + classification | Reduction |
-|---|---:|---:|---:|
-| Observed cache usage included | $0.03229 | $0.01354 | 58.05% |
-| All input priced as uncached | $0.11254 | $0.05363 | 52.35% |
-
-These are USD conversions of measured native tokens at the [official Standard API rates](https://developers.openai.com/api/docs/pricing). They are not actual subscription invoices or measured quota deductions. The Terra figures include the [Decisions classification cost](https://developers.openai.com/api/docs/guides/decisions), $0.0000756 per run. The comparison covers the reviewing subagent and classification; document retrieval, context preparation, and main-agent research costs are excluded.
-
-The measured workflow was **explicit MCP recommendation → native execution with the recommended profile passed as arguments**. It did not test automatic Hook URL retrieval or forwarding. The prior benchmark was reused as the control, with three samples per condition. Full-document reads, matching source quotes, and output structure were checked, but the results do not establish equal quality, statistical significance, or savings for other tasks.
-
-### Interrupted processes and ledger locks
-
-This locking design requires Aptly `0.1.2` or later and is not included in npm `0.1.1`. The JSON ledger keeps its request IDs, `unknown` records, completed cache, call counts, and reserved costs. Only persistent ledgers use Node.js 24's built-in SQLite. The adjacent `ledger.json.lock` remains after a normal exit; its presence alone does not mean an active lock. With the new design, process exit releases the OS lock so a later request can use the same ledger. It does not retry an existing uncertain ID or refund reserved costs.
-
-Keep the ledger and lock in a private directory on a local filesystem that supports hard links, and use one canonical path for each ledger. Network shares, cloud-synced directories, and path aliases are outside the supported scope. Do not delete or replace the new lock or SQLite journal, or open them with another database tool while in use. Age and PID alone do not establish that an owner has exited.
-
-An old empty `.lock` cannot establish whether its owner is still alive, so it is never initialized or removed automatically. Stop every relevant host, MCP process, and ledger-accessing process, including older versions, and upgrade all writers. Only after confirming that the file belongs to the legacy locking design may you quarantine that file and restart against the same JSON ledger path. Do not reset or delete the ledger, `unknown` records, costs, or completed results. If ownership or format is uncertain, leave access blocked and investigate.
-
-## Diagnostics and development
-
-```sh
-aptly report --format both --output-dir reports
-```
-
-`report` creates private Markdown and JSON files with the same ID. Review them before sharing manually; they are not uploaded automatically. Do not include keys, personal paths, environment values, task bodies, or raw errors in attachments. A report does not establish successful API authentication or verification of the host's full configuration.
-
-Use the following commands in a source checkout. Distinguish their paths from the installed CLI examples above.
-
-```sh
-npm ci --ignore-scripts --no-audit --no-fund
-npm run typecheck
-npm run build
-ROUTER_PROVIDER=fixture node bin/aptly.ts recommend < examples/recommend.codex.json
-ROUTER_PROVIDER=fixture node bin/aptly.ts recommend < examples/recommend.claude.json
-npm test
-npm run poc
-npm run check:release
-```
-
-Default regression tests and fixture smoke tests run without paid APIs or actual subagents. Release checks inspect public files, private-data patterns, and the npm file allowlist; they do not publish or push to Git. The ledger supports completed-result reuse, prevention of retries for unknown outcomes, and guards on calls, latency, and estimated cost. It is not an actual billing cap.
-
-Design notes, historical validation, and development history remain in other source-checkout documents. This multilingual guide is the reference for installation and everyday use; it does not turn historical research claims or unimplemented plans into current features.
+For a first setup, read **Installation → Configuration → Automatic recommendations**.
+
+## Topics
+
+- [Installation and updates](en/installation.md)
+- [Configuration and model candidates](en/configuration.md)
+- [Automatic recommendations](en/routing.md)
+- [Decisions API transmission](en/transmission.md)
+- [Budget limits](en/budget.md)
+- [Execution statistics](en/statistics.md)
+- [Troubleshooting](en/troubleshooting.md)
+- [Advanced MCP integration and development](en/advanced.md)
+- [Measured costs](en/benchmarks.md)
+
+## Previous links
+
+Existing bookmark anchors remain available. Select an entry to open its section in the new topic page. This documentation move does not require setup or key re-entry.
+
+<a id="installation"></a>
+- [Installation](en/installation.md#guide-installation)
+<a id="npm-install-script-approval"></a>
+- [npm install-script approval](en/installation.md#guide-npm-install-scripts)
+<a id="package-updates"></a>
+- [Package updates](en/installation.md#guide-package-updates)
+<a id="new-version-notifications"></a>
+- [New-version notifications](en/installation.md#guide-version-notifications)
+<a id="command-help-018"></a><a id="command-help"></a>
+- [Command help (0.1.8+)](en/installation.md#guide-command-help)
+<a id="configure-with-the-cli"></a>
+- [Configure with the CLI](en/configuration.md#guide-cli-configuration)
+<a id="recover-an-incompatible-launcher"></a>
+- [Recover an incompatible launcher](en/troubleshooting.md#guide-launcher-recovery)
+<a id="keys-and-restarting"></a>
+- [Keys and restarting](en/configuration.md#guide-keys-and-restart)
+<a id="mcp-environment-setup-step-by-step"></a>
+- [MCP environment setup, step by step](en/advanced.md#guide-manual-mcp-setup)
+<a id="configuration-file-locations"></a>
+- [Configuration file locations](en/configuration.md#guide-host-config-locations)
+<a id="passing-the-api-key"></a>
+- [Passing the API key](en/advanced.md#guide-key-environment)
+<a id="codex-example"></a>
+- [Codex example](en/advanced.md#guide-codex-configuration)
+<a id="claude-code-example"></a>
+- [Claude Code example](en/advanced.md#guide-claude-configuration)
+<a id="skipping-registration-and-removing-it"></a>
+- [Skipping registration and removing it](en/installation.md#guide-skip-and-remove)
+<a id="automatic-hook"></a>
+- [Automatic Hook](en/routing.md#guide-automatic-routing)
+<a id="confidence-and-abstention"></a>
+- [Confidence and abstention](en/routing.md#guide-confidence-and-abstention)
+<a id="budget-limits-and-usage-018"></a><a id="budget-limits"></a>
+- [Budget limits and usage (0.1.8+)](en/budget.md#guide-budget-limits)
+<a id="execution-statistics-0110-or-later"></a><a id="execution-statistics"></a>
+- [Execution statistics (0.1.10 or later)](en/statistics.md#guide-execution-statistics)
+<a id="decisions-api-transmission-scope"></a><a id="outbound-data-and-disabling-automatic-sharing"></a>
+- [Decisions API transmission scope](en/transmission.md#guide-transmission-scope)
+<a id="outbound-content-and-filtering-limits"></a>
+- [Outbound content and filtering limits](en/transmission.md#guide-transmission-limits)
+<a id="explicit-description-for-opaque-spawns-014"></a>
+- [Explicit description for opaque spawns (0.1.4+)](en/advanced.md#guide-explicit-spawn-context)
+<a id="retry-with-additional-context-015"></a>
+- [Retry with additional context (0.1.5+)](en/advanced.md#guide-context-retry)
+<a id="automatic-routing-guarantees-and-blocked-outcomes-015"></a>
+- [Automatic routing guarantees and blocked outcomes (0.1.5+)](en/routing.md#guide-routing-guarantees)
+<a id="prepare-a-separate-independent-delegation-016"></a>
+- [Prepare a separate independent delegation (0.1.6+)](en/advanced.md#guide-fresh-delegation)
+<a id="direct-recommendations"></a>
+- [Direct recommendations](en/advanced.md#guide-direct-recommendations)
+<a id="models-and-environment-variables"></a>
+- [Models and environment variables](en/configuration.md#guide-models-and-environment)
+<a id="official-descriptions-and-caching"></a>
+- [Official descriptions and caching](en/advanced.md#guide-model-info-cache)
+<a id="providing-context"></a>
+- [Providing context](en/advanced.md#guide-context-delivery)
+<a id="cost-benchmark"></a>
+- [Cost benchmark](en/benchmarks.md#guide-cost-benchmarks)
+<a id="interrupted-processes-and-ledger-locks"></a>
+- [Interrupted processes and ledger locks](en/troubleshooting.md#guide-ledger-lock-recovery)
+<a id="diagnostics-and-development"></a>
+- [Diagnostics and development](en/advanced.md#guide-diagnostics-and-development)

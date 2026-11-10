@@ -1,6 +1,7 @@
 // Test the installed archive outside the checkout, with lifecycle scripts enabled
 // but Aptly host setup explicitly disabled. No real host or paid provider is used.
 import assert from 'node:assert/strict';
+import { auditDocumentation, auditGuideContent, collectDocumentation } from './docs-check.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,6 +40,11 @@ try {
   else assert.equal(run(cli, ['--version'], prefix).trim(), metadata.version);
   const installedMetadata = JSON.parse(readFileSync(join(prefix, 'node_modules', 'aptly', 'package.json'), 'utf8'));
   assert.equal(installedMetadata.bin.aptly, 'dist/bin/aptly.js');
+  const installedRoot = join(prefix,'node_modules','aptly');
+  const installedDocs = collectDocumentation(installedRoot);
+  const legacyAnchors = JSON.parse(readFileSync(join(process.cwd(),'test-support','guide-legacy-anchors.json'),'utf8'));
+  const documentationErrors = [...auditDocumentation({files:installedDocs,packageFiles:packed[0].files.map((file:{path:string})=>file.path),legacyAnchors}), ...auditGuideContent(installedDocs)];
+  assert.deepEqual(documentationErrors, [], 'Installed archive documentation links, anchors and language examples');
   const installedCli = join(prefix, 'node_modules', 'aptly', 'dist', 'bin', 'aptly.js');
   assert.equal(run(process.execPath, ['--no-experimental-strip-types', installedCli, '--version'], prefix).trim(), metadata.version);
   assert.ok(run(process.execPath, [installedCli, 'budget', '--help'], prefix).includes('budget status'));
@@ -79,6 +85,7 @@ try {
 assert.equal(stderr,'');
 `);
   run(process.execPath, ['--no-experimental-strip-types', join(prefix, 'smoke.mjs'), installedCli], prefix);
+  console.log('Installed tarball: documentation navigation and contents passed.');
   console.log('Installed tarball: CLI, compiled exports, fixture MCP and cache passed; paid calls: 0.');
 } finally {
   rmSync(root, { recursive: true, force: true });

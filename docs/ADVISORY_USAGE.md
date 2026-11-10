@@ -191,6 +191,6 @@ live 분류는 비용이 발생할 수 있어요. 원장은 요청 전에 예약
 - `ledger_locked`이면 같은 원장을 쓰는 기존 서버·명령이 아직 실행 중인지 먼저 확인해요. 실행 중인 프로세스의 lock은 삭제하지 않아요. crash가 확인돼도 원장을 보존하고, 관련 프로세스가 모두 끝난 것을 확인한 뒤 그 원장의 stale lock만 운영자가 별도로 처리해요. 자동 lock 삭제·원장 초기화 기능은 없어요.
 - 인증·429·timeout을 수정한 뒤에도 이전 요청이 unknown이면 새 ID로 무조건 재시도하지 않아요. 이 규칙은 실패 메시지가 안전한 코드로만 반환돼 원시 API 오류를 볼 수 없는 경우에도 같아요.
 
-진단 자료가 필요하면 `report --format both --output-dir reports`로 로컬 첨부 파일을 만들고 검토해요. 키가 존재한다는 진단은 API 인증 성공을 뜻하지 않아요. [진단 안내](REPORTING.md), [공개 준비](RELEASING.md)를 참고해요.
+진단 자료가 필요하면 `report --format both --output-dir reports`로 로컬 첨부 파일을 만들고 검토해요. 키가 존재한다는 진단은 API 인증 성공을 뜻하지 않아요. [진단 안내](https://github.com/abruption/aptly/blob/9d1f7d6449290fee961ccaead0be1d032a88e809/docs/REPORTING.md), [공개 준비](https://github.com/abruption/aptly/blob/9d1f7d6449290fee961ccaead0be1d032a88e809/docs/RELEASING.md)를 참고해요.
 
 설치용 npm archive에는 이 사용 안내를 동봉해요. 설계·호환성·과거 검증 등 다른 문서는 source archive에서 확인해요.
