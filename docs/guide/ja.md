@@ -284,18 +284,16 @@ HTTP 前の新しい予算拒否はキャッシュしません。検証可能な
 
 <a id="execution-statistics"></a>
 
-### 実行統計（未リリース）
+### 実行統計（0.1.10 以降）
 
-この機能は未リリースで、npm `aptly@0.1.9` にこれらのコマンドはありません。ソースのチェックアウトでインストール・ビルドしてから次の例を使用してください。既存の Aptly 設定が必要です。初期の収集は POSIX のみ対応し、Windows の統計収集は未対応です。Windows での通常の Aptly 利用には影響しません。
+実行統計は Aptly 0.1.10 以降で利用できます。対応バージョンをインストールするか、[パッケージの更新](#パッケージの更新)に従ってアップグレードしてから次の例を使用してください。既存の Aptly 設定が必要です。初期の収集は POSIX のみ対応し、Windows の統計収集は未対応です。Windows での通常の Aptly 利用には影響しません。
 
 ```sh
-npm ci --ignore-scripts
-npm run build
-node bin/aptly.ts stats
-node bin/aptly.ts stats --today --client codex
-node bin/aptly.ts stats enable --client codex
-node bin/aptly.ts stats enable --client codex --codex-native-metadata
-node bin/aptly.ts stats disable --client codex
+aptly stats
+aptly stats --today --client codex
+aptly stats enable --client codex
+aptly stats enable --client codex --codex-native-metadata
+aptly stats disable --client codex
 ```
 
 形式は `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]`、`aptly stats disable [--client]` です。収集は既定で無効で、postinstall でも自動有効化しません。enable は Aptly 所有のコマンド観測器を設置し、別の `stats-ownership.json` に記録します。既存の receipt・MCP・launcher・キー・予算・送信設定は保持します。有効化後は MCP とホストを再起動し、Codex では `/hooks` で native Hook の信頼を確認してください。
