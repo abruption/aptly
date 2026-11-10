@@ -4,17 +4,17 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { isRecord, errorCode } from '../src/types.ts';
+import { guideFiles } from './guide-contract.ts';
 interface Issue { code:string; file:string; }
 interface SourceEntry { path?:unknown; content?:unknown; symlink?:unknown; }
 interface AuditOptions { files?:unknown; packageFiles?:unknown; packageMetadata?:unknown; }
 export interface AuditResult { passed:boolean; sourceFileCount?:number; packageFileCount?:number; issues:Issue[]; }
 
 const readmeFiles = ['README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md'];
-const userGuideFiles = ['docs/guide/ko.md', 'docs/guide/en.md', 'docs/guide/zh-CN.md', 'docs/guide/ja.md'];
 const rootFiles = new Set(['package.json', 'package-lock.json', ...readmeFiles, 'LICENSE', 'tsconfig.json', '.gitignore', '.gitattributes', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md', '.env.example']);
 const rootDirectories = new Set(['src', 'bin', 'examples', 'docs', 'test', 'test-support', 'scripts', '.github', 'dist']);
 const forbiddenSegments = new Set(['.local', '.poc', 'node_modules', '.worktree', '.release', '.git', 'AGENTS.md']);
-const packagedRootFiles = new Set([...readmeFiles, ...userGuideFiles, 'LICENSE', 'package.json', 'docs/ADVISORY_USAGE.md', 'docs/SPAWN_CONTEXT.md', 'docs/DRAFT_0_1_0.md']);
+const packagedRootFiles = new Set([...readmeFiles, ...guideFiles, 'LICENSE', 'package.json', 'docs/ADVISORY_USAGE.md', 'docs/SPAWN_CONTEXT.md', 'docs/DRAFT_0_1_0.md']);
 const packagedDirectories = new Set(['dist/src', 'dist/bin', 'examples', 'docs/guide']);
 const maximumSourceBytes = 2 * 1024 * 1024;
 

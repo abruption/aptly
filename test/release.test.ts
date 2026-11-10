@@ -155,3 +155,32 @@ test('multilingual documentation keeps an exact package allowlist and private ex
     assert.ok(codes(auditFiles(baseline({ files: [{ path: 'LICENSE', content: mit }, { path, content: 'private' }] }))).includes('disallowed_source_path'));
   }
 });
+
+
+test('topic guides use an exact multilingual package allowlist', () => {
+  const locales = ['ko', 'en', 'zh-CN', 'ja'];
+  const topics = ['installation', 'configuration', 'routing', 'transmission', 'budget', 'statistics', 'troubleshooting', 'advanced', 'benchmarks'];
+  const guides = locales.flatMap(locale => [
+    `docs/guide/${locale}.md`,
+    ...topics.map(topic => `docs/guide/${locale}/${topic}.md`),
+  ]);
+  assert.equal(guides.length, 40);
+  const report = auditFiles(baseline({
+    files: [{ path: 'LICENSE', content: mit }, ...guides.map(path => ({ path, content: 'public guide' }))],
+    packageFiles: guides,
+    packageMetadata: { license: 'MIT', files: guides },
+  }));
+  assert.equal(report.passed, true, JSON.stringify(report.issues));
+  for (const path of [
+    'docs/guide/fr/installation.md', 'docs/guide/ko/unknown.md',
+    'docs/guide/ko/nested/installation.md', 'docs/guide/ko/AGENTS.md',
+    'docs/guide/ko/.local/state.md', 'docs/guide/ko/credentials.json',
+  ]) {
+    assert.ok(codes(auditFiles(baseline({ packageFiles: [path] }))).includes('disallowed_package_path'), path);
+    assert.ok(codes(auditFiles(baseline({ packageMetadata: { license: 'MIT', files: [path] } }))).includes('package_allowlist_required'), path);
+  }
+  const guide = 'docs/guide/ko/installation.md';
+  assert.ok(codes(auditFiles(baseline({ files: [{ path: 'LICENSE', content: mit }, { path: guide, symlink: true }] }))).includes('source_symlink'));
+  const credential = ['sk', 'proj', 'A'.repeat(64)].join('-');
+  assert.ok(codes(auditFiles(baseline({ files: [{ path: 'LICENSE', content: mit }, { path: guide, content: credential }] }))).includes('secret_key'));
+});

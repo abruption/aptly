@@ -13,6 +13,7 @@
     "mcp": "node bin/aptly.ts serve",
     "test:package": "node scripts/package-smoke.ts",
     "poc": "node scripts/poc.ts",
+    "check:docs": "node scripts/docs-check.ts",
     "check:release": "npm run build && node scripts/release-check.ts",
     "probe:codex": "node test-support/codex-host-probe.ts",
     "postinstall": "node --input-type=module -e \"import {existsSync} from 'node:fs'; import {execFileSync} from 'node:child_process'; if(existsSync('dist/bin/aptly.js')) execFileSync(process.execPath,['dist/bin/aptly.js','setup','--automatic'],{stdio:'inherit'});\""
