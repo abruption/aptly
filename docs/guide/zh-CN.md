@@ -284,18 +284,16 @@ HTTP 之前产生的新预算拒绝不会缓存。只有可验证的既有默认
 
 <a id="execution-statistics"></a>
 
-### 执行统计（未发布）
+### 执行统计（0.1.10 起）
 
-此功能尚未发布；npm `aptly@0.1.9` 不包含这些命令。请在源码检出目录安装并构建后使用以下示例。需要已有 Aptly 设置。初期仅支持 POSIX 数据收集，Windows 统计收集不受支持；Windows 上的常规 Aptly 使用不受影响。
+执行统计从 Aptly 0.1.10 起提供。请安装支持的版本，或按照[软件包更新](#软件包更新)升级后使用以下示例。需要已有 Aptly 设置。初期仅支持 POSIX 数据收集，Windows 统计收集不受支持；Windows 上的常规 Aptly 使用不受影响。
 
 ```sh
-npm ci --ignore-scripts
-npm run build
-node bin/aptly.ts stats
-node bin/aptly.ts stats --today --client codex
-node bin/aptly.ts stats enable --client codex
-node bin/aptly.ts stats enable --client codex --codex-native-metadata
-node bin/aptly.ts stats disable --client codex
+aptly stats
+aptly stats --today --client codex
+aptly stats enable --client codex
+aptly stats enable --client codex --codex-native-metadata
+aptly stats disable --client codex
 ```
 
 命令形式为 `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]` 和 `aptly stats disable [--client]`。收集默认关闭，postinstall 也不会自动启用。enable 安装 Aptly 所有的命令观察器，并记录在独立的 `stats-ownership.json`；既有 receipt、MCP、launcher、密钥、预算和传输设置保持不变。启用后请重启 MCP 和宿主；Codex 还需在 `/hooks` 审核 native Hook 信任。

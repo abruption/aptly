@@ -284,18 +284,16 @@ aptly budget status --client claude
 
 <a id="execution-statistics"></a>
 
-### 실행 통계 (미출시)
+### 실행 통계 (0.1.10부터)
 
-이 기능은 미출시이며 npm `aptly@0.1.9`에는 이 명령이 없습니다. 소스 체크아웃에서 설치·빌드한 뒤 아래 예제를 사용하십시오. 기존 Aptly 설정이 필요합니다. 초기 수집은 POSIX에서만 지원하며 Windows 통계 수집은 미지원입니다. Windows의 일반 Aptly 사용에는 영향이 없습니다.
+실행 통계는 Aptly 0.1.10부터 지원합니다. 0.1.10 이상을 설치하거나 [패키지 업데이트](#패키지-업데이트) 안내에 따라 업그레이드한 뒤 아래 예제를 사용하십시오. 기존 Aptly 설정이 필요합니다. 초기 수집은 POSIX에서만 지원하며 Windows 통계 수집은 미지원입니다. Windows의 일반 Aptly 사용에는 영향이 없습니다.
 
 ```sh
-npm ci --ignore-scripts
-npm run build
-node bin/aptly.ts stats
-node bin/aptly.ts stats --today --client codex
-node bin/aptly.ts stats enable --client codex
-node bin/aptly.ts stats enable --client codex --codex-native-metadata
-node bin/aptly.ts stats disable --client codex
+aptly stats
+aptly stats --today --client codex
+aptly stats enable --client codex
+aptly stats enable --client codex --codex-native-metadata
+aptly stats disable --client codex
 ```
 
 명령 형식은 `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]`, `aptly stats disable [--client]`입니다. 수집은 기본적으로 꺼져 있고 postinstall에서도 자동 활성화하지 않습니다. enable은 Aptly 소유 명령 관찰자를 설치하고 별도의 `stats-ownership.json`에 기록하며 기존 receipt·MCP·launcher·키·예산·전송 설정은 유지합니다. 활성화 후 MCP와 호스트를 재시작하고 Codex에서는 `/hooks`의 native Hook 신뢰를 검토하십시오.

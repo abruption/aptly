@@ -284,18 +284,16 @@ New pre-HTTP budget denials are not cached. Only verifiable known-unpaid legacy 
 
 <a id="execution-statistics"></a>
 
-### Execution statistics (unreleased)
+### Execution statistics (0.1.10 or later)
 
-This feature is unreleased; npm `aptly@0.1.9` does not include these commands. From a source checkout, install and build, then use the examples below. An existing Aptly setup is required. Collection is initially POSIX-only; Windows collection is unsupported and normal Aptly use on Windows is unaffected.
+Execution statistics require Aptly 0.1.10 or later. Install a supported version or upgrade following [package updates](#package-updates), then use the examples below. An existing Aptly setup is required. Collection is initially POSIX-only; Windows collection is unsupported and normal Aptly use on Windows is unaffected.
 
 ```sh
-npm ci --ignore-scripts
-npm run build
-node bin/aptly.ts stats
-node bin/aptly.ts stats --today --client codex
-node bin/aptly.ts stats enable --client codex
-node bin/aptly.ts stats enable --client codex --codex-native-metadata
-node bin/aptly.ts stats disable --client codex
+aptly stats
+aptly stats --today --client codex
+aptly stats enable --client codex
+aptly stats enable --client codex --codex-native-metadata
+aptly stats disable --client codex
 ```
 
 The command forms are `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]` and `aptly stats disable [--client]`. Collection is off by default and postinstall does not enable it. Enable installs Aptly-owned command observers recorded separately in `stats-ownership.json`; it leaves the legacy receipt, MCP, launchers, keys, budget and transmission settings intact. Restart MCP and the host after enabling; for Codex, review native Hook trust in `/hooks`.

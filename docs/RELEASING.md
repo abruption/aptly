@@ -1,5 +1,15 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.10 준비 상태
+
+준비 기반 main은 `7589cef9c1f5ed72725e6feeaff84487635914db`입니다. 선택형 로컬 실행 통계(#120·PR #121), Actions 의존성(PR #112·#117·#116·#113), 개발용 Node 타입(PR #114)을 포함합니다. Node.js 24 이상과 24·26 CI 검증을 유지합니다. 버전·CLI·lockfile·변경 이력과 4개 언어 가이드를 0.1.10에 맞추며 준비는 [#122](https://github.com/abruption/aptly/issues/122), 사용자는 [한국어 릴리스 노트](release-notes/0.1.10.md)를 참고하십시오.
+
+통계는 기존 설치와 postinstall에서 활성화되지 않습니다. POSIX의 명시적 `stats enable`만 관찰자를 등록하며 Codex native 메타데이터 조회는 별도 옵션으로 동의해야 합니다. 새 Hook의 신뢰는 호스트에서 검토하고, 실제 effort·사용자 수용·비용 합계나 완전한 실행 이력으로 해석하지 않습니다. 기존 키·전송 정책·원장·완료/불명 결과·예산과 사용자 Hook은 보존합니다.
+
+로컬 후보에서 테스트 612개(실패·생략 0), 타입 검사·빌드, fixture MCP(유료 호출·자식 실행 0), 공개 파일 검사(소스 290개·패키지 94개), 격리 tarball의 CLI·compiled exports·MCP·캐시 및 4개 언어 문서 검사를 통과했습니다. compiled CLI는 0.1.10을 출력합니다. 원격 준비 PR 검사는 별도로 확인합니다. 준비 PR 병합 후 정확한 main CI 성공을 확인하고 별도 게시 지시를 받은 다음 annotated `v0.1.10` 태그를 생성하십시오. 현재 태그·npm 0.1.10·GitHub Release·새 provenance는 생성하지 않았으며, 이전 버전의 게시 증거를 이번 버전에 재사용하지 않습니다.
+
+업데이트한 artifact Actions는 게시 없는 v0.1.9 검증 실행 [#42764881720](https://github.com/abruption/aptly/actions/runs/42764881720)·[#42765169251](https://github.com/abruption/aptly/actions/runs/42765169251)에서 확인했습니다. 업로드 산출물을 고정된 download-artifact 8.0.2 코드로 로컬에서 다운로드·압축 해제하고 archive SHA-256을 검증했습니다. 기존 dry-run은 publish job과 그 안의 다운로드 단계를 생략하므로 이를 실제 runner의 publish job 실행이나 새 0.1.10 archive·OIDC 게시 검증으로 취급하지 않습니다.
+
 ## 0.1.9 게시와 검증
 
 2026-11-09에 source `0b77bec4ecf402ccf3d6bd278499631bd12d76c0`의 annotated `v0.1.9` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42610755012/attempts/1)를 수행했습니다. 준비 PR #115 검사 19개와 정확한 병합 main CI 7개 성공을 구분해 확인한 뒤 태그를 생성했습니다. 설치 시험·새 runner 검증/pack·게시 3개 job이 성공했고 npm `latest`는 0.1.9로 확인했습니다. 이번 artifact와 registry archive의 SHA-256이 일치했습니다.
