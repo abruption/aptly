@@ -116,7 +116,7 @@ API キーは macOS Keychain、インストール済みの Linux `secret-tool`�
 
 キー設定は入力・保存前に対象ホストを診断します。いずれかが失敗すると入力を求めず、全ホストを変更しません。`--check` はキーや資格情報ストアにアクセスしません。
 
-Linux の `--check` は実行可能な `secret-tool` も確認し、安全な明示的セッションバスアドレスと `gdbus` がある場合、資格情報サービスを起動・アクセスせずにバスメタデータを読み取ります。確実な失敗は入力前に `secure_store_unavailable` と `secure_store_secret_tool_missing`、`secure_store_bus_missing`、`secure_store_service_missing` のいずれかで通知します。`secure_store_bus_unverified`、`secure_store_probe_unavailable`、サービスの存在・起動可能を示す未確認コードは準備状態が不明であることを意味します。サービスの存在や起動可能性はロック解除や書き込み可能を保証しません。必要に応じて `secret-tool` と Secret Service プロバイダーをインストールし、使用するデスクトップセッションで実行してください。実際の保存は失敗する場合があります。SSH やヘッドレスセッションでは、`APTLY_SECRET_BACKEND` がない場合に `OPENAI_API_KEY` をホスト MCP プロセスへ安全に渡してください。既存の認証ラッパーや環境は保持してください。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
+Aptly 0.1.9 以降、Linux の `--check` は実行可能な `secret-tool` も確認し、安全な明示的セッションバスアドレスと `gdbus` がある場合、資格情報サービスを起動・アクセスせずにバスメタデータを読み取ります。確実な失敗は入力前に `secure_store_unavailable` と `secure_store_secret_tool_missing`、`secure_store_bus_missing`、`secure_store_service_missing` のいずれかで通知します。`secure_store_bus_unverified`、`secure_store_probe_unavailable`、サービスの存在・起動可能を示す未確認コードは準備状態が不明であることを意味します。サービスの存在や起動可能性はロック解除や書き込み可能を保証しません。必要に応じて `secret-tool` と Secret Service プロバイダーをインストールし、使用するデスクトップセッションで実行してください。実際の保存は失敗する場合があります。SSH やヘッドレスセッションでは、`APTLY_SECRET_BACKEND` がない場合に `OPENAI_API_KEY` をホスト MCP プロセスへ安全に渡してください。既存の認証ラッパーや環境は保持してください。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
 
 Claude だけが失敗した場合は次の順序で診断し、`launcher_migration_available` の場合にのみ移行を検討してください。
 
@@ -129,7 +129,7 @@ aptly set env OPENAI_API_KEY --client claude
 
 `--dry-run` は変更しません。移行は所有記録と一致する Aptly の標準登録に限り、Node・サーバーパスを現在のビルドへ更新します。環境設定・Hook・ポリシー・他のホストを保持し、資格情報へのアクセスや古い起動プログラムの実行は行いません。独自ラッパー、所有記録のない登録、変更済みの登録は拒否します。その場合は登録をローカルで確認し、ラッパーの安全な環境変数受け渡しを使うか、別途確認した標準登録へ切り替えてください。検証を回避するために所有記録を編集・削除しないでください。
 
-`aptly setup --check --client codex|claude|all` は通常の設定計画を読み取るだけで、ファイルやディレクトリを作成しません。実行中のホストを検証するものではなく、確認時点の状態を示します。`--check` と組み合わせられるのは `--client` のみです。`hook_policy_path_conflict` が表示された場合は、選択したホスト設定ディレクトリと既存のポリシー参照をローカルで確認し、意図したホストディレクトリを選択してから再試行してください。設定は既存の構成を保持し、ポリシーを移動またはコピーしません。ランチャーの移行ではこの不一致を解決できません。
+Aptly 0.1.9 以降、`aptly setup --check --client codex|claude|all` は通常の設定計画を読み取るだけで、ファイルやディレクトリを作成しません。実行中のホストを検証するものではなく、確認時点の状態を示します。`--check` と組み合わせられるのは `--client` のみです。`hook_policy_path_conflict` が表示された場合は、選択したホスト設定ディレクトリと既存のポリシー参照をローカルで確認し、意図したホストディレクトリを選択してから再試行してください。設定は既存の構成を保持し、ポリシーを移動またはコピーしません。ランチャーの移行ではこの不一致を解決できません。
 
 `launcher_migration_not_owned` が既存の登録を保持した状態（`mcp_created: false`）を指す場合、**Aptly 0.1.3 以降では** `--include-existing` を明示して移行できます。0.1.3 以降をインストールし、次を実行してください。
 
@@ -281,6 +281,36 @@ aptly budget status --client claude
 `budget_exhausted` はローカル制限であり、OpenAI 認証や残高のエラーではありません。直接推薦・文脈補足の応答の `budget_limit` と状態の `exhausted_by` で上限を区別します。予約額は実際の請求上限ではなく、月次で自動リセットしません。単価変更で過去の予約を再計算せず、キー再入力や既定値適用で返金しません。
 
 HTTP 前の新しい予算拒否はキャッシュしません。検証可能な既存の既定ポリシーによる未課金の拒否だけを同じ ID で再評価し、完了した推薦・保留・文脈不足の結果と `unknown` は保持します。予算回復は元の retry 参照の 5 分やプロセス寿命を延長せず、履歴や権限の制約も解除しません。任意の過去の独自ポリシーの digest を推測せず、新しい ID や台帳削除で競合・不明結果を回避しないでください。
+
+<a id="execution-statistics"></a>
+
+### 実行統計（未リリース）
+
+この機能は未リリースで、npm `aptly@0.1.9` にこれらのコマンドはありません。ソースのチェックアウトでインストール・ビルドしてから次の例を使用してください。既存の Aptly 設定が必要です。初期の収集は POSIX のみ対応し、Windows の統計収集は未対応です。Windows での通常の Aptly 利用には影響しません。
+
+```sh
+npm ci --ignore-scripts
+npm run build
+node bin/aptly.ts stats
+node bin/aptly.ts stats --today --client codex
+node bin/aptly.ts stats enable --client codex
+node bin/aptly.ts stats enable --client codex --codex-native-metadata
+node bin/aptly.ts stats disable --client codex
+```
+
+形式は `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]`、`aptly stats disable [--client]` です。収集は既定で無効で、postinstall でも自動有効化しません。enable は Aptly 所有のコマンド観測器を設置し、別の `stats-ownership.json` に記録します。既存の receipt・MCP・launcher・キー・予算・送信設定は保持します。有効化後は MCP とホストを再起動し、Codex では `/hooks` で native Hook の信頼を確認してください。
+
+disable は収集を無効にし、変更されていない所有観測器だけを削除します。変更済みやカスタムの観測器は警告して保持し、データとキーも残します。`remove` は統計所有の定義を検証・削除しますが、データは保持します。個別に管理される収集器やカスタム Hook は自動的に取り込みません。
+
+非公開の状態は予算台帳とは別の `stats.sqlite`、`stats-config.json`、`stats-key`（HMAC 秘密鍵）を使用します。鍵を共有しないでください。記録にタスク原文・会話記録・生 ID・パス・エラー・資格情報は含まれません。統計の読み取りは API・キー・資格情報ストアにアクセスせず、初期化や通知も行いません。
+
+集計は `model_match`、`model_mismatch`、`model_changed`、`unknown`、`pending`、`expired_pending`、`application_unconfirmed` を示し、advisory は別に扱います。`blocked`、`explicit_preserved`、`unbound` は分母から除外します。実際の effort は測定せず、設定された effort は実際の値ではありません。Claude のエイリアス `haiku`、`sonnet`、`opus`、`fable` は実際の正規モデルに解決できず `unknown` です。正確な正規モデルのみ対応し、モデルの観測は全エイリアスの一致を保証しません。ユーザーの受容や品質を示す数値ではありません。
+
+直接 advisory・retry・native の連続性がない新規 unbound 呼び出しを曖昧な時刻で結合しません。`--today` はバインディングの初回作成日の UTC 日付を使います。容量は委任 10,000 件と 子 10,000 件に固定され、自動削除はありません。件数は保持レコードの値であり、生涯累計ではありません。容量到達時は新規 ID を破棄し、到達フラグを表示します。コールバックの欠落はバイパスの証拠ではありません。トークン・コストの集計、ライブ割当量や節約額はありません。
+
+Codex native メタデータは明示オプションがない限り無効です。正確な子 ID で SQLite の native メタデータだけを読み、会話記録の取得・修復・app-server の起動はしません。移動された `sqlite_home`、未対応のスキーマ・パス、曖昧な結合は unknown です。SQL 読み取りで既存 SHM の読み取りマークが更新される場合がありますが、行・スキーマを書き込まず、sidecar を意図的に作成しません。
+
+収集はベストエフォートです。イベントの欠落・遅延・容量超過により、モデル履歴が不完全になる場合があります。`model_match`は保持された証拠の一致であり、すべてのリクエストで同じモデルを使用した証明ではありません。Codexの収集無効化、設定削除、または`--codex-native-metadata`なしの有効化でnativeメタデータへの同意も解除されます。Nodeやパッケージのパスを変更した場合は、収集を無効化して再度有効化し、コマンドを更新してください。利用不能・破損したストアは保持されます。キーを削除したり使用量をゼロと判断したりせず、ローカルで確認してください。
 
 <a id="外部送信と自動共有の無効化"></a>
 

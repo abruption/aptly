@@ -10,7 +10,7 @@ import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
 import { budgetErrorDetails } from '../src/budget.ts';
-import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus } from '../src/setup.ts';
+import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus, showStatistics, setStatisticsCollection } from '../src/setup.ts';
 import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { linuxStoreReadiness } from '../src/linux-store-readiness.ts';
@@ -30,6 +30,18 @@ try {
   if(args.length)throw new Error('update_invalid_options');
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
    const result=updateGlobalInstallation({packageRoot});output(result);if(result.status==='error')process.exitCode=1;
+ } else if(command==='stats'){
+  let action:'enable'|'disable'|undefined,start=0;if(args[0]==='enable'||args[0]==='disable'){action=args[0];start=1;}
+  let clients:('codex'|'claude')[]=['codex','claude'];let today=false,native=false;const seen=new Set<string>();
+  for(let n=start;n<args.length;n++){const flag=args[n];if(seen.has(flag))throw new Error('statistics_invalid_options');seen.add(flag);
+   if(flag==='--today'&&!action){today=true;continue;}
+   if(flag==='--codex-native-metadata'&&action==='enable'){native=true;continue;}
+   if(flag==='--client'&&['codex','claude','all'].includes(args[n+1])){const v=args[++n];clients=v==='all'?['codex','claude']:[v as 'codex'|'claude'];continue;}
+   throw new Error('statistics_invalid_options');
+  }
+  if(native&&!clients.includes('codex'))throw new Error('statistics_invalid_options');
+  const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
+  const result=action?setStatisticsCollection(action==='enable',{clients,packageRoot,...(native?{codexNativeMetadata:true}:{})}):showStatistics({clients},today);output(result);if('status' in result&&result.status==='partial')process.exitCode=1;
  } else if(command==='budget'){
   if(args[0]!=='status')throw new Error('budget_invalid_options');
    let clients:('codex'|'claude')[]=['codex','claude'];
@@ -121,12 +133,12 @@ try {
  const budgetCode=[caughtCode,message].find(value=>typeof value==='string'&&['invalid_budget_configuration','budget_invalid_options'].includes(value));
  const configCode=[caughtCode,message].find(value=>typeof value==='string'&&safeConfigurationCodes.includes(value));
  const setCodes=['set_environment_key_unsupported','set_invalid_options','set_value_too_large','set_interactive_input_required','set_input_cancelled'];
- const code=command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):budgetCode??configCode??'operation_failed';
+ const code=command==='stats'?'statistics_invalid_options':command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):budgetCode??configCode??'operation_failed';
  const budgetDetails=budgetErrorDetails(error);
  process.stderr.write('aptly: '+code+(budgetDetails.invalid_budget_keys?.length?' ['+budgetDetails.invalid_budget_keys.join(', ')+']':'')+(budgetDetails.budget_error?' ('+budgetDetails.budget_error+')':'')+'\n');process.exitCode=1;
 }
 finally {
- if(!process.exitCode&&!helpHandled){
+ if(!process.exitCode&&!helpHandled&&command!=='stats'){
   try {
    const hint=await updateNotification({command,args,env:process.env,stdinIsTTY:!!process.stdin.isTTY,stderrIsTTY:!!process.stderr.isTTY,stdoutIsTTY:!!process.stdout.isTTY,currentVersion:VERSION});
    if(hint)process.stderr.write(hint+'\n');

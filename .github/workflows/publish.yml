@@ -35,7 +35,7 @@ jobs:
       ANTHROPIC_API_KEY: ''
       ROUTER_PROVIDER: fixture
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ inputs.release_tag || github.ref_name }}
           persist-credentials: false
@@ -72,7 +72,7 @@ jobs:
           printf 'RELEASE_DIR=%s/aptly-release\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           printf 'NPM_CONFIG_USERCONFIG=%s/npmrc-oidc\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           printf 'POC_TEST_TMP_ROOT=%s\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ inputs.release_tag || github.ref_name }}
           fetch-depth: 0
@@ -132,7 +132,7 @@ jobs:
         run: |
           printf 'RELEASE_DIR=%s/aptly-release\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           printf 'NPM_CONFIG_USERCONFIG=%s/npmrc-oidc\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           fetch-depth: 0

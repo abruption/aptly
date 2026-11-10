@@ -13,6 +13,7 @@ import { automaticHook, effectiveTransmission, loadAutomaticHookPolicy, initialH
 import { SpawnContexts } from './spawn-context.ts';
 import { RoutingObservations } from './routing-observations.ts';
 import { ContextRetries } from './context-retry.ts';
+import { statisticsState } from './statistics-policy.ts';
 
 const taskSchema=z.object({summary:z.string().min(1).max(4000),operation:z.enum(['read_only','write','review','analysis']),context_sufficient:z.boolean()}).strict();
 const constraintsSchema=z.object({model_pinned:z.boolean().optional(),effort_pinned:z.boolean().optional(),role_pinned:z.boolean().optional(),fork_inherits:z.boolean().optional(),provenance_verified:z.boolean().optional()}).strict();
@@ -29,6 +30,24 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  const contexts=new SpawnContexts();
  const retries=new ContextRetries(router,env.APTLY_HOOK_POLICY_PATH);
  const server=new McpServer({name:'aptly',version:VERSION});
+ // Durable statistics are a separate, opt-in best-effort projection after routing settles.
+ const trackStatistics=async(client:Client,input:{event?:Record<string,unknown>;observation?:Record<string,unknown>;requestId?:string;recommendation?:Record<string,unknown>})=>{
+  if(process.platform==='win32')return;
+  try{
+   const stateDirectory=statisticsState(env.APTLY_HOOK_POLICY_PATH);if(!stateDirectory)return;
+   const stats=await import('./statistics.ts'),options={stateDirectory};if(!stats.loadStatisticsConfig(options)?.enabled_clients.includes(client))return;
+   const observation=input.observation,result=input.recommendation;
+   const profileId=typeof observation?.profile_id==='string'?observation.profile_id:typeof result?.profile_id==='string'?result.profile_id:undefined;
+   const profile=router.policy.profiles.find(p=>p.id===profileId&&p.client===client);
+   const expected=profile?{profileId:profile.id,model:profile.model,...(profile.reasoning_effort?{effort:profile.reasoning_effort}:{}),catalogVersion:router.policy.catalog_version}:undefined;
+   if(input.event&&observation){
+    const disposition=observation.status==='arguments_updated'?'auto':observation.status==='advisory'?'advisory':['blocked','awaiting_context'].includes(String(observation.status))?'blocked':String(observation.reason).startsWith('explicit_')?'explicit_preserved':undefined;
+    if(!disposition)return;
+    stats.recordStatisticsRecommendation(options,{client,sessionId:typeof input.event.session_id==='string'?input.event.session_id:undefined,toolUseId:typeof(input.event.tool_use_id??input.event.tool_call_id)==='string'?String(input.event.tool_use_id??input.event.tool_call_id):undefined,requestId:typeof observation.request_id==='string'?observation.request_id:undefined,disposition,expected});
+   }else if(expected&&input.requestId&&(result?.status==='recommended'||result?.status==='prepared'))stats.recordStatisticsRecommendation(options,{client,requestId:input.requestId,disposition:'unbound',expected});
+  }catch{ /* Statistics never alter provider, budget, Hook output or execution. */ }
+ };
+
  const annotations={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:mode==='decisions'};
  const evidence=(client:Client,event:Record<string,unknown>)=>{
   const config=loadConfiguration(env);
@@ -44,6 +63,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
   credential_status:credentialStatus,
+  execution_statistics:{collection:'explicit_operator_opt_in',view:'aptly stats',semantics:'host_reported_model_evidence_not_user_acceptance',effective_effort:'not_measured',usage_rollups:'not_collected'},
   automatic_hook:{status:automatic.reason,mode:automatic.policy?.mode??'disabled',transmission:automatic.policy?effectiveTransmission(automatic.policy):null,transmission_provenance:automatic.policy?(automatic.policy.schema_version===1?'legacy_v1_default':'operator_policy_v2'):'unavailable',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,fresh_delegation_tool:'prepare_fresh_delegation',fresh_delegation_intent:'caller_declared_not_verified',observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported',
    guarantee:{scope:'enabled_trusted_connected_supported_hook_only',missing_hook_detectable:false,unavailable_host_hook:'host_controls_fallback',eligible_defaults_failure:'deny_when_transmission_enabled',inherited_application:'defaults_deny_advisory_feedback',caller_recovery:'model_driven_not_guaranteed'}},
  });});
@@ -69,7 +89,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  server.registerTool('recommend_agent',{
   description:'Recommend an allowlisted profile for a supplied task only; never inspects host settings, spawns, or authorizes an agent. Optional constraints describe caller-declared choices to preserve; omitted flags are not claims about current host settings. Decisions mode may incur a bounded classification request.',annotations,
   inputSchema:{request_id:z.string().min(1).max(96),client:z.enum(['codex','claude']),task:taskSchema,eligible_profile_ids:z.array(z.string()).min(1).max(20).optional(),constraints:constraintsSchema.optional()}
- },async input=>content({...await router.advise(input),provider:mode}));
+ },async input=>{const result=await router.advise(input);await trackStatistics(input.client,{requestId:input.request_id,recommendation:result as unknown as Record<string,unknown>});return content({...result,provider:mode});});
  server.registerTool('retry_spawn_recommendation',{
   description:'Supply one bounded task description after an Aptly Hook returns needs_context and a retry_id. Use the same MCP process within five minutes; no native call IDs are needed. May make one paid classification; duplicate input reuses its request identity, changed input conflicts. Never spawns or changes history. If still needs_context/unavailable, stop; do not create another ID. A blocked spawn_application remains advisory.',
   annotations,inputSchema:{retry_id:z.string().regex(/^[a-f0-9]{64}$/),description:z.string().max(4000)}
@@ -78,6 +98,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   try{result=await retries.retry(retry_id,description,extra.signal);}
   catch{result={status:'unavailable',reason:'context_retry_unavailable',application:'advisory_only',retry_id,context_retry_allowed:false};}
   observations.recordRetry(retry_id,result);
+  const client=typeof result.profile==='object'&&result.profile&&'client' in result.profile?result.profile.client:undefined;if(client==='codex'||client==='claude')await trackStatistics(client,{requestId:retry_id,recommendation:result});
   return content(result);
  });
  server.registerTool('prepare_fresh_delegation',{
@@ -86,7 +107,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
    declaration:z.object({independent_task:z.boolean(),same_task:z.boolean(),original_call_outcome:z.enum(['blocked','executed','unknown']),history_requirement:z.enum(['not_required','required','unknown']),standalone_context_complete:z.boolean()}).strict()}
  },async({retry_id,task_name,standalone_task,declaration},extra)=>{
   const result=retries.prepareFresh(retry_id,task_name,standalone_task,declaration,extra.signal);
-  observations.recordFresh(retry_id,result);return content(result);
+  observations.recordFresh(retry_id,result);await trackStatistics('codex',{requestId:retry_id,recommendation:result});return content(result);
  });
  server.registerTool('get_routing_precedence',{
   description:'Explain preserved choices and unknown effective setting sources. Never classifies, reads a transcript, or changes permissions.',annotations:{...annotations,openWorldHint:false},inputSchema:hookSchema
@@ -102,6 +123,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   if(env.APTLY_HOOK_POLICY_PATH!==undefined){
    const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,context:()=>contexts.lookup(client,event),onObservation:value=>observations.record(value),onNeedsContext:(seed,current)=>retries.register(seed,current),onBlockedAdvice:(seed,current)=>retries.registerAdvice(seed,current)});
    observations.record(result.observation);
+   await trackStatistics(client,{event,observation:result.observation as unknown as Record<string,unknown>});
    return {content:[{type:'text',text:JSON.stringify(result.output)}]};
   }
   const input=hookInput({client,event,policy:router.policy});
