@@ -2,7 +2,7 @@ import { lstatSync, readFileSync, mkdirSync, chmodSync, openSync, writeFileSync,
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
@@ -11,6 +11,8 @@ import { Router, defaultPolicy } from './core.ts';
 import { loadAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
 import { assertPrivateStatePath } from './files.ts';
 import { assertWindowsPrivatePath, protectNewWindowsPrivateDirectory, copyWindowsFilePermissions } from './windows-private.ts';
+
+import { STATISTICS_CONFIG_FILE, STATISTICS_KEY_FILE, STATISTICS_DB_FILE, parseStatisticsConfig, serializeStatisticsConfig, readStatistics, type StatisticsConfig } from './statistics.ts';
 
 type Client = 'codex' | 'claude';
 type ObjectValue = Record<string, any>;
@@ -229,7 +231,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
   for (const privateFile of [policy, manifest]) if (privateFile.before !== null) privatePermissions(privateFile.path, 'private_file_permissions');
   observations.push(mcp, hooks, policy, manifest);
   const oldOwner = manifest.before === null ? undefined : ownership(json(manifest.before), client);
-  if (removing && !oldOwner) return { changes, observations, dirs, result: { client, status: 'skipped', codes: ['no_owned_setup'] } };
+  if (removing && !oldOwner) { if(read(join(privateDir,STATISTICS_OWNERSHIP_FILE)).text!==null)fail('statistics_observers_present'); return { changes, observations, dirs, result: { client, status: 'skipped', codes: ['no_owned_setup'] } }; }
   const hookValue = hook(client), hooksObject = json(hooks.before), entries = hooksArray(hooksObject);
   const config = client === 'codex' ? toml(mcp.before ?? '') : json(mcp.before), servers = map(config, client === 'codex' ? 'mcp_servers' : 'mcpServers');
   if (removing) {
@@ -256,6 +258,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     const p = json(policy.before);
     if (!isDeepStrictEqual(p, owned.policy)) fail('managed_policy_changed');
     if (owned.policy_created) policy.after = null; manifest.after = null; result.status = 'removed';
+    appendStatisticsRemoval(options,client,hooksObject,hooks,changes,observations);
   } else {
     const root = resolve(options.packageRoot ?? join(dirname(fileURLToPath(import.meta.url)), '..', ...(import.meta.url.includes('/dist/src/') ? ['..'] : [])));
     const additions = { APTLY_HOOK_POLICY_PATH: policyPath, ROUTER_LEDGER_PATH: join(stateDir, 'ledger.json') };
@@ -439,7 +442,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   }
   return { status: results.some(result => result.status === 'error') ? 'partial' : results.every(result => result.status === 'skipped') ? 'skipped' : 'complete', clients: results };
 }
-const codes = new Set(['unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
+const codes = new Set(['statistics_requires_setup','statistics_policy_conflict','statistics_config_invalid','statistics_ownership_invalid','statistics_observers_present','statistics_key_missing','statistics_shared_state','statistics_platform_unsupported','statistics_invalid_options','statistics_observer_missing','unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
 function safeCode(error: unknown) { return error instanceof Error && codes.has(error.message) ? error.message : 'configuration_io_error'; }
 export function setupHosts(options: SetupOptions = {}): SetupResult { return execute(options, false); }
 /** Snapshot the normal setup plan without applying it; it does not verify a running host. */
@@ -581,4 +584,126 @@ export function showBudgetStatus(options: SetupOptions = {}) {
     }catch(error){return {client,status:'error',codes:[safeCode(error)],...budgetErrorDetails(error)};}
   });
   return {status:clients.some(client=>client.status==='error')?'partial':'complete',clients};
+}
+
+
+const STATISTICS_OWNERSHIP_FILE='stats-ownership.json';
+type StatisticsOwner={schema_version:1;kind:'aptly-statistics-ownership';client:Client;state_directory:string;hooks:Record<string,ObjectValue>;hooks_fingerprint:string};
+function statisticsOwner(value:ObjectValue,client:Client):StatisticsOwner {
+ const valid=['PostToolUse','PostModelRequest','SubagentStart','SubagentStop'];
+ if(value.schema_version!==1||value.kind!=='aptly-statistics-ownership'||value.client!==client||typeof value.state_directory!=='string'||!isAbsolute(value.state_directory)||!object(value.hooks)||Object.keys(value.hooks).some(k=>!valid.includes(k))||Object.values(value.hooks).some(v=>!object(v)||!Array.isArray(v.hooks))||value.hooks_fingerprint!==createHash('sha256').update(JSON.stringify(value.hooks)).digest('hex'))fail('statistics_ownership_invalid');
+ return value as StatisticsOwner;
+}
+function statisticEntries(value:ObjectValue,event:string,create=false):any[]{
+ if(value.hooks===undefined&&!create)return [];
+ const events=map(value,'hooks');if(events[event]===undefined){if(!create)return [];events[event]=[];}
+ if(!Array.isArray(events[event]))fail('hook_shape_conflict');return events[event];
+}
+function statisticsPolicy(options:SetupOptions,client:Client,requireRegistration=true){
+ const paths=resolved(options,client),policyPath=join(paths.privateDir,'auto-policy.json');
+ if(requireRegistration){
+  const mcp=read(paths.mcpPath),config=client==='codex'?toml(mcp.text??''):json(mcp.text);
+  const entry=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly;
+  if(!object(entry))fail('statistics_requires_setup');
+  if(entry.env?.APTLY_HOOK_POLICY_PATH!==policyPath)fail('statistics_policy_conflict');
+ }
+ const loaded=loadAutomaticHookPolicy(policyPath);if(!loaded.policy)fail('statistics_requires_setup');
+ return {...paths,policyPath,stateDirectory:loaded.policy!.state_directory};
+}
+function statisticsHooks(root:string,client:Client,policyPath:string):Record<string,ObjectValue>{
+ const observer=join(root,'dist','bin','aptly-observe.js');
+ if(read(observer).text===null)fail('statistics_observer_missing');
+ for(const path of [process.execPath,observer,policyPath])if(!isAbsolute(path)||/[\x00-\x1f\x7f]/.test(path))fail('statistics_invalid_options');
+ const quote=(v:string)=>"'"+v.replaceAll("'","'\\''")+"'";
+ const command=[process.execPath,'--no-warnings',observer,'--client',client,'--policy-path',policyPath].map(quote).join(' ');
+ const handler={type:'command',command,timeout:5,statusMessage:'Aptly local execution statistics'};
+ const events=client==='codex'?['PostToolUse','SubagentStart','PostModelRequest','SubagentStop']:['PostToolUse','SubagentStart','SubagentStop'];
+ return Object.fromEntries(events.map(event=>[event,{...(event==='PostToolUse'?{matcher:client==='codex'?'^(spawn_agent|collaborationspawn_agent|collaboration\\.spawn_agent)$':'^(Agent|Task)$'}:{}),hooks:[{...handler}]}]));
+}
+function statisticsSnapshot(path:string):Snapshot{const value=read(path);if(value.text!==null){privatePermissions(path,'private_file_permissions');if(lstatSync(path).nlink!==1)fail('unsafe_configuration_file');}return{path,before:value.text,after:value.text,mode:value.mode};}
+function statisticsConfig(snapshot:Snapshot):StatisticsConfig{
+ if(snapshot.before===null)return {schema_version:1 as const,enabled_clients:[] as Client[]};
+ const value=parseStatisticsConfig(json(snapshot.before));if(!value)fail('statistics_config_invalid');return value!;
+}
+function possibleStatisticsObserver(entry:unknown):boolean {
+ return object(entry)&&Array.isArray(entry.hooks)&&entry.hooks.some((h:unknown)=>object(h)&&h.type==='command'&&(h.statusMessage==='Aptly local execution statistics'||(typeof h.command==='string'&&h.command.includes('aptly-observe.js'))));
+}
+function clearCodexMetadata(state:StatisticsConfig,client:Client){if(client==='codex'){delete state.codex_native_metadata;delete state.codex_home;}}
+function appendStatisticsRemoval(options:SetupOptions,client:Client,hooksObject:ObjectValue,hooks:Snapshot,changes:Snapshot[],observations:Snapshot[]){
+ const paths=resolved(options,client),receipt=statisticsSnapshot(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE));observations.push(receipt);
+ const stateDirectory=statisticsPolicy(options,client,false).stateDirectory;
+ const owned=receipt.before===null?undefined:statisticsOwner(json(receipt.before),client);
+ if(owned&&owned.state_directory!==stateDirectory)fail('statistics_ownership_invalid');
+ const config=statisticsSnapshot(join(stateDirectory,STATISTICS_CONFIG_FILE));observations.push(config);
+ if(owned){
+  for(const[event,entry]of Object.entries(owned.hooks)){
+   const list=statisticEntries(hooksObject,event),matches=list.filter(v=>isDeepStrictEqual(v,entry));if(matches.length>1||(!matches.length&&list.some(possibleStatisticsObserver)))fail('managed_hook_changed');
+   for(let n=list.length-1;n>=0;n--)if(isDeepStrictEqual(list[n],entry))list.splice(n,1);
+  }
+  receipt.after=null;hooks.after=stringify(hooksObject);
+ }
+ if(config.before!==null){const state=statisticsConfig(config);state.enabled_clients=state.enabled_clients.filter(c=>c!==client);clearCodexMetadata(state,client);config.after=serializeStatisticsConfig(state);}
+ for(const snap of [config,receipt])if(snap.before!==snap.after)changes.push(snap);
+}
+/** Explicit collection controls; legacy routing receipt and model/credential settings stay untouched. */
+export function setStatisticsCollection(enabled:boolean,options:SetupOptions&{codexNativeMetadata?:boolean}={}):SetupResult{
+ const clients=[...new Set(options.clients??['codex','claude'])] as Client[];
+ if(typeof enabled!=='boolean'||!clients.length||clients.some(c=>!['codex','claude'].includes(c))||options.automatic||options.mode||options.transmission||options.selectUnselectedOnly||(!enabled&&options.codexNativeMetadata!==undefined)||options.codexNativeMetadata&& !clients.includes('codex'))return{status:'partial',clients:clients.map(client=>({client,status:'error',codes:['statistics_invalid_options']}))};
+ if(process.platform==='win32')return{status:'partial',clients:clients.map(client=>({client,status:'error',codes:['statistics_platform_unsupported']}))};
+ const states=new Set<string>();
+ const plans:SetupPlan[]=clients.map(client=>{
+  try{
+   if(!enabled){const base=resolved(options,client);if(read(join(base.privateDir,'auto-policy.json')).text===null&&read(join(base.privateDir,STATISTICS_OWNERSHIP_FILE)).text===null&&read(join(base.privateDir,'state',STATISTICS_CONFIG_FILE)).text===null)return{changes:[],observations:[],dirs:[],result:{client,status:'unchanged',codes:['statistics_disabled']}};}
+   const paths=statisticsPolicy(options,client,enabled);
+   if(enabled){try{assertPrivateStatePath(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE));assertPrivateStatePath(join(paths.stateDirectory,STATISTICS_CONFIG_FILE));}catch{fail('private_directory_permissions');}}
+   if(states.has(paths.stateDirectory))fail('statistics_shared_state');states.add(paths.stateDirectory);
+   const observations:Snapshot[]=[],changes:Snapshot[]=[];
+   const snap=(path:string,privateFile=true)=>{const result=privateFile?statisticsSnapshot(path):(()=>{const v=read(path);return{path,before:v.text,after:v.text,mode:v.mode};})();observations.push(result);return result;};
+   const policy=snap(paths.policyPath);
+   if(enabled){snap(paths.mcpPath,false);const routingReceipt=snap(join(paths.privateDir,'setup-ownership.json'));if(routingReceipt.before===null)fail('statistics_requires_setup');ownership(json(routingReceipt.before),client);}
+   const hooks=snap(paths.hooksPath,false),config=snap(join(paths.stateDirectory,STATISTICS_CONFIG_FILE));
+   let receipt:Snapshot|undefined,unreadableReceipt=false;
+   try{receipt=snap(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE));}catch(error){if(enabled||safeCode(error)!=='private_file_permissions')throw error;unreadableReceipt=true;}
+   if(!enabled&&!unreadableReceipt&&receipt!.before===null&&config.before===null)return{changes,observations,dirs:[],result:{client,status:'unchanged',codes:['statistics_disabled']}};
+   const key=enabled?snap(join(paths.stateDirectory,STATISTICS_KEY_FILE)):undefined;
+   const value=json(hooks.before),originalHooks=structuredClone(value),state=statisticsConfig(config);let old:StatisticsOwner|undefined,invalidReceipt=unreadableReceipt;
+   if(receipt&&receipt.before!==null)try{old=statisticsOwner(json(receipt.before),client);}catch(error){if(enabled)throw error;invalidReceipt=true;}
+   if(old&&old.state_directory!==paths.stateDirectory){if(enabled)fail('statistics_ownership_invalid');old=undefined;invalidReceipt=true;}
+   let modified=invalidReceipt;
+   if(old)for(const[event,entry]of Object.entries(old.hooks)){
+    const list=statisticEntries(value,event),matches=list.filter(v=>isDeepStrictEqual(v,entry));
+    if(!matches.length){if(enabled)fail('managed_hook_changed');if(list.some(possibleStatisticsObserver))modified=true;continue;}
+    if(matches.length>1){if(enabled)fail('managed_hook_changed');modified=true;continue;}
+    for(let n=list.length-1;n>=0;n--)if(isDeepStrictEqual(list[n],entry))list.splice(n,1);
+   }
+   if(enabled){
+    if(key!.before===null){try{lstatSync(join(paths.stateDirectory,STATISTICS_DB_FILE));fail('statistics_key_missing');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}key!.after=randomBytes(32).toString('hex')+'\n';}
+    else if(!/^[a-f0-9]{64}\n$/.test(key!.before))fail('statistics_key_missing');
+    state.enabled_clients=[...new Set([...state.enabled_clients,client])];
+    if(client==='codex')clearCodexMetadata(state,client);
+    if(client==='codex'&&options.codexNativeMetadata){
+     if(state.codex_home!==undefined&&state.codex_home!==paths.dir)fail('statistics_config_invalid');
+     state.codex_native_metadata=true;state.codex_home=paths.dir;
+    }
+    const root=resolve(options.packageRoot??join(dirname(fileURLToPath(import.meta.url)),'..',...(import.meta.url.includes('/dist/src/')?['..']:[])));
+    const entries=statisticsHooks(root,client,paths.policyPath);
+    for(const[event,entry]of Object.entries(entries)){const list=statisticEntries(value,event,true);if(list.some(possibleStatisticsObserver))fail('statistics_observers_present');list.push(entry);}
+    receipt!.after=stringify({schema_version:1,kind:'aptly-statistics-ownership',client,state_directory:paths.stateDirectory,hooks:entries,hooks_fingerprint:createHash('sha256').update(JSON.stringify(entries)).digest('hex')});
+   }else{
+    state.enabled_clients=state.enabled_clients.filter(c=>c!==client);clearCodexMetadata(state,client);if(receipt)receipt.after=invalidReceipt?receipt.before:null;
+   }
+   config.after=serializeStatisticsConfig(state);if(!isDeepStrictEqual(value,originalHooks))hooks.after=stringify(value);
+   for(const item of [config,...(key?[key]:[]),hooks,...(receipt?[receipt]:[])])if(item.before!==item.after)changes.push(item);
+   const codes=[enabled?'statistics_enabled':'statistics_disabled',...(modified?['statistics_observers_retained_modified']:[]),...(enabled&&client==='codex'?['requires_hook_review']:[]),...(enabled?['mcp_restart_required']:[])];
+   return{changes,observations,dirs:[],result:{client,status:changes.length?'configured':'unchanged',codes,...(enabled&&client==='codex'?{requires_hook_review:true}:{})}};
+  }catch(error){return{changes:[],observations:[],dirs:[],result:errorResult(client,error)};}
+ });
+ if(enabled&&plans.some(p=>p.result.status==='error'))return{status:'partial',clients:plans.map(p=>p.result.status==='error'?p.result:{...p.result,status:'skipped',codes:['other_host_validation_failed']})};
+ return execute(options,false,undefined,plans);
+}
+/** Snapshot view; no runtime, credentials, provider, budget gate or state creation. */
+export function showStatistics(options:SetupOptions={},today=false){
+ const clients=options.clients??['codex','claude'];
+ if(process.platform==='win32')return{clients:clients.map(client=>({client,status:'statistics_platform_unsupported',collection:'disabled'}))};
+ return{clients:clients.map(client=>{try{const path=statisticsPolicy(options,client);return{client,...readStatistics({stateDirectory:path.stateDirectory},{client,today})};}catch(error){return{client,status:safeCode(error),collection:'disabled'};}})};
 }

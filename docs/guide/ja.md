@@ -282,6 +282,36 @@ aptly budget status --client claude
 
 HTTP 前の新しい予算拒否はキャッシュしません。検証可能な既存の既定ポリシーによる未課金の拒否だけを同じ ID で再評価し、完了した推薦・保留・文脈不足の結果と `unknown` は保持します。予算回復は元の retry 参照の 5 分やプロセス寿命を延長せず、履歴や権限の制約も解除しません。任意の過去の独自ポリシーの digest を推測せず、新しい ID や台帳削除で競合・不明結果を回避しないでください。
 
+<a id="execution-statistics"></a>
+
+### 実行統計（未リリース）
+
+この機能は未リリースで、npm `aptly@0.1.9` にこれらのコマンドはありません。ソースのチェックアウトでインストール・ビルドしてから次の例を使用してください。既存の Aptly 設定が必要です。初期の収集は POSIX のみ対応し、Windows の統計収集は未対応です。Windows での通常の Aptly 利用には影響しません。
+
+```sh
+npm ci --ignore-scripts
+npm run build
+node bin/aptly.ts stats
+node bin/aptly.ts stats --today --client codex
+node bin/aptly.ts stats enable --client codex
+node bin/aptly.ts stats enable --client codex --codex-native-metadata
+node bin/aptly.ts stats disable --client codex
+```
+
+形式は `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]`、`aptly stats disable [--client]` です。収集は既定で無効で、postinstall でも自動有効化しません。enable は Aptly 所有のコマンド観測器を設置し、別の `stats-ownership.json` に記録します。既存の receipt・MCP・launcher・キー・予算・送信設定は保持します。有効化後は MCP とホストを再起動し、Codex では `/hooks` で native Hook の信頼を確認してください。
+
+disable は収集を無効にし、変更されていない所有観測器だけを削除します。変更済みやカスタムの観測器は警告して保持し、データとキーも残します。`remove` は統計所有の定義を検証・削除しますが、データは保持します。個別に管理される収集器やカスタム Hook は自動的に取り込みません。
+
+非公開の状態は予算台帳とは別の `stats.sqlite`、`stats-config.json`、`stats-key`（HMAC 秘密鍵）を使用します。鍵を共有しないでください。記録にタスク原文・会話記録・生 ID・パス・エラー・資格情報は含まれません。統計の読み取りは API・キー・資格情報ストアにアクセスせず、初期化や通知も行いません。
+
+集計は `model_match`、`model_mismatch`、`model_changed`、`unknown`、`pending`、`expired_pending`、`application_unconfirmed` を示し、advisory は別に扱います。`blocked`、`explicit_preserved`、`unbound` は分母から除外します。実際の effort は測定せず、設定された effort は実際の値ではありません。Claude のエイリアス `haiku`、`sonnet`、`opus`、`fable` は実際の正規モデルに解決できず `unknown` です。正確な正規モデルのみ対応し、モデルの観測は全エイリアスの一致を保証しません。ユーザーの受容や品質を示す数値ではありません。
+
+直接 advisory・retry・native の連続性がない新規 unbound 呼び出しを曖昧な時刻で結合しません。`--today` はバインディングの初回作成日の UTC 日付を使います。容量は委任 10,000 件と 子 10,000 件に固定され、自動削除はありません。件数は保持レコードの値であり、生涯累計ではありません。容量到達時は新規 ID を破棄し、到達フラグを表示します。コールバックの欠落はバイパスの証拠ではありません。トークン・コストの集計、ライブ割当量や節約額はありません。
+
+Codex native メタデータは明示オプションがない限り無効です。正確な子 ID で SQLite の native メタデータだけを読み、会話記録の取得・修復・app-server の起動はしません。移動された `sqlite_home`、未対応のスキーマ・パス、曖昧な結合は unknown です。SQL 読み取りで既存 SHM の読み取りマークが更新される場合がありますが、行・スキーマを書き込まず、sidecar を意図的に作成しません。
+
+収集はベストエフォートです。イベントの欠落・遅延・容量超過により、モデル履歴が不完全になる場合があります。`model_match`は保持された証拠の一致であり、すべてのリクエストで同じモデルを使用した証明ではありません。Codexの収集無効化、設定削除、または`--codex-native-metadata`なしの有効化でnativeメタデータへの同意も解除されます。Nodeやパッケージのパスを変更した場合は、収集を無効化して再度有効化し、コマンドを更新してください。利用不能・破損したストアは保持されます。キーを削除したり使用量をゼロと判断したりせず、ローカルで確認してください。
+
 <a id="外部送信と自動共有の無効化"></a>
 
 ### Decisions API への送信範囲

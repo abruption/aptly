@@ -282,6 +282,36 @@ Setting commands support `--client codex|claude|all`, hidden input and explicit 
 
 New pre-HTTP budget denials are not cached. Only verifiable known-unpaid legacy default-policy denials can be reevaluated with the same ID; completed recommendations, abstentions, context outcomes and `unknown` remain protected. Budget recovery does not extend the original five-minute retry reference or process lifetime and does not remove history or permission constraints. Arbitrary historical custom-policy digests are not guessed; do not bypass conflicts/unknowns with new IDs or ledger deletion.
 
+<a id="execution-statistics"></a>
+
+### Execution statistics (unreleased)
+
+This feature is unreleased; npm `aptly@0.1.9` does not include these commands. From a source checkout, install and build, then use the examples below. An existing Aptly setup is required. Collection is initially POSIX-only; Windows collection is unsupported and normal Aptly use on Windows is unaffected.
+
+```sh
+npm ci --ignore-scripts
+npm run build
+node bin/aptly.ts stats
+node bin/aptly.ts stats --today --client codex
+node bin/aptly.ts stats enable --client codex
+node bin/aptly.ts stats enable --client codex --codex-native-metadata
+node bin/aptly.ts stats disable --client codex
+```
+
+The command forms are `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]` and `aptly stats disable [--client]`. Collection is off by default and postinstall does not enable it. Enable installs Aptly-owned command observers recorded separately in `stats-ownership.json`; it leaves the legacy receipt, MCP, launchers, keys, budget and transmission settings intact. Restart MCP and the host after enabling; for Codex, review native Hook trust in `/hooks`.
+
+Disable turns collection off and removes only unchanged owned observers. Modified or custom observers are preserved with a warning; data and the key remain. `remove` validates and removes stats-owned definitions but keeps the data. Independently managed collectors and custom Hooks are not adopted automatically.
+
+Private state uses `stats.sqlite`, `stats-config.json` and `stats-key` (an HMAC secret), separately from the budget ledger. Do not share the key. Records contain no task text, transcripts, raw IDs, paths, errors or credentials. Reading stats makes no API, key or credential-store calls, initializes nothing and runs no notifier.
+
+The projection reports `model_match`, `model_mismatch`, `model_changed`, `unknown`, `pending`, `expired_pending` and `application_unconfirmed`; advisory is separate. `blocked`, `explicit_preserved` and `unbound` are excluded from denominators. Effective effort is never measured; configured effort is not actual effort. Claude aliases `haiku`, `sonnet`, `opus` and `fable` cannot be resolved to an actual canonical model and are `unknown`; only exact canonical models are supported, and observing a model does not guarantee all aliases match. These figures do not establish user acceptance or quality.
+
+Direct advisory, retries and fresh unbound calls without native continuity are not joined by approximate timing. `--today` uses the UTC date when the binding was first created. Capacity is fixed at 10,000 delegations and 10,000 children, with no automatic pruning. Counts cover retained records, not lifetime totals; at capacity, new identities are dropped and the reached flag is set. Missing callbacks do not prove bypass. There are no token or cost rollups, live quota or savings figures.
+
+Codex native metadata is off unless explicitly enabled. It reads SQLite native metadata by exact child ID only: no transcripts, repairs or app-server launch. Relocated `sqlite_home`, unsupported schemas or paths, and ambiguous joins yield unknown. A SQL read may update existing SHM read marks; it writes no rows or schema and does not intentionally create sidecars.
+
+Collection is best effort: lost, delayed or capacity-dropped events can leave an incomplete model history. `model_match` means the retained evidence matches, not that every request used that model. Disabling Codex collection, removing setup or enabling without `--codex-native-metadata` revokes native metadata access. After changing the Node or package path, disable and re-enable collection to register current commands. An unavailable or corrupt store is preserved; review it locally rather than deleting the key or assuming zero usage.
+
 <a id="outbound-data-and-disabling-automatic-sharing"></a>
 
 ### Decisions API transmission scope
