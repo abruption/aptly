@@ -4,7 +4,7 @@
 
 [가이드 목차](../ko.md)
 
-온보딩 전송 선택 개선은 [이슈 #126](https://github.com/abruption/aptly/issues/126)에서 논의 중인 제안입니다. 아래는 현재 동작입니다.
+아래 전송 검토는 **아직 출시되지 않은 소스 기능**이며, 공개된 Aptly 0.1.10 패키지에는 포함되지 않습니다.
 
 ## 이 문서의 목차
 
@@ -17,7 +17,21 @@
 
 이 절의 전송 범위 명령은 Aptly 0.1.7부터 지원합니다.
 
-여기서 전송은 **로컬 작업 정보를 OpenAI Decisions API에 보내는 것**이며 Aptly 개발자에게 작업을 제공하는 기능이 아닙니다. 적용 모드 `defaults/advisory`와 전송 범위는 별개입니다. 신규 등록은 v2 정책의 `unselected` 상태이며 자동 전송하지 않습니다. 대화형 `aptly set default`는 미선택 호스트에만 범위를 묻고 Enter의 기본 선택은 `none`입니다. 비대화형 실행·postinstall은 묻거나 동의한 것으로 처리하지 않습니다.
+여기서 전송은 **로컬 작업 정보를 OpenAI Decisions API에 보내는 것**이며 Aptly 개발자에게 작업을 제공하는 기능이 아닙니다. 적용 모드 `defaults/advisory`와 전송 범위는 별개입니다. 신규 등록은 v2 정책의 `unselected` 상태이며 자동 전송하지 않습니다.
+
+공개된 0.1.10의 대화형 `aptly set default`는 미선택 호스트에만 묻고 Enter를 누르면 `none`을 선택합니다. 비대화형 실행과 postinstall은 묻거나 동의한 것으로 처리하지 않습니다.
+
+미출시 소스에서는 첫 일반 대화형 `aptly setup` 또는 `aptly set default`가 검토 대기 중인 클라이언트를 하나로 묶어 현재 값·출처·기본 또는 재정의된 홈을 보여 주고 질문합니다. 권장 항목은 3번 `excerpt`입니다. Enter 또는 유지 선택은 기존 명시·legacy 범위와 `none`을 그대로 보존하며, 미선택 범위는 `none`이 됩니다. 명시적인 `setup --transmission` 또는 `set transmission <scope>`는 실제 선택을 검토 완료로 기록합니다. 클라이언트 홈별 비공개 revision 1 검토 표시는 패키지 버전·모드·통계와 독립적이므로 일반 패치 업데이트나 재시작마다 다시 묻지 않습니다.
+
+아래 새 명령은 명시적 요청에 따라 항상 다시 묻습니다. 공개된 0.1.10에서는 사용할 수 없습니다:
+
+```sh
+aptly set transmission --review
+```
+
+취소하면 범위와 검토 표시는 변경되지 않습니다. 일반 setup 또는 default의 전송 외 기본 설정은 이미 적용되었을 수 있습니다. 자동 setup, check, migrate, 전송 범위를 명시한 setup, CI, 비터미널 실행, setup 건너뛰기, npm lifecycle 스크립트, MCP, Hook, help, show, 통계 조회에서는 묻지 않습니다. 질문은 stderr에 출력하며 JSON stdout은 유지합니다. 기존 비활성 정책·모드·실행 래퍼·키·원장·통계·신뢰 설정을 보존합니다.
+
+0.1.10 업데이트 프로세스는 새 질문을 즉시 불러올 수 없습니다. 최초 배포에서는 기능이 포함된 릴리스로 업데이트한 후 대화형 `aptly setup`, `aptly set default` 또는 `aptly set transmission --review`를 실행하십시오. 이 기능이 포함된 이후 업데이트는 새 프로세스를 실행하지 않고 다음 단계를 안내합니다.
 
 ```sh
 aptly set transmission --show

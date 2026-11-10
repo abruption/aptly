@@ -11,12 +11,13 @@ import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
 import { budgetErrorDetails } from '../src/budget.ts';
 import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus, showStatistics, setStatisticsCollection } from '../src/setup.ts';
-import { readEnvironmentValue, readTransmissionChoice } from '../src/cli-input.ts';
+import { readEnvironmentValue } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { linuxStoreReadiness } from '../src/linux-store-readiness.ts';
 import { updateGlobalInstallation } from '../src/update.ts';
 import { updateNotification } from '../src/update-notifier.ts';
 import { resolveCliHelp } from '../src/cli-help.ts';
+import {runTransmissionReview,reviewAfterSetup} from '../src/transmission-review-cli.ts';
 const [command='serve',...args]=process.argv.slice(2);
 const output=(value:unknown)=>process.stdout.write(JSON.stringify(value,null,2)+'\n');
 let helpHandled=false;
@@ -29,7 +30,8 @@ try {
  } else if(command==='update'){
   if(args.length)throw new Error('update_invalid_options');
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   const result=updateGlobalInstallation({packageRoot});output(result);if(result.status==='error')process.exitCode=1;
+   const result=updateGlobalInstallation({packageRoot});output(result.status==='complete'?{...result,next_steps:['aptly setup','aptly set transmission --review']}:result);if(result.status==='error')process.exitCode=1;
+   else if(process.stderr.isTTY&&!process.env.CI)process.stderr.write('Run aptly setup after updating; its first interactive run reviews transmission scope. Use aptly set transmission --review for an explicit review, then restart MCP.\n');
  } else if(command==='stats'){
   let action:'enable'|'disable'|undefined,start=0;if(args[0]==='enable'||args[0]==='disable'){action=args[0];start=1;}
   let clients:('codex'|'claude')[]=['codex','claude'];let today=false,native=false;const seen=new Set<string>();
@@ -56,11 +58,11 @@ try {
  }
  else if(command==='set'){
   if(args[0]==='transmission'){
-   const scope=args[1];if(!['none','description','excerpt','--show'].includes(scope))throw new Error('set_invalid_options');
+   const scope=args[1];if(!['none','description','excerpt','--show','--review'].includes(scope))throw new Error('set_invalid_options');
     let clients:('codex'|'claude')[]=['codex','claude'];
     if(args.length!==2){if(args.length!==4||args[2]!=='--client'||!['codex','claude','all'].includes(args[3]))throw new Error('set_invalid_options');clients=args[3]==='all'?['codex','claude']:[args[3] as 'codex'|'claude'];}
     const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-    const result=scope==='--show'?showTransmission({clients}):setTransmission(scope as 'none'|'description'|'excerpt',{clients,packageRoot});output(result);if('status' in result&&result.status==='partial')process.exitCode=1;
+    const result=scope==='--show'?showTransmission({clients}):scope==='--review'?await runTransmissionReview({clients,packageRoot},true):setTransmission(scope as 'none'|'description'|'excerpt',{clients,packageRoot});output(result);if('status' in result&&result.status==='partial')process.exitCode=1;
   }
   else {
    const action=args[0];let key:string|undefined;let start=1;
@@ -83,10 +85,7 @@ try {
    else try{
     if(action==='env')value=await readEnvironmentValue({key:key!,fromStdin});
     let result=action==='default'?setDefaults({clients,packageRoot}):key==='OPENAI_API_KEY'?credential!.apply(value):setEnvironment(key!,value,{clients,packageRoot});
-    if(action==='default'&&result.status==='complete'&&process.stdin.isTTY&&process.stdout.isTTY){
-      const pending=result.clients.filter(client=>client.transmission==='unselected').map(client=>client.client);
-      if(pending.length){const scope=await readTransmissionChoice();const selected=setTransmission(scope,{clients:pending,packageRoot,selectUnselectedOnly:true});result={status:selected.status,clients:result.clients.map(client=>selected.clients.find(item=>item.client===client.client)??client)};}
-    }
+    if(action==='default')result=await reviewAfterSetup(result,{clients,packageRoot});
     output(result);if(result.status==='partial')process.exitCode=1;
    }finally{value='';}
   }
@@ -108,7 +107,10 @@ try {
    }
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
    if((check && [...seen].some(flag=>!['--check','--client'].includes(flag)))||(migrate&&(clients.length!==1||automatic||seen.has('--mode')||seen.has('--transmission')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
-   const result=check?checkSetup({clients,packageRoot}):migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});output(result);
+   let result=check?checkSetup({clients,packageRoot}):migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});
+   if(command==='setup'&&!check&&!migrate&&!automatic&&transmission===undefined)result=await reviewAfterSetup(result,{clients,packageRoot});
+   output(result);
+   if(command==='setup'&&automatic&&result.status==='complete'&&result.clients.some(client=>client.transmission_review==='required'))process.stderr.write('Aptly transmission review pending. Run aptly set transmission --review in the intended host environment. No transmission choice was made by installation.\n');
    if(result.status==='partial'&&!automatic)process.exitCode=1;
  }
  else if(command==='serve'&&args.length===0)await serve();
@@ -133,7 +135,8 @@ try {
  const budgetCode=[caughtCode,message].find(value=>typeof value==='string'&&['invalid_budget_configuration','budget_invalid_options'].includes(value));
  const configCode=[caughtCode,message].find(value=>typeof value==='string'&&safeConfigurationCodes.includes(value));
  const setCodes=['set_environment_key_unsupported','set_invalid_options','set_value_too_large','set_interactive_input_required','set_input_cancelled'];
- const code=command==='stats'?'statistics_invalid_options':command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):budgetCode??configCode??'operation_failed';
+ const inputCode=['set_input_cancelled','set_interactive_input_required'].includes(message??'')?message:undefined;
+ const code=command==='stats'?'statistics_invalid_options':command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):inputCode??budgetCode??configCode??'operation_failed';
  const budgetDetails=budgetErrorDetails(error);
  process.stderr.write('aptly: '+code+(budgetDetails.invalid_budget_keys?.length?' ['+budgetDetails.invalid_budget_keys.join(', ')+']':'')+(budgetDetails.budget_error?' ('+budgetDetails.budget_error+')':'')+'\n');process.exitCode=1;
 }

@@ -27,8 +27,10 @@ function lifecycle(fixture) {
   const child = spawnSync(sourcePackage.scripts.postinstall, { cwd: fixture.packageRoot, env: fixture.env, shell: '/bin/sh', encoding: 'utf8', timeout: 15000 });
   assert.equal(child.error, undefined);
   assert.equal(child.status, 0, 'Compiled postinstall must exit successfully.');
-  assert.equal(child.stderr, '');
-  return JSON.parse(child.stdout);
+  const result=JSON.parse(child.stdout);
+  const pending=result.status==='complete'&&result.clients.some(client=>client.transmission_review==='required');
+  assert.equal(child.stderr,pending?'Aptly transmission review pending. Run aptly set transmission --review in the intended host environment. No transmission choice was made by installation.\n':'');
+  return result;
 }
 const load = path => JSON.parse(readFileSync(path, 'utf8'));
 
@@ -50,6 +52,8 @@ test('compiled npm lifecycle registers the installed node_modules package and re
     const hooks = load(join(fixture.home, dir, file)).hooks.PreToolUse;
     assert.equal(hooks.length, 1); assert.equal(hooks[0].hooks[0].tool, 'route_spawn_hook');
     assert.equal(load(join(fixture.home, dir, 'aptly', 'auto-policy.json')).mode, 'defaults');
+    assert.equal(load(join(fixture.home, dir, 'aptly', 'auto-policy.json')).transmission, 'unselected');
+    assert.equal(existsSync(join(fixture.home,dir,'aptly','transmission-review.json')),false);
   }
   const again = lifecycle(fixture);
   assert.deepEqual(again.clients.map(c => c.status), ['unchanged', 'unchanged']);
