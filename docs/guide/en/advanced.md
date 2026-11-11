@@ -185,6 +185,12 @@ The current automatic Hook has no field for passing a URL separately as plaintex
 
 ## Diagnostics and development
 
+`aptly doctor [--client codex|claude|all]` reads local registration, policy, registered package versions and ledger metadata using a separate JSON schema (`kind: aptly-doctor`, `schema_version: 1`). `complete`/exit 0 means the query completed; `partial`/exit 1 means an observation failed. Neither certifies host readiness. Connected MCP version, Hook trust/execution, restart need and ticket usage remain `unknown` locally. It never executes registered launchers, queries credential stores, calls APIs/networks, creates/modifies state or shows update notifications.
+
+The ledger size is checked first through a safe path. At most 4 MiB is validated using the existing storage schema before reporting `total`, `complete` and `unknown` counts. Larger files return `scan_skipped_size_limit` without reading the body. A missing first-use ledger means unobserved history, not zero records. Changes during observation discard counts with `changed_during_observation`. Diagnostic timing includes validation/rechecks; write timing is `not_measured`. Output excludes keys, paths, environment values, request IDs and task bodies. Only numeric release versions are shown; arbitrary version suffixes produce `unsupported_version_metadata`.
+
+The connected MCP's `get_routing_capabilities.runtime_diagnostics` adds the responding process version, policy source kind and process-local recovery slot `capacity`, `used`, `remaining`, `expired_retained` and `in_flight`. Expired tickets still occupy slots. Observation neither renews/prunes tickets nor checks retry eligibility (`retry_eligibility: not_checked`). Existing `credential_status` is a startup snapshot. Matching versions prove neither settings reload nor that all writers stopped. Strict MCP consumers must allow this additive object. The existing `aptly report` schema and file exports remain unchanged.
+
 ```sh
 aptly report --format both --output-dir reports
 ```

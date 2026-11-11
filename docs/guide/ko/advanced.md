@@ -185,6 +185,12 @@ Codex가 자식 `message`를 암호문으로 Hook에 전달하는 환경에서�
 
 ## 진단과 개발
 
+`aptly doctor [--client codex|claude|all]`은 별도 JSON 스키마(`kind: aptly-doctor`, `schema_version: 1`)로 로컬 등록·정책·등록 대상 패키지 버전과 원장 메타데이터를 조회합니다. `complete`/종료 코드 0은 조회 완료를, `partial`/종료 코드 1은 관측 실패를 뜻하며 호스트의 정상 작동을 보증하지 않습니다. 연결된 MCP 버전, Hook 신뢰·실행, 재시작 필요 여부와 티켓 사용량은 로컬 파일만으로 확인할 수 없어 `unknown`입니다. 등록된 런처나 자격 저장소를 실행·조회하지 않으며 API·네트워크 호출, 상태 생성·수정, 업데이트 알림도 수행하지 않습니다.
+
+원장은 안전한 경로의 크기를 먼저 확인하고 4MiB 이하만 기존 저장 스키마로 검증하여 `total`·`complete`·`unknown` 건수를 표시합니다. 초과 시 `scan_skipped_size_limit`으로 본문 읽기를 건너뜁니다. 처음 사용하여 원장이 없으면 이력은 미확인이고 0건으로 단정하지 않습니다. 관측 중 변경은 `changed_during_observation`으로 집계를 폐기합니다. 진단 시간은 파일 검증·재검증을 포함한 조회 시간이며 쓰기 시간은 `not_measured`입니다. 키·경로·환경값·요청 ID·본문은 출력하지 않습니다. 등록 버전은 숫자형 릴리스 버전만 표시하고 임의 접미사는 `unsupported_version_metadata`로 처리합니다.
+
+연결된 MCP의 `get_routing_capabilities.runtime_diagnostics`는 응답 프로세스의 버전·정책 소스 종류와 프로세스 내 복구 슬롯의 `capacity`·`used`·`remaining`·`expired_retained`·`in_flight`를 제공합니다. 만료된 티켓도 슬롯을 차지하며 조회는 티켓을 갱신·삭제하거나 재시도 가능성을 검사하지 않습니다(`retry_eligibility: not_checked`). 기존 `credential_status`는 시작 시점 관측입니다. 같은 버전은 설정 재로딩이나 모든 쓰기 프로세스의 중지를 증명하지 않습니다. 이 객체는 추가 필드이므로 엄격한 MCP 소비자는 이를 허용해야 합니다. 기존 `aptly report`의 스키마와 파일 출력은 유지됩니다.
+
 ```sh
 aptly report --format both --output-dir reports
 ```
