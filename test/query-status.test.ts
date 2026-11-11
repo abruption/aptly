@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync,readdirSync,mkdirSync,unlinkSync,chmodSync,statSync,renameSync,symlinkSync} from 'node:fs';
 import {join,relative,resolve} from 'node:path';
+import {parse,stringify} from 'smol-toml';
 import {spawnSync} from 'node:child_process';
 import {createTestTemp} from '../test-support/temp.ts';
-import {setupHosts,removeSetup,setStatisticsCollection,setTransmission,showStatistics,showTransmission} from '../src/setup.ts';
+import {setupHosts,setPolicySource,removeSetup,setStatisticsCollection,setTransmission,showStatistics,showTransmission} from '../src/setup.ts';
 import {QuerySnapshot} from '../src/query-snapshot.ts';
 import {loadAutomaticHookPolicy,queryAutomaticHookPolicy} from '../src/automatic-hook.ts';
 
@@ -119,4 +120,27 @@ test('queries detect an in-flight policy change instead of accepting a later abs
   try{const result=kind==='stats'?showStatistics({...f.options,clients:['codex']}):showTransmission({...f.options,clients:['codex']});assert.equal(result.status,'partial');assert.ok(changed);}
   finally{QuerySnapshot.prototype.verify=verify;}
  }
+});
+
+for(const client of ['codex','claude'] as const)for(const mismatch of ['different-existing-policy','relative','missing-reference','non-string'] as const)test(`transmission query detects ${client} policy binding conflict: ${mismatch}`,posix,t=>{
+ const f=fixture(t,true),path=client==='codex'?join(f.home,'.codex/config.toml'):join(f.home,'.claude.json');
+ const config=(client==='codex'?parse(readFileSync(path,'utf8')):JSON.parse(readFileSync(path,'utf8'))) as any;
+ const entry=config[client==='codex'?'mcp_servers':'mcpServers'].aptly;
+ if(mismatch==='different-existing-policy')entry.env.APTLY_HOOK_POLICY_PATH=f.policy(client==='codex'?'claude':'codex');
+ if(mismatch==='relative')entry.env.APTLY_HOOK_POLICY_PATH='relative-policy.json';
+ if(mismatch==='missing-reference')delete entry.env.APTLY_HOOK_POLICY_PATH;
+ if(mismatch==='non-string')entry.env.APTLY_HOOK_POLICY_PATH=42;
+ writeFileSync(path,client==='codex'?stringify(config):JSON.stringify(config));
+ const before=files(f.home),direct=showTransmission(f.options);assert.equal(direct.status,'partial');assert.deepEqual(files(f.home),before);
+ // Legacy per-client fields describe the local policy; only aggregate query health changes.
+ assert.equal(direct.clients.find(c=>c.client===client).status,'configured');
+ const cli=f.query(['set','transmission','--show'],1,'partial');assert.equal(cli.clients.find(c=>c.client!==client).status,'configured');
+ f.query(['set','transmission','--show','--client',client],1,'partial');
+});
+test('transmission query accepts valid codex-home binding and rejects a broken forwarding contract',posix,t=>{
+ const f=fixture(t,true);assert.equal(setPolicySource({...f.options,clients:['codex']},false).status,'complete');
+ f.query(['set','transmission','--show'],0,'complete');
+ const path=join(f.home,'.codex/config.toml'),config=parse(readFileSync(path,'utf8')) as any;
+ config.mcp_servers.aptly.env_vars=config.mcp_servers.aptly.env_vars.filter(key=>key!=='CODEX_HOME');writeFileSync(path,stringify(config));
+ f.query(['set','transmission','--show'],1,'partial');
 });

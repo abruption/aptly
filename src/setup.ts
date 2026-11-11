@@ -814,7 +814,12 @@ export function showTransmission(options: SetupOptions = {}) {
   try {
    const {privateDir}=resolved(options,client),loaded=queryAutomaticHookPolicy(join(privateDir,'auto-policy.json'),snapshot);
    let expected=false,contextFailed=false;
-   try{const context=queryContext(options,client,snapshot,false,!loaded.policy);expected=context.expected;contextFailed=context.failed;}catch{contextFailed=true;}
+   try{
+    const context=queryContext(options,client,snapshot,false,!loaded.policy);expected=context.expected;
+    // Local policy contents cannot certify a conflicting/missing MCP policy binding.
+    // Preserve legacy client fields; aggregate health reports the failed query contract.
+    contextFailed=context.failed||(expected&&(!object(context.entry)||!policyReferenceMatches(context.entry,client,join(privateDir,'auto-policy.json'),options)));
+   }catch{contextFailed=true;}
    const legacy=()=>{
     if(!loaded.policy)return {client,status:'unavailable',code:loaded.reason};
     // Preserve validation of the acknowledgement but read it only once for this query.
