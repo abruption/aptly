@@ -1,5 +1,11 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.11 준비 — 미게시
+
+#131에서 가이드 분리(#127·PR #128), 전송 범위 재확인(#126·PR #129), 명시적 Codex 계정 홈 정책 선택(#130·PR #132)을 묶습니다. 버전·한국어 릴리스 노트와 [준비 기록](releases/0.1.11.md)을 갱신하며, 기존 0.1.10 게시 근거는 유지합니다.
+
+준비 PR은 #132 위에 쌓인 의존 PR입니다. #132 병합 후 기준을 main으로 변경하고 최신 main을 반영한 새 HEAD의 CI를 확인해야 합니다. 준비 PR 병합 후에도 정확한 병합 main CI 성공과 별도 사용자 게시 지시를 확인한 뒤에만 annotated v0.1.11 태그를 생성합니다. 이 문서의 준비 상태는 게시·provenance·실제 호스트 전환의 증거가 아닙니다.
+
 ## 0.1.10 게시와 검증
 
 2026-11-10에 실제 소스 `2acf74ca48c38d6541ba16f04f2e5054bd633ecb`의 annotated `v0.1.10` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42768525205/attempts/1)를 완료했습니다. 준비 PR #123의 검사 19개와 정확한 병합 main CI 7개 성공을 구분해 확인했으며, 설치 시험·새 runner 검증/pack·게시 3개 job이 성공했습니다. npm `latest`는 0.1.10이고 artifact·registry SHA-256·SHA-512 SRI 일치를 확인했습니다.
