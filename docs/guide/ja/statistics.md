@@ -22,6 +22,8 @@ aptly stats enable --client codex --codex-native-metadata
 aptly stats disable --client codex
 ```
 
+`aptly stats` の読み取り（`--today` を含む）のトップレベル `status` は、照会が完了すると `complete`（終了コード 0）、未対応の統計要求や破損・読み取り・ストアのエラーがあると `partial`（終了コード 1）です。収集が無効な場合や実際に未設定のクライアントも照会完了です。一部のクライアントが失敗しても成功した結果は保持します。既存のクライアント JSON フィールドと値は維持するため、オブジェクト全体を厳密に検査する利用側は追加された `status` を受け入れてください。`complete` はホストのルーティング・モデル・信頼の準備を保証しません。予期しない統計エラーは `statistics_failed` で報告し、生のパス・入力・キー・スタックは出力しません。読み取りは自動修復・同意取得・プロバイダー呼び出しを行いません。
+
 形式は `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]`、`aptly stats disable [--client]` です。収集は既定で無効で、postinstall でも自動有効化しません。enable は Aptly 所有のコマンド観測器を設置し、別の `stats-ownership.json` に記録します。既存の receipt・MCP・launcher・キー・予算・送信設定は保持します。有効化後は MCP とホストを再起動し、Codex では `/hooks` で native Hook の信頼を確認してください。
 
 disable は収集を無効にし、変更されていない所有観測器だけを削除します。変更済みやカスタムの観測器は警告して保持し、データとキーも残します。`remove` は統計所有の定義を検証・削除しますが、データは保持します。個別に管理される収集器やカスタム Hook は自動的に取り込みません。

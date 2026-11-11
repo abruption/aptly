@@ -137,7 +137,7 @@ test('policy source setup help validates explicit Codex-only migration without w
     ['--client','codex','--policy-source','codex-home','--migrate-launcher'],
   ]) {
     const result=f.run(['setup',...tail,'--help']);assert.equal(result.status,2);assert.equal(result.stdout,'');
-    const execution=f.run(['setup',...tail]);assert.equal(execution.status,1);assert.match(execution.stderr,/operation_failed/);
+    const execution=f.run(['setup',...tail]);assert.equal(execution.status,1);assert.match(execution.stderr,/setup_invalid_options/);
   }
   f.assertUntouched();
 });

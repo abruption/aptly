@@ -22,6 +22,8 @@ aptly stats enable --client codex --codex-native-metadata
 aptly stats disable --client codex
 ```
 
+`aptly stats` 查询（包括 `--today`）的顶层 `status` 在查询完成时为 `complete`（退出码 0）；请求不支持的统计，或发生损坏、读取或存储错误时为 `partial`（退出码 1）。关闭收集和确实未配置的客户端也属于查询完成。部分客户端失败时仍保留成功结果。现有客户端 JSON 字段和值保持不变；严格检查完整对象的使用方须接受新增的 `status`。`complete` 不证明宿主路由、模型或信任已就绪。意外统计错误报告为 `statistics_failed`；不输出原始路径、输入、密钥或堆栈。查询不自动修复、获取同意或调用服务提供方。
+
 命令形式为 `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]` 和 `aptly stats disable [--client]`。收集默认关闭，postinstall 也不会自动启用。enable 安装 Aptly 所有的命令观察器，并记录在独立的 `stats-ownership.json`；既有 receipt、MCP、launcher、密钥、预算和传输设置保持不变。启用后请重启 MCP 和宿主；Codex 还需在 `/hooks` 审核 native Hook 信任。
 
 disable 关闭收集，只移除未修改的自有观察器。已修改或自定义的观察器会保留并给出警告；数据和密钥也会保留。`remove` 验证并移除统计功能拥有的定义，但保留数据。不会自动接管单独管理的收集器或自定义 Hook。
