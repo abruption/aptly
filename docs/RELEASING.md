@@ -1,8 +1,10 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.12 핫픽스 준비 — 미게시
+## 0.1.12 게시와 검증
 
-#135·PR #136에서 CLI의 기본 홈 검증을 수정하고 0.1.12로 준비합니다. 사용자는 수정·CI·병합·태그 기반 게시와 두 Mac 갱신을 승인했습니다. 정확한 PR HEAD 검사와 병합 main CI를 확인한 뒤 annotated v0.1.12 태그로 Actions OIDC 게시를 진행합니다. 실제 게시 전에는 후보를 npm latest에 게시했다고 표현하지 않습니다. [핫픽스 노트](release-notes/0.1.12.md)와 [준비 기록](releases/0.1.12.md)을 참고하십시오.
+#135·PR #136의 CLI 기본 홈 핫픽스를 소스 `85c42a043038b3d2c783a4c9e9a6332e4ae7d317`의 annotated `v0.1.12` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42972177084/attempts/1)했습니다. 최종 PR 검사 19개와 정확한 병합 main CI 7개 성공을 구분했고 게시 3개 job이 성공했습니다. npm latest 0.1.12, artifact/registry archive·SHA-512 SRI, npm 서명과 정확한 소스·태그·workflow·run identity의 provenance를 확인했습니다.
+
+두 Mac의 등록 서버를 갱신하고 정책·전송 선택·Hook·원장·통계 설정을 보존했습니다. 게시된 compiled CLI로 CODEX_HOME 없는 기본 홈의 setup 점검·일반 setup·통계 조회를 확인했습니다. 새 MCP 프로세스를 확인했으며 기존 호스트 세션의 재로딩과 native 모델/effort 관측은 별도입니다. 전송 확인 질문에는 자동 답변하지 않았습니다. [한국어 노트](release-notes/0.1.12.md), [게시 근거](releases/0.1.12.md), #137을 참고하십시오.
 
 ## 0.1.11 실제 게시 — 2026-11-11
 
