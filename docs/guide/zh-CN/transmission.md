@@ -4,7 +4,7 @@
 
 [指南目录](../zh-CN.md)
 
-[议题 #126](https://github.com/abruption/aptly/issues/126)中的首次设置传输范围审查仍是讨论中的提案。下文说明当前行为。
+下述传输审查是**尚未发布的源代码功能**，不包含在已发布的 Aptly 0.1.10 软件包中。
 
 ## 本页目录
 
@@ -17,7 +17,21 @@
 
 本节传输范围命令从 Aptly 0.1.7 起提供。
 
-这里的传输是指**将本地任务信息发送至 OpenAI Decisions API**，不是向 Aptly 开发者提供任务的功能。应用模式 `defaults/advisory` 与传输范围相互独立。新注册使用 v2 策略的 `unselected` 状态，不自动传输。交互式 `aptly set default` 仅为尚未选择的宿主询问范围，按 Enter 默认选择 `none`。非交互运行和 postinstall 不询问，也不视为同意。
+这里的传输是指**将本地任务信息发送至 OpenAI Decisions API**，不是向 Aptly 开发者提供任务的功能。应用模式 `defaults/advisory` 与传输范围相互独立。新注册使用 v2 策略的 `unselected` 状态，不自动传输。
+
+已发布的 0.1.10 中，交互式 `aptly set default` 仅询问未选择的宿主，按 Enter 选择 `none`。非交互运行和 postinstall 不提示，也不视为同意。
+
+在未发布的源代码中，首次普通交互式 `aptly setup` 或 `aptly set default` 会将待审查客户端合并为一次提示，显示各自当前值、来源及默认或覆盖后的主目录。推荐选项 3 `excerpt`。按 Enter 或选择保留会保留已有的显式或 legacy 范围，包括 `none`；未选择的范围变为 `none`。显式 `setup --transmission` 或 `set transmission <scope>` 会将实际选择记为已审查。每个客户端主目录的私有 revision 1 审查标记独立于软件包版本、模式和统计数据，因此普通补丁更新或重启不会重复询问。
+
+以下新命令按用户的显式请求每次重新询问；已发布的 0.1.10 不提供此命令:
+
+```sh
+aptly set transmission --review
+```
+
+取消不会更改范围或审查标记；普通 setup 或 default 可能已经应用传输以外的默认设置。自动 setup、check、migrate、显式指定传输范围的 setup、CI、非 TTY、跳过 setup、npm lifecycle 脚本、MCP、Hook、help、show 和统计读取均不提示。提示输出到 stderr，JSON stdout 保持干净。已有的禁用策略、模式、启动器、密钥、账本、统计和信任设置均予以保留。
+
+0.1.10 更新进程无法立即加载新问题。首次推出时，请升级到包含该功能的版本后运行交互式 `aptly setup`、`aptly set default` 或 `aptly set transmission --review`。包含该功能的后续更新会提示下一步，不会启动新进程。
 
 ```sh
 aptly set transmission --show

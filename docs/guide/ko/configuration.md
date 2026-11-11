@@ -32,6 +32,8 @@ Claude Code의 Hook 파일은 기본적으로 `~/.claude/settings.json`이며, `
 
 ## CLI로 설정하기
 
+미출시 소스의 첫 일반 대화형 `aptly set default`는 클라이언트 홈별 검토 대상을 묶어 질문합니다. `excerpt`를 권장하며 Enter는 기존 범위를 유지하거나 미선택이면 `none`을 선택합니다. [전송 검토](transmission.md#guide-transmission-scope)를 참고하십시오. 이 검토는 공개된 0.1.10에 없습니다.
+
 `set` 명령은 0.1.1부터 지원합니다. 명령은 기존 실행 경로를 자동 전환하지 않습니다. API 키 설정은 현재 패키지의 표준 Node/서버 등록과 OS 자격 저장소 참조 지원이 확인된 실행 경로에만 허용됩니다. 사용자 지정 래퍼·구버전·다른 설치 위치는 `credential_launcher_unverified`로 거절하며, 등록을 명시적으로 전환하거나 업그레이드한 뒤 다시 실행해야 합니다.
 
 ```sh

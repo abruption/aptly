@@ -4,7 +4,7 @@
 
 [Guide home](../en.md)
 
-The onboarding transmission review in [issue #126](https://github.com/abruption/aptly/issues/126) is a proposal under discussion. The following describes current behavior.
+The transmission review described below is an **unreleased source feature**; it is not included in the published Aptly 0.1.10 package.
 
 ## On this page
 
@@ -17,7 +17,21 @@ The onboarding transmission review in [issue #126](https://github.com/abruption/
 
 The transmission commands in this section are supported from Aptly 0.1.7.
 
-Transmission means **sending local task information to the OpenAI Decisions API**, not providing tasks to Aptly developers. Application mode `defaults/advisory` and transmission scope are independent. New registrations use v2 policy with `unselected` scope and make no automatic transmission. Interactive `aptly set default` asks only for unselected hosts; Enter selects `none`. Noninteractive runs and postinstall neither prompt nor count as consent.
+Transmission means **sending local task information to the OpenAI Decisions API**, not providing tasks to Aptly developers. Application mode `defaults/advisory` and transmission scope are independent. New registrations use v2 policy with `unselected` scope and make no automatic transmission.
+
+In published 0.1.10, interactive `aptly set default` asks only for unselected hosts; Enter selects `none`. Noninteractive runs and postinstall do not prompt or imply consent.
+
+In the unreleased source, the first normal interactive `aptly setup` or `aptly set default` presents one grouped review for clients awaiting review, showing each current value, provenance, and default or overridden home. `excerpt` is recommended as option 3. Enter or keep preserves an existing explicit or legacy scope, including `none`; an unselected scope becomes `none`. Explicit `setup --transmission` or `set transmission <scope>` records the actual choice as reviewed. A private revision 1 marker is stored per client home, independent of package version, mode, and statistics, so ordinary patch updates and restarts do not repeat the review.
+
+The new command below always asks again by explicit request; it is not available in published 0.1.10:
+
+```sh
+aptly set transmission --review
+```
+
+Canceling leaves scopes and review markers unchanged; normal setup or default configuration may already have applied non-transmission defaults. Automatic setup, check, migrate, explicit-transmission setup, CI, non-TTY execution, skipped setup, npm lifecycle scripts, MCP, Hooks, help, show, and statistics reads do not prompt. Prompts use stderr and leave JSON stdout clean. Existing disabled policies, modes, launchers, keys, ledgers, statistics, and trust settings are preserved.
+
+The 0.1.10 update process cannot load the new question immediately. For the first rollout, run interactive `aptly setup`, `aptly set default`, or `aptly set transmission --review` after upgrading to a release that contains it. Future updates containing this feature print the next step without spawning a new process.
 
 ```sh
 aptly set transmission --show

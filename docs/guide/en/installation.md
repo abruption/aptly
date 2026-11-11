@@ -48,7 +48,11 @@ npm install -g aptly@latest --ignore-scripts
 aptly setup --client all
 ```
 
+In unreleased source, npm lifecycle installation does not ask for transmission review. After upgrading to a release containing the feature, run interactive `aptly setup`, `aptly set default`, or `aptly set transmission --review` with the same account environment. The 0.1.10 updater cannot ask the new question during that update; see [transmission review](transmission.md#guide-transmission-scope).
+
 Explicit `setup` works regardless of lifecycle execution. It preserves existing launchers; use the [launcher recovery steps](troubleshooting.md#guide-launcher-recovery) for stale paths. Key setup, MCP restart, and Codex `/hooks` trust review remain separate steps.
+
+The unreleased installer writes only a stderr instruction to run `aptly set transmission --review` when registrations need review; it does not ask a question or record a choice.
 
 <a id="guide-package-updates"></a>
 

@@ -4,7 +4,7 @@
 
 [ガイド目次](../ja.md)
 
-[Issue #126](https://github.com/abruption/aptly/issues/126)の初期設定時の送信範囲確認は、議論中の提案です。以下は現在の動作です。
+以下の送信レビューは**未リリースのソース機能**で、公開済みの Aptly 0.1.10 パッケージには含まれません。
 
 ## このページの目次
 
@@ -17,7 +17,21 @@
 
 この節の送信範囲コマンドは Aptly 0.1.7 以降で利用できます。
 
-ここでの送信は、**ローカルのタスク情報を OpenAI Decisions API に送ること**であり、Aptly の開発者にタスクを提供する機能ではありません。適用モード `defaults/advisory` と送信範囲は別の設定です。新規登録は v2 ポリシーの `unselected` となり、自動送信しません。対話形式の `aptly set default` は未選択のホストだけに範囲を尋ね、Enter では `none` を選択します。非対話実行と postinstall は質問せず、同意したものとして扱いません。
+ここでの送信は、**ローカルのタスク情報を OpenAI Decisions API に送ること**であり、Aptly の開発者にタスクを提供する機能ではありません。適用モード `defaults/advisory` と送信範囲は別の設定です。新規登録は v2 ポリシーの `unselected` となり、自動送信しません。
+
+公開済み 0.1.10 の対話形式 `aptly set default` は未選択のホストだけに質問し、Enter で `none` を選びます。非対話実行と postinstall は質問せず、同意したものとして扱いません。
+
+未リリースのソースでは、最初の通常の対話形式 `aptly setup` または `aptly set default` で、レビュー待ちのクライアントをまとめて一度に質問し、各現在値・出所・既定または上書きされたホームを表示します。推奨は選択肢 3 の `excerpt` です。Enter または維持を選ぶと既存の明示的な範囲・legacy 範囲と `none` を保持し、未選択の場合は `none` になります。明示的な `setup --transmission` または `set transmission <scope>` は実際の選択をレビュー済みとして記録します。クライアントホームごとの非公開 revision 1 マーカーはパッケージバージョン・モード・統計とは独立しており、通常のパッチ更新や再起動では再質問しません。
+
+以下の新しいコマンドは明示的な要求により毎回質問します。公開済みの 0.1.10 では利用できません:
+
+```sh
+aptly set transmission --review
+```
+
+キャンセルすると範囲とレビューマーカーは変わりません。通常の setup または default では送信以外の既定設定が既に適用されている場合があります。自動 setup、check、migrate、送信範囲を明示した setup、CI、非 TTY、setup のスキップ、npm lifecycle スクリプト、MCP、Hook、help、show、統計の読み取りでは質問しません。質問は stderr に出力し、JSON stdout は維持します。既存の無効化ポリシー・モード・ランチャー・キー・台帳・統計・信頼設定を保持します。
+
+0.1.10 の更新プロセスは新しい質問を直ちに読み込めません。初回の提供時は機能を含むリリースへ更新後、対話形式の `aptly setup`、`aptly set default` または `aptly set transmission --review` を実行してください。この機能を含む将来の更新は、新しいプロセスを起動せず次の手順を表示します。
 
 ```sh
 aptly set transmission --show

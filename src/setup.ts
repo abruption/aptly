@@ -27,9 +27,9 @@ export interface SetupOptions {
   selectUnselectedOnly?: boolean;
 }
 export type TransmissionScope = 'none' | 'description' | 'excerpt';
-export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; invalid_budget_keys?:string[]; budget_error?:string; policy_location?: 'default_home' | 'elsewhere'; selected_home_source?: 'default' | 'override'; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; inherited:string[]; restart_required:boolean } }
+export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; invalid_budget_keys?:string[]; budget_error?:string; policy_location?: 'default_home' | 'elsewhere'; selected_home_source?: 'default' | 'override'; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; transmission_review?: 'required' | 'complete'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; inherited:string[]; restart_required:boolean } }
 export interface SetupResult { status: 'complete' | 'partial' | 'skipped'; clients: SetupClientResult[] }
-type Snapshot = { path: string; before: string | null; after: string | null; mode: number };
+type Snapshot = { path: string; before: string | null; after: string | null; mode: number; reviewPrivate?: boolean; identity?: string };
 type Ownership = { schema_version: 1; kind: 'aptly-setup-ownership'; client: Client; hook: ObjectValue; mcp_created: boolean; mcp?: ObjectValue; policy: ObjectValue; policy_created: boolean; env_added: Record<string, string>; toml_block?: string };
 const object = (value: unknown): value is ObjectValue => !!value && typeof value === 'object' && !Array.isArray(value);
 const stringify = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
@@ -368,6 +368,13 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     result.transmission = effectiveTransmission(policyValue);
     result.transmission_source = policyValue.schema_version === 1 ? 'legacy' : policyValue.transmission === 'unselected' ? 'unselected' : 'explicit';
     manifest.after = stringify(owner);
+    const review = transmissionReviewSnapshot(options, client);
+    observations.push(review);
+    if (requestedScope !== undefined) {
+      review.after = transmissionReviewMarker(options, client, policyValue);
+      if (review.after !== review.before) changes.push(review);
+    }
+    result.transmission_review = reviewMatches(review.after, options, client, policyValue) ? 'complete' : 'required';
     if (client === 'codex') result.requires_hook_review = true;
     result.codes = [...(client === 'codex' ? ['requires_hook_review'] : []), ...(result.transmission === 'unselected' ? ['transmission_selection_required'] : result.transmission_source === 'legacy' ? ['legacy_transmission_excerpt'] : []), ...(requestedScope !== undefined || result.budget?.restart_required ? ['mcp_restart_required'] : [])];
     dirs.push(dir, privateDir, stateDir);
@@ -376,12 +383,15 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
   if (client === 'codex' && mcp.after !== null) toml(mcp.after);
   for (const snapshot of [mcp, hooks, policy, manifest]) if (snapshot.before !== snapshot.after) changes.push(snapshot);
   if (!removing && changes.length) result.status = 'configured';
+  const markerIndex = changes.findIndex(item => item.reviewPrivate);
+  if (markerIndex >= 0) changes.push(...changes.splice(markerIndex, 1));
   return { changes, observations, dirs, result };
 }
 /** Secure sibling staging is short-lived and never a backup; original settings stay in memory. */
 function replace(snapshot: Snapshot, forward: boolean) {
   const expected = forward ? snapshot.before : snapshot.after, next = forward ? snapshot.after : snapshot.before;
   const check = () => {
+    if (snapshot.reviewPrivate) validateReviewPrivate(snapshot.path);
     const current = read(snapshot.path);
     if (current.text !== expected || (process.platform !== 'win32' && expected !== null && current.mode !== snapshot.mode)) fail('concurrent_configuration_change');
   };
@@ -442,7 +452,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   }
   return { status: results.some(result => result.status === 'error') ? 'partial' : results.every(result => result.status === 'skipped') ? 'skipped' : 'complete', clients: results };
 }
-const codes = new Set(['statistics_requires_setup','statistics_policy_conflict','statistics_config_invalid','statistics_ownership_invalid','statistics_observers_present','statistics_key_missing','statistics_shared_state','statistics_platform_unsupported','statistics_invalid_options','statistics_observer_missing','unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
+const codes = new Set(['transmission_review_requires_setup','transmission_review_invalid_options','statistics_requires_setup','statistics_policy_conflict','statistics_config_invalid','statistics_ownership_invalid','statistics_observers_present','statistics_key_missing','statistics_shared_state','statistics_platform_unsupported','statistics_invalid_options','statistics_observer_missing','unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
 function safeCode(error: unknown) { return error instanceof Error && codes.has(error.message) ? error.message : 'configuration_io_error'; }
 export function setupHosts(options: SetupOptions = {}): SetupResult { return execute(options, false); }
 /** Snapshot the normal setup plan without applying it; it does not verify a running host. */
@@ -471,8 +481,10 @@ export function setCredentialReference(options: SetupOptions = {}): SetupResult 
 /** Include unchanged files: a no-op reference update must still detect prompt-time edits. */
 function validateObservations(plan: SetupPlan, written: Snapshot[] = []) {
   for (const snapshot of plan.observations) {
+    if (snapshot.reviewPrivate) validateReviewPrivate(snapshot.path);
     const current = read(snapshot.path);
     const expected=written.includes(snapshot)?snapshot.after:snapshot.before;
+    if (!written.includes(snapshot) && snapshot.identity && reviewIdentity(snapshot.path) !== snapshot.identity) fail('concurrent_configuration_change');
     if (current.text !== expected || (process.platform!=='win32' && expected!==null && current.mode !== snapshot.mode)) fail('concurrent_configuration_change');
   }
 }
@@ -538,6 +550,141 @@ export function setTransmission(scope: TransmissionScope, options: SetupOptions 
   return execute(options,false,{transmission:scope});
 }
 
+export type TransmissionReviewCandidate = {
+  client: Client;
+  transmission: TransmissionScope | 'unselected';
+  transmission_source: 'legacy' | 'explicit' | 'unselected';
+  selected_home_source: 'default' | 'override';
+  application_mode: 'defaults' | 'advisory';
+  enabled: boolean;
+};
+const TRANSMISSION_REVIEW_FILE = 'transmission-review.json';
+function reviewIdentity(path: string): string {
+  try { const stat=lstatSync(path); return `${stat.dev}:${stat.ino}:${stat.uid}:${stat.nlink}`; }
+  catch(error) { if ((error as NodeJS.ErrnoException).code==='ENOENT') return 'missing'; throw error; }
+}
+function validateReviewPrivate(path: string) {
+  noSymlinks(path);
+  for (const [target,directory] of [[dirname(path),true],[path,false]] as const) {
+    try {
+      const stat=lstatSync(target);
+      if (stat.isSymbolicLink() || (directory ? !stat.isDirectory() : !stat.isFile() || stat.nlink!==1)) fail('unsafe_configuration_file');
+      if (process.platform!=='win32' && process.getuid && stat.uid!==process.getuid()) fail(directory?'private_directory_permissions':'private_file_permissions');
+      privatePermissions(target,directory?'private_directory_permissions':'private_file_permissions');
+    } catch(error) { if ((error as NodeJS.ErrnoException).code!=='ENOENT') throw error; }
+  }
+}
+function transmissionReviewSnapshot(options: SetupOptions, client: Client): Snapshot {
+  const path=join(resolved(options,client).privateDir,TRANSMISSION_REVIEW_FILE);
+  validateReviewPrivate(path);
+  const source=read(path);
+  return {path,before:source.text,after:source.text,mode:source.mode,reviewPrivate:true,identity:reviewIdentity(path)};
+}
+function transmissionReviewMarker(options: SetupOptions, client: Client, policy: AutoPolicy): string {
+  const paths=resolved(options,client),scope=effectiveTransmission(policy);
+  // A local UI acknowledgement, not authentication or authorization of host code.
+  const binding={selected_home:resolve(paths.dir),policyPath:join(paths.privateDir,'auto-policy.json'),
+    state_directory:resolve(policy.state_directory),schema_version:policy.schema_version,effective_scope:scope,
+    provenance:policy.schema_version===1?'legacy':scope==='unselected'?'unselected':'explicit'};
+  return stringify({schema_version:1,revision:1,client,binding_sha256:createHash('sha256').update(JSON.stringify(binding)).digest('hex')});
+}
+function reviewMatches(text: string | null, options: SetupOptions, client: Client, policy: AutoPolicy): boolean {
+  if (text===null || effectiveTransmission(policy)==='unselected') return false;
+  try { return isDeepStrictEqual(JSON.parse(text),JSON.parse(transmissionReviewMarker(options,client,policy))); } catch { return false; }
+}
+
+/** Read-only, two-phase local acknowledgement. Recheck every captured host before writing. */
+export function prepareTransmissionReview(options: SetupOptions & {forceReview?:boolean} = {}): {
+  result: SetupResult; candidates: TransmissionReviewCandidate[]; apply(choice: 'keep' | TransmissionScope): SetupResult;
+} {
+  options={...options,home:resolve(options.home??homedir()),env:{...(options.env??process.env)},...(options.clients?{clients:[...options.clients]}:{})};
+  const clients=[...new Set(options.clients??['codex','claude'])] as Client[];
+  const plans: SetupPlan[]=[], candidates: TransmissionReviewCandidate[]=[];
+  if (!clients.length || clients.some(client=>!['codex','claude'].includes(client)) || options.automatic!==undefined || options.mode!==undefined || options.transmission!==undefined || options.selectUnselectedOnly!==undefined) {
+    const result:SetupResult={status:'partial',clients:clients.map(client=>({client,status:'error',codes:['transmission_review_invalid_options']}))};
+    return {result,candidates:[],apply:()=>result};
+  }
+  const results:SetupClientResult[]=clients.map(client=>{
+    try {
+      const paths=resolved(options,client),policyPath=join(paths.privateDir,'auto-policy.json');
+      const mcp=read(paths.mcpPath),config=client==='codex'?toml(mcp.text??''):json(mcp.text);
+      const entry=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly;
+      const policySource=read(policyPath),ownerSource=read(join(paths.privateDir,'setup-ownership.json'));
+      if (entry===undefined && policySource.text===null && ownerSource.text===null) return {client,status:'skipped',codes:['host_not_configured']};
+      if (!object(entry) || entry.env?.APTLY_HOOK_POLICY_PATH!==policyPath || policySource.text===null || ownerSource.text===null) fail('transmission_review_requires_setup');
+      const loaded=loadAutomaticHookPolicy(policyPath);
+      if (!loaded.policy) fail('policy_conflict');
+      const policy=loaded.policy!,owner=ownership(json(ownerSource.text),client);
+      if (!isDeepStrictEqual(policy,owner.policy)) fail('managed_policy_changed');
+      const hooksSource=read(paths.hooksPath),hookSettings=json(hooksSource.text);
+      if (!Array.isArray(hookSettings.hooks?.PreToolUse) || !hookSettings.hooks.PreToolUse.some((value:unknown)=>isDeepStrictEqual(value,owner.hook)) || !isDeepStrictEqual(owner.hook,hook(client))) fail('transmission_review_requires_setup');
+      if (!object(entry.env) || entry.env.ROUTER_LEDGER_PATH===undefined) fail('transmission_review_requires_setup');
+      // Use the existing explicit-change validator without executing a setup repair.
+      const plan=prepare(options,client,false,{transmission:effectiveTransmission(policy)==='unselected'?'none':effectiveTransmission(policy) as TransmissionScope});
+      for (const [path,source] of [[paths.mcpPath,mcp],[policyPath,policySource],[join(paths.privateDir,'setup-ownership.json'),ownerSource],[paths.hooksPath,hooksSource]] as const) {
+        const captured=plan.observations.find(snapshot=>snapshot.path===path);
+        if (!captured || captured.before!==source.text || captured.mode!==source.mode) fail('concurrent_configuration_change');
+      }
+      for (const snapshot of plan.observations) {
+        snapshot.identity=reviewIdentity(snapshot.path);
+        if (snapshot.path===policyPath || snapshot.path===join(paths.privateDir,'setup-ownership.json')) {
+          validateReviewPrivate(snapshot.path); snapshot.reviewPrivate=true;
+        }
+      }
+      const review=plan.observations.find(snapshot=>snapshot.path===join(paths.privateDir,TRANSMISSION_REVIEW_FILE))!;
+      const complete=reviewMatches(review.before,options,client,policy);
+      const state:SetupClientResult={client,status:'unchanged',codes:[complete?'transmission_review_complete':'transmission_review_required'],transmission_review:complete?'complete':'required',transmission:effectiveTransmission(policy),transmission_source:policy.schema_version===1?'legacy':effectiveTransmission(policy)==='unselected'?'unselected':'explicit'};
+      if (!complete || options.forceReview) {
+        plans.push({...plan,changes:[],dirs:[],result:state});
+        candidates.push({client,transmission:effectiveTransmission(policy),transmission_source:state.transmission_source!,selected_home_source:(client==='codex'?(options.env??process.env).CODEX_HOME:(options.env??process.env).CLAUDE_CONFIG_DIR)?'override':'default',application_mode:policy.mode,enabled:policy.enabled});
+      }
+      return state;
+    } catch(error) { return errorResult(client,error); }
+  });
+  const result:SetupResult={status:results.some(value=>value.status==='error')?'partial':results.every(value=>value.status==='skipped')?'skipped':'complete',clients:results};
+  if (result.status==='partial') {
+    result.clients=results.map(initial=>plans.some(plan=>plan.result.client===initial.client)?{...initial,status:'skipped',codes:['other_host_validation_failed']}:initial);
+    return {result,candidates:[],apply:()=>result};
+  }
+  return {result,candidates,apply:(choice)=>{
+    const merge=(updates:SetupClientResult[],status:SetupResult['status']):SetupResult=>({status,clients:results.map(initial=>updates.find(updated=>updated.client===initial.client)??initial)});
+    if (!['keep','none','description','excerpt'].includes(choice)) return merge(plans.map(plan=>({...plan.result,status:'error',codes:['transmission_invalid_scope']})),'partial');
+    if (!plans.length) return result;
+    const commits:SetupPlan[]=[];
+    const failures:SetupClientResult[]=[];
+    // All preflight checks precede every write; commits retain per-client rollback.
+    for (const plan of plans) {
+      const client=plan.result.client;
+      try {
+        validateObservations(plan);
+        const currentPolicy=loadAutomaticHookPolicy(join(resolved(options,client).privateDir,'auto-policy.json')).policy;
+        if (!currentPolicy) fail('policy_conflict');
+        if ((choice==='keep' && effectiveTransmission(currentPolicy!)!=='unselected') || (currentPolicy!.schema_version===2 && choice===effectiveTransmission(currentPolicy!))) {
+          const marker=plan.observations.find(snapshot=>snapshot.path===join(resolved(options,client).privateDir,TRANSMISSION_REVIEW_FILE))!;
+          marker.after=transmissionReviewMarker(options,client,currentPolicy!);
+          commits.push({...plan,changes:marker.before===marker.after?[]:[marker],result:{...plan.result,status:marker.before===marker.after?'unchanged':'configured',codes:['transmission_review_complete'],transmission_review:'complete'}});
+        } else {
+          const scope=choice==='keep'?'none':choice;
+          const next=prepare(options,client,false,{transmission:scope});
+          validateObservations(plan);
+          for (const original of plan.observations) {
+            const fresh=next.observations.find(snapshot=>snapshot.path===original.path);
+            if (!fresh || fresh.before!==original.before || fresh.mode!==original.mode) fail('concurrent_configuration_change');
+          }
+          // Capture the original prompt-time observations, including unchanged files.
+          next.observations=plan.observations.map(original=>next.observations.find(snapshot=>snapshot.path===original.path) ? Object.assign(next.observations.find(snapshot=>snapshot.path===original.path)!,{identity:original.identity,reviewPrivate:original.reviewPrivate}) : original);
+          next.dirs=[];
+          next.result.codes.push('transmission_review_complete');
+          commits.push(next);
+        }
+      } catch(error) { failures.push({...plan.result,...errorResult(client,error)}); }
+    }
+    if (failures.length) return merge(plans.map(plan=>failures.find(failed=>failed.client===plan.result.client)??{...plan.result,status:'skipped',codes:['other_host_validation_failed']}),'partial');
+    const applied=execute({...options,clients:plans.map(plan=>plan.result.client)},false,undefined,commits);
+    return merge(applied.clients,applied.status);
+  }};
+}
+
 /** Read-only redacted policy state. Does not create host directories or contact a provider. */
 export function showTransmission(options: SetupOptions = {}) {
   return {clients:(options.clients??['codex','claude']).map(client=>{
@@ -546,6 +693,7 @@ export function showTransmission(options: SetupOptions = {}) {
       const loaded=loadAutomaticHookPolicy(join(privateDir,'auto-policy.json'));
       if(!loaded.policy)return {client,status:'unavailable',code:loaded.reason};
       return {client,status:'configured',application_mode:loaded.policy.mode,enabled:loaded.policy.enabled,
+        transmission_review:reviewMatches(transmissionReviewSnapshot(options,client).before,options,client,loaded.policy)?'complete':'required',
         transmission:effectiveTransmission(loaded.policy),transmission_source:loaded.policy.schema_version===1?'legacy':effectiveTransmission(loaded.policy)==='unselected'?'unselected':'explicit'};
     }catch(error){return {client,status:'error',code:safeCode(error)};}
   })};
