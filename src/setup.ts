@@ -124,21 +124,32 @@ function validateEnvironmentValue(key: string, value: string) {
   if (key === 'ROUTER_PROVIDER' && !['fixture','decisions'].includes(value)) fail('environment_invalid_value');
   if (key === 'APTLY_MODEL_INFO_PATH') { try { assertPrivateStatePath(value); } catch { fail('environment_invalid_value'); } }
 }
-function budgetInheritance(entry:ObjectValue, environment:NodeJS.ProcessEnv, client:Client) {
+const candidateEnvironmentAliases:Readonly<Record<string,string>>={APTLY_CLAUDE_MODELS:'CLAUDE_MODELS',APTLY_CODEX_MODELS:'CODEX_MODELS'};
+function environmentInheritance(entry:ObjectValue, environment:NodeJS.ProcessEnv, client:Client) {
   if(client==='codex'&&entry.env_vars!==undefined&&(!Array.isArray(entry.env_vars)||entry.env_vars.some((key:unknown)=>typeof key!=='string')))fail('configuration_shape_conflict');
   const permitted=client==='codex'?(entry.env_vars??[]):[],keys=new Set<string>(),values:Record<string,unknown>={};
   for(const key of budgetEnvironmentKeys){
     if(client==='codex'?permitted.includes(key):environment[key]!==undefined){keys.add(key);if(environment[key]!==undefined)values[key]=environment[key];}
   }
   for(const key of Object.keys(environment))if((key.startsWith('APTLY_MAX_')||key.startsWith('APTLY_ESTIMATED_'))&&(client==='claude'||permitted.includes(key)))values[key]=environment[key];
+  for(const key of Object.entries(candidateEnvironmentAliases).flat()){
+    const descriptor=Object.getOwnPropertyDescriptor(environment,key);
+    // A declared Codex passthrough remains external even when this CLI cannot observe its value.
+    if(client==='codex'?!permitted.includes(key):!descriptor||('value' in descriptor&&descriptor.value===undefined))continue;
+    keys.add(key);
+    if(descriptor){
+      if(!('value' in descriptor))fail('environment_invalid_value');
+      if(descriptor.value!==undefined)values[key]=descriptor.value;
+    }
+  }
   return {keys,values};
 }
 function editEnvironment(current: ObjectValue, edit: EnvironmentEdit, client: Client, inherited:{keys:Set<string>;values:Record<string,unknown>}): Record<string,string> {
   const updates: Record<string,string> = {};
   if ('defaults' in edit) {
     for (const [key,value] of Object.entries(defaultEnvironment)) {
-      const alias = key === 'APTLY_CLAUDE_MODELS' ? 'CLAUDE_MODELS' : key === 'APTLY_CODEX_MODELS' ? 'CODEX_MODELS' : null;
-      if (current[key] === undefined && (!alias || current[alias] === undefined) && !(budgetEnvironmentKeys.includes(key)&&inherited.keys.has(key))) updates[key] = value;
+      const alias = candidateEnvironmentAliases[key];
+      if (current[key] === undefined && (!alias || current[alias] === undefined) && !inherited.keys.has(key)&&(!alias||!inherited.keys.has(alias))) updates[key] = value;
     }
   } else if ('credential' in edit) {
     updates.APTLY_SECRET_BACKEND = 'os';
@@ -338,8 +349,8 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     }
     if ((edit && ('credential' in edit || 'migrate' in edit)) || servers.aptly.env?.APTLY_HOOK_POLICY_PATH===CODEX_HOME_POLICY_SOURCE) requireCredentialRuntime(servers.aptly,root);
     const currentEnv = map(servers.aptly, 'env');
-    const originalEnvKeys=new Set(Object.keys(currentEnv)),inheritedBudget=budgetInheritance(servers.aptly,env,client);
-    const updates = edit ? editEnvironment(currentEnv,edit,client,inheritedBudget) : {};
+    const originalEnvKeys=new Set(Object.keys(currentEnv)),inheritedEnvironment=environmentInheritance(servers.aptly,env,client);
+    const updates = edit ? editEnvironment(currentEnv,edit,client,inheritedEnvironment) : {};
     Object.assign(currentEnv,updates);
     if (created) {
       if (client === 'codex') { tomlBlock = newTomlBlock(servers.aptly); mcp.after = (mcp.before ?? '') + ((mcp.before ?? '').endsWith('\n') || !mcp.before ? '\n' : '\n\n') + tomlBlock; }
@@ -403,11 +414,11 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     }
     if (requestedScope !== undefined) owner.policy = structuredClone(policyValue);
     if (edit && ('defaults' in edit || ('key' in edit && budgetEnvironmentKeys.includes(edit.key)))) {
-      const budget=resolveBudgetSettings({...inheritedBudget.values,...currentEnv});
+      const budget=resolveBudgetSettings({...inheritedEnvironment.values,...currentEnv});
       result.budget={limits:{...budget.limits},added:budgetEnvironmentKeys.filter(key=>Object.hasOwn(updates,key)&&!originalEnvKeys.has(key)),
         updated:budgetEnvironmentKeys.filter(key=>Object.hasOwn(updates,key)&&originalEnvKeys.has(key)),
         preserved:budgetEnvironmentKeys.filter(key=>!Object.hasOwn(updates,key)&&currentEnv[key]!==undefined),
-        inherited:budgetEnvironmentKeys.filter(key=>currentEnv[key]===undefined&&inheritedBudget.keys.has(key)),restart_required:budgetEnvironmentKeys.some(key=>Object.hasOwn(updates,key))};
+        inherited:budgetEnvironmentKeys.filter(key=>currentEnv[key]===undefined&&inheritedEnvironment.keys.has(key)),restart_required:budgetEnvironmentKeys.some(key=>Object.hasOwn(updates,key))};
     }
     result.transmission = effectiveTransmission(policyValue);
     result.transmission_source = policyValue.schema_version === 1 ? 'legacy' : policyValue.transmission === 'unselected' ? 'unselected' : 'explicit';
