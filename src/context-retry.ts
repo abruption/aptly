@@ -33,7 +33,7 @@ export class ContextRetries {
   const policy=loadAutomaticHookPolicy(this.policyPath);
   if(!policy.policy?.enabled||policy.fingerprint!==seed.policy_fingerprint||['none','unselected'].includes(effectiveTransmission(policy.policy)))return {reason:'automatic_policy_changed'};
   try{
-   this.router.load();
+   this.router.load({readOnly:true});
    const original=this.router.state.requests[seed.request_id];
    if(original&&(original.state!=='complete'||original.result?.status!=='needs_context'))return {reason:original.state==='unknown'?'outcome_unknown':'context_retry_not_eligible'};
   }catch{return {reason:'ledger_error'};}
@@ -48,7 +48,7 @@ export class ContextRetries {
   const policy=loadAutomaticHookPolicy(this.policyPath);
   if(!policy.policy?.enabled||policy.fingerprint!==seed.policy_fingerprint||['none','unselected'].includes(effectiveTransmission(policy.policy)))return {reason:'automatic_policy_changed'};
   if(!seed.fresh_eligible||seed.application_blocked!=='inherited_context_application_unverified')return {reason:'fresh_delegation_unsupported'};
-  try{this.router.load();const record=this.router.state.requests[seed.request_id];
+  try{this.router.load({readOnly:true});const record=this.router.state.requests[seed.request_id];
    if(!record||record.state!=='complete'||record.result?.status!=='recommended')return {reason:'recommendation_not_available'};
   }catch{return {reason:'ledger_error'};}
   const retry_id=hash(['aptly-blocked-advice-v1',seed.request_id]);
@@ -123,7 +123,7 @@ export class ContextRetries {
   if(/\bsk-[A-Za-z0-9_-]{12,}|\bBearer\s+[A-Za-z0-9._~+\/-]{8,}={0,2}/i.test(task_name+'\n'+standalone_task))return reject('sensitive_input');
   if(entry.active||this.router.active)return reject('concurrency_limit');
   try {
-   this.router.load();const record=this.router.state.requests[entry.recommendation_id??retry_id];
+   this.router.load({readOnly:true});const record=this.router.state.requests[entry.recommendation_id??retry_id];
    if(!record)return reject('recommendation_not_found');
    if(record.state!=='complete')return reject('outcome_unknown');
    const result=record.result;this.router.validateOutcome(result);

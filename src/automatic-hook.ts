@@ -286,7 +286,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       if(!currentCall||currentCall.callKey!==call.callKey||currentCall.payloadDigest!==call.payloadDigest)return preserve('call_changed');
       if(currentContext?.reason||currentContext?.fingerprint!==supplied?.fingerprint)return preserve(currentContext?.reason??'context_changed');
       const legacyId=hookInput({client,event,policy:router.policy})?.request_id??hash([call.client,call.event.session_id,call.event.tool_use_id??call.event.tool_call_id]);
-      try{router.load();}catch{return preserve('ledger_error');}
+      try{router.load({readOnly:true});}catch{return preserve('ledger_error');}
       if(own(router.state.requests,legacyId))return preserve('legacy_request_exists',legacyId);
       // Reserve the same immutable native-call binding without making a paid request.
       const bound=bindCall(call,loaded.policy,loaded.fingerprint,catalogFingerprint(router.policy),supplied?.fingerprint);
@@ -300,7 +300,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if (!policyBeforePaid.policy?.enabled || policyBeforePaid.fingerprint !== loaded.fingerprint) return preserve('automatic_policy_changed');
     const legacyId = hookInput({ client, event, policy: router.policy })?.request_id ??
       hash([call.client, call.event.session_id, call.event.tool_use_id ?? call.event.tool_call_id]);
-    try { router.load(); } catch { return preserve('ledger_error'); }
+    try { router.load({readOnly:true}); } catch { return preserve('ledger_error'); }
     if (own(router.state.requests, legacyId)) return preserve('legacy_request_exists', legacyId);
     const contextBeforePaid=context?.();
     if (contextBeforePaid?.reason || contextBeforePaid?.fingerprint!==supplied?.fingerprint) return preserve(contextBeforePaid?.reason??'context_changed');
