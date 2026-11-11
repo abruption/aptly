@@ -26,6 +26,8 @@ aptly stats disable --client codex
 
 形式は `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]`、`aptly stats disable [--client]` です。収集は既定で無効で、postinstall でも自動有効化しません。enable は Aptly 所有のコマンド観測器を設置し、別の `stats-ownership.json` に記録します。既存の receipt・MCP・launcher・キー・予算・送信設定は保持します。有効化後は MCP とホストを再起動し、Codex では `/hooks` で native Hook の信頼を確認してください。
 
+`stats enable` は最初のイベント前に空の統計 DB を初期化し、既存 DB は検証して保持します。初期化に失敗すると `partial` と `statistics_store_initialization_failed` を返し、適用済みの登録設定が残る場合があります。旧バージョンで有効化後、イベントがなく DB が未作成の場合は `stats enable` を再実行してください。照会は DB の作成や修復を行いません。
+
 disable は収集を無効にし、変更されていない所有観測器だけを削除します。変更済みやカスタムの観測器は警告して保持し、データとキーも残します。`remove` は統計所有の定義を検証・削除しますが、データは保持します。個別に管理される収集器やカスタム Hook は自動的に取り込みません。
 
 非公開の状態は予算台帳とは別の `stats.sqlite`、`stats-config.json`、`stats-key`（HMAC 秘密鍵）を使用します。鍵を共有しないでください。記録にタスク原文・会話記録・生 ID・パス・エラー・資格情報は含まれません。統計の読み取りは API・キー・資格情報ストアにアクセスせず、初期化や通知も行いません。

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,writeFileSync,readdirSync,mkdirSync,unlinkSync,chmodSync,statSync,renameSync,symlinkSync} from 'node:fs';
+import {readFileSync,writeFileSync,readdirSync,mkdirSync,unlinkSync,chmodSync,statSync,renameSync,symlinkSync,existsSync} from 'node:fs';
 import {join,relative,resolve} from 'node:path';
 import {parse,stringify} from 'smol-toml';
 import {spawnSync} from 'node:child_process';
@@ -143,4 +143,24 @@ test('transmission query accepts valid codex-home binding and rejects a broken f
  const path=join(f.home,'.codex/config.toml'),config=parse(readFileSync(path,'utf8')) as any;
  config.mcp_servers.aptly.env_vars=config.mcp_servers.aptly.env_vars.filter(key=>key!=='CODEX_HOME');writeFileSync(path,stringify(config));
  f.query(['set','transmission','--show'],1,'partial');
+});
+
+for(const client of ['codex','claude'] as const)test(`fresh ${client} collection is queryable before the first event`,posix,t=>{
+ const f=fixture(t,true),options={...f.options,clients:[client]};assert.equal(setStatisticsCollection(true,options).status,'complete');
+ const before=files(f.home),r=showStatistics(options);assert.equal(r.status,'complete');assert.equal(r.clients[0].collection[client],true);assert.equal(r.clients[0].delegations,0);assert.deepEqual(files(f.home),before);
+ f.query(['stats','--client',client],0,'complete');
+});
+for(const client of ['codex','claude'] as const)test(`${client} statistics ownership detects loss of all store files before any event`,posix,t=>{
+ const f=fixture(t,true),options={...f.options,clients:[client]};assert.equal(setStatisticsCollection(true,options).status,'complete');
+ const state=join(f.home,client==='codex'?'.codex':'.claude','aptly/state');
+ for(const name of ['stats-config.json','stats-key','stats.sqlite'])if(existsSync(join(state,name)))unlinkSync(join(state,name));
+ const before=files(f.home),r=showStatistics(f.options);assert.equal(r.status,'partial');assert.equal(r.clients.find(c=>c.client!==client).status,'ok');assert.deepEqual(files(f.home),before);
+ f.query(['stats','--client',client],1,'partial');
+});
+test('enable validates existing statistics history and reports initialization failure without replacing it',posix,t=>{
+ const f=fixture(t,true),options={...f.options,clients:['codex'] as ['codex']},db=join(f.home,'.codex/aptly/state/stats.sqlite');
+ assert.equal(setStatisticsCollection(true,options).status,'complete');
+ const saved=readFileSync(db);assert.equal(setStatisticsCollection(true,options).status,'complete');assert.deepEqual(readFileSync(db),saved);
+ writeFileSync(db,'CORRUPT_DATABASE_SENTINEL');const corrupt=files(f.home),r=setStatisticsCollection(true,options);assert.equal(r.status,'partial');assert.ok(r.clients[0].codes.includes('statistics_store_initialization_failed'));assert.deepEqual(files(f.home),corrupt);
+ f.query(['stats','--client','codex'],1,'partial');
 });

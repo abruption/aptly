@@ -26,6 +26,8 @@ aptly stats disable --client codex
 
 命令形式为 `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]` 和 `aptly stats disable [--client]`。收集默认关闭，postinstall 也不会自动启用。enable 安装 Aptly 所有的命令观察器，并记录在独立的 `stats-ownership.json`；既有 receipt、MCP、launcher、密钥、预算和传输设置保持不变。启用后请重启 MCP 和宿主；Codex 还需在 `/hooks` 审核 native Hook 信任。
 
+`stats enable` 在首个事件前初始化空的统计数据库，并验证和保留既有数据库。初始化失败时返回 `partial` 和 `statistics_store_initialization_failed`，已应用的注册设置可能保留。如果旧版本启用收集后尚无事件创建数据库，请重新运行 `stats enable`。查询不会创建或修复数据库。
+
 disable 关闭收集，只移除未修改的自有观察器。已修改或自定义的观察器会保留并给出警告；数据和密钥也会保留。`remove` 验证并移除统计功能拥有的定义，但保留数据。不会自动接管单独管理的收集器或自定义 Hook。
 
 私有状态使用与预算账本分开的 `stats.sqlite`、`stats-config.json` 和 `stats-key`（HMAC 密钥）。请勿分享密钥。记录不包含任务原文、对话记录、原始 ID、路径、错误或凭据。读取统计不调用 API、不访问密钥或凭据存储，也不初始化或运行通知。

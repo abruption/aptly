@@ -26,6 +26,8 @@ The top-level `status` in `aptly stats` reads, including `--today`, is `complete
 
 The command forms are `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]` and `aptly stats disable [--client]`. Collection is off by default and postinstall does not enable it. Enable installs Aptly-owned command observers recorded separately in `stats-ownership.json`; it leaves the legacy receipt, MCP, launchers, keys, budget and transmission settings intact. Restart MCP and the host after enabling; for Codex, review native Hook trust in `/hooks`.
 
+`stats enable` initializes an empty statistics database before the first event and validates existing stores without replacing them. Initialization failure returns `partial` with `statistics_store_initialization_failed`; applied registration may remain. If an older version enabled collection but no event has created its database, rerun `stats enable`. Queries never create or repair the database.
+
 Disable turns collection off and removes only unchanged owned observers. Modified or custom observers are preserved with a warning; data and the key remain. `remove` validates and removes stats-owned definitions but keeps the data. Independently managed collectors and custom Hooks are not adopted automatically.
 
 Private state uses `stats.sqlite`, `stats-config.json` and `stats-key` (an HMAC secret), separately from the budget ledger. Do not share the key. Records contain no task text, transcripts, raw IDs, paths, errors or credentials. Reading stats makes no API, key or credential-store calls, initializes nothing and runs no notifier.

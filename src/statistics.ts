@@ -115,6 +115,16 @@ function connection(options: StatisticsOptions, write: boolean): DatabaseSync | 
   return db;
  } catch(error) { db.close(); throw error; }
 }
+/** Explicit enable-time initialization only; read queries and observers retain their own paths. */
+export function initializeStatisticsStore(options:StatisticsOptions):void {
+ const path=join(options.stateDirectory,STATISTICS_DATABASE_FILE);
+ assertPrivateStatePath(path);checkSidecars(path);
+ if(!existsSync(path))initialize(path);
+ // Validate an existing store without replacing it or opening a write transaction.
+ const db=connection(options,false);
+ if(!db)throw new Error('statistics_database_invalid');
+ db.close();
+}
 type Disposition = StatisticsRecommendation['disposition'];
 interface Expected { profileId: string; model: string; effort?: string; catalogHash?: string }
 interface Delegation { disposition?: Disposition; expected?: Expected; child?: string; path?: string; conflict?: boolean; applied?: string[]; appliedUnknown?: boolean; toolObserved?: boolean }
@@ -236,7 +246,7 @@ function modelState(d:Delegation,c:Child|undefined,ambiguous:boolean,created:num
  return expected===actual?'model_match':'model_mismatch';
 }
 type StatisticsFilter = {client?:Client|'all';today?:boolean};
-function readStatisticsInternal(options:StatisticsOptions,filter:StatisticsFilter,snapshot?:QuerySnapshot){
+function readStatisticsInternal(options:StatisticsOptions,filter:StatisticsFilter,snapshot?:QuerySnapshot,configurationExpected=false){
  const now=(options.now??Date.now)();
  const output={status:'ok',scope:'retained_records',semantics:'retained_routing_records_not_user_acceptance_or_execution_total',observation_completeness:'best_effort_not_full_execution_history',today_basis:'UTC_binding_creation',filter:{client:filter.client??'all',today:filter.today===true},
   collection:{codex:false,claude:false},capacity:{delegations:limit(options.maxDelegations),children:limit(options.maxChildren),reached:false},
@@ -254,6 +264,7 @@ function readStatisticsInternal(options:StatisticsOptions,filter:StatisticsFilte
   }catch{failed=true;}
  }else config=loadStatisticsConfig(options);
  for(const client of config?.enabled_clients??[])output.collection[client]=true;
+ if(snapshot&&configAbsent&&configurationExpected)failed=true;
  if(snapshot&&configAbsent)try{
   if(snapshot.track(join(options.stateDirectory,STATISTICS_KEY_FILE),{privateFile:true,singleLink:true,identityOnly:true}))failed=true;
  }catch{failed=true;}
@@ -324,10 +335,10 @@ export function readStatistics(options:StatisticsOptions,filter:StatisticsFilter
 }
 
 /** Read the same projection while reporting query failures separately. */
-export function readStatisticsQuery(options:StatisticsOptions,filter:StatisticsFilter={},snapshot?:QuerySnapshot){
+export function readStatisticsQuery(options:StatisticsOptions,filter:StatisticsFilter={},snapshot?:QuerySnapshot,configurationExpected=false){
  const owned=snapshot===undefined;
  const view=snapshot??new QuerySnapshot();
- const outcome=readStatisticsInternal(options,filter,view);
+ const outcome=readStatisticsInternal(options,filter,view,configurationExpected);
  if(owned)try{view.verify();}catch{outcome.failed=true;}
  return outcome;
 }

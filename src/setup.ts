@@ -15,7 +15,7 @@ import { assertPrivateStatePath } from './files.ts';
 import { CODEX_HOME_POLICY_SOURCE, resolvePolicySource } from './policy-source.ts';
 import { assertWindowsPrivatePath, protectNewWindowsPrivateDirectory, copyWindowsFilePermissions } from './windows-private.ts';
 
-import { STATISTICS_CONFIG_FILE, STATISTICS_KEY_FILE, STATISTICS_DB_FILE, parseStatisticsConfig, serializeStatisticsConfig, readStatisticsQuery, type StatisticsConfig } from './statistics.ts';
+import { STATISTICS_CONFIG_FILE, STATISTICS_KEY_FILE, STATISTICS_DB_FILE, parseStatisticsConfig, serializeStatisticsConfig, readStatisticsQuery, initializeStatisticsStore, type StatisticsConfig } from './statistics.ts';
 
 type Client = 'codex' | 'claude';
 type ObjectValue = Record<string, any>;
@@ -790,6 +790,7 @@ function queryContext(options:SetupOptions,client:Client,snapshot:QuerySnapshot,
  const config=client==='codex'?toml(mcp?.toString('utf8')??''):json(mcp?.toString('utf8')??null);
  const servers=config[client==='codex'?'mcp_servers':'mcpServers'],entry=servers?.aptly;
  let failed=(servers!==undefined&&!object(servers))||(entry!==undefined&&(!object(entry)||(entry.env!==undefined&&!object(entry.env))));
+ let statisticsExpected=false;
  let expected=failed||(object(entry?.env)&&Object.hasOwn(entry.env,'APTLY_HOOK_POLICY_PATH'));
  try{
   const receipt=snapshot.read(join(paths.privateDir,'setup-ownership.json'),{privateFile:true});
@@ -797,7 +798,7 @@ function queryContext(options:SetupOptions,client:Client,snapshot:QuerySnapshot,
  }catch{failed=true;expected=true;}
  if(statistics||policyMissing)try{
   const statOwner=snapshot.read(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE),{privateFile:true});
-  if(statOwner){expected=true;statisticsOwner(json(statOwner.toString('utf8')),client);}
+  if(statOwner){expected=true;statisticsOwner(json(statOwner.toString('utf8')),client);statisticsExpected=true;}
  }catch{failed=true;expected=true;}
  if(policyMissing&&!expected)try{
   // A normal remove retains a disabled config and history; this is not broken setup.
@@ -805,7 +806,7 @@ function queryContext(options:SetupOptions,client:Client,snapshot:QuerySnapshot,
   if(bytes){const state=parseStatisticsConfig(JSON.parse(bytes.toString('utf8')));if(!state){failed=true;expected=true;}else expected=state.enabled_clients.includes(client);}
   else for(const name of [STATISTICS_KEY_FILE,STATISTICS_DB_FILE])if(snapshot.track(join(paths.privateDir,'state',name),{privateFile:true,singleLink:true,identityOnly:true}))expected=true;
  }catch{failed=true;expected=true;}
- return {entry,expected,failed,paths};
+ return {entry,expected,failed,paths,statisticsExpected};
 }
 /** Redacted policy query; aggregate status is query completion, not host readiness. */
 export function showTransmission(options: SetupOptions = {}) {
@@ -935,13 +936,13 @@ export function setStatisticsCollection(enabled:boolean,options:SetupOptions&{co
  const clients=[...new Set(options.clients??['codex','claude'])] as Client[];
  if(typeof enabled!=='boolean'||!clients.length||clients.some(c=>!['codex','claude'].includes(c))||options.automatic||options.mode||options.transmission||options.selectUnselectedOnly||(!enabled&&options.codexNativeMetadata!==undefined)||options.codexNativeMetadata&& !clients.includes('codex'))return{status:'partial',clients:clients.map(client=>({client,status:'error',codes:['statistics_invalid_options']}))};
  if(process.platform==='win32')return{status:'partial',clients:clients.map(client=>({client,status:'error',codes:['statistics_platform_unsupported']}))};
- const states=new Set<string>();
+ const states=new Set<string>(),initializationPaths=new Map<Client,string>();
  const plans:SetupPlan[]=clients.map(client=>{
   try{
    if(!enabled){const base=resolved(options,client);if(read(join(base.privateDir,'auto-policy.json')).text===null&&read(join(base.privateDir,STATISTICS_OWNERSHIP_FILE)).text===null&&read(join(base.privateDir,'state',STATISTICS_CONFIG_FILE)).text===null)return{changes:[],observations:[],dirs:[],result:{client,status:'unchanged',codes:['statistics_disabled']}};}
    const paths=statisticsPolicy(options,client,enabled);
    if(enabled){try{assertPrivateStatePath(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE));assertPrivateStatePath(join(paths.stateDirectory,STATISTICS_CONFIG_FILE));}catch{fail('private_directory_permissions');}}
-   if(states.has(paths.stateDirectory))fail('statistics_shared_state');states.add(paths.stateDirectory);
+   if(states.has(paths.stateDirectory))fail('statistics_shared_state');states.add(paths.stateDirectory);initializationPaths.set(client,paths.stateDirectory);
    const observations:Snapshot[]=[],changes:Snapshot[]=[];
    const snap=(path:string,privateFile=true)=>{const result=privateFile?statisticsSnapshot(path):(()=>{const v=read(path);return{path,before:v.text,after:v.text,mode:v.mode};})();observations.push(result);return result;};
    const policy=snap(paths.policyPath);
@@ -984,7 +985,15 @@ export function setStatisticsCollection(enabled:boolean,options:SetupOptions&{co
   }catch(error){return{changes:[],observations:[],dirs:[],result:errorResult(client,error)};}
  });
  if(enabled&&plans.some(p=>p.result.status==='error'))return{status:'partial',clients:plans.map(p=>p.result.status==='error'?p.result:{...p.result,status:'skipped',codes:['other_host_validation_failed']})};
- return execute(options,false,undefined,plans);
+ const applied=execute(options,false,undefined,plans);
+ if(!enabled||applied.status!=='complete')return applied;
+ // Configuration was applied successfully; initialization failures are reported
+ // as partial setup, never rolled back or hidden as a complete activation.
+ const initialized=applied.clients.map(result=>{
+  try{initializeStatisticsStore({stateDirectory:initializationPaths.get(result.client)!});return result;}
+  catch{return {...result,status:'error' as const,codes:[...result.codes,'statistics_store_initialization_failed']};}
+ });
+ return {status:initialized.some(result=>result.status==='error')?'partial':'complete',clients:initialized};
 }
 /** Snapshot view; no runtime, credentials, provider, budget gate or state creation. */
 export function showStatistics(options:SetupOptions={},today=false){
@@ -1005,7 +1014,7 @@ export function showStatistics(options:SetupOptions={},today=false){
    if(!loaded.policy){
     snapshot.verify();return {result:{client,status:'statistics_requires_setup',collection:'disabled'},failed:context.failed||loaded.availability==='error'||context.expected};
    }
-   const outcome=readStatisticsQuery({stateDirectory:loaded.policy.state_directory},{client,today},snapshot);
+   const outcome=readStatisticsQuery({stateDirectory:loaded.policy.state_directory},{client,today},snapshot,context.statisticsExpected);
    snapshot.verify();return {result:{client,...outcome.result},failed:outcome.failed||context.failed};
   }catch(error){return {result:{client,status:safeCode(error),collection:'disabled'},failed:true};}
  });

@@ -26,6 +26,8 @@ aptly stats disable --client codex
 
 명령 형식은 `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]`, `aptly stats disable [--client]`입니다. 수집은 기본적으로 꺼져 있고 postinstall에서도 자동 활성화하지 않습니다. enable은 Aptly 소유 명령 관찰자를 설치하고 별도의 `stats-ownership.json`에 기록하며 기존 receipt·MCP·launcher·키·예산·전송 설정은 유지합니다. 활성화 후 MCP와 호스트를 재시작하고 Codex에서는 `/hooks`의 native Hook 신뢰를 검토하십시오.
 
+`stats enable`은 첫 이벤트 전에 빈 통계 DB를 초기화하고 기존 DB는 검증하여 보존합니다. 초기화에 실패하면 등록 설정이 남아 있어도 `partial`과 `statistics_store_initialization_failed`를 반환합니다. 이전 버전에서 활성화 후 이벤트가 없어 DB가 아직 없다면 `stats enable`을 다시 실행하십시오. 조회는 DB를 생성하거나 복구하지 않습니다.
+
 disable은 수집을 끄고 변경되지 않은 소유 관찰자만 제거합니다. 수정되거나 사용자 정의된 관찰자는 경고와 함께 보존하며 데이터와 키도 유지합니다. `remove`는 통계 소유 정의를 검증·제거하지만 데이터는 유지합니다. 별도로 관리하는 수동 관찰자나 사용자 정의 Hook은 자동 채택하지 않습니다.
 
 비공개 상태는 예산 원장과 별개의 `stats.sqlite`, `stats-config.json`, `stats-key`(HMAC 비밀키)를 사용합니다. 키를 공유하지 마십시오. 기록에는 작업 원문·대화 기록·원시 ID·경로·오류·자격 증명이 없습니다. 통계 조회는 API·키·자격 저장소에 접근하지 않고 초기화나 알림도 실행하지 않습니다.
