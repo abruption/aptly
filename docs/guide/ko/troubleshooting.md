@@ -42,7 +42,7 @@ CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
 CODEX_HOME="$HOME/.codex" aptly stats --client codex
 ```
 
-전환은 `APTLY_HOOK_POLICY_PATH = "@codex-home"`과 `env_vars`의 `CODEX_HOME` 전달을 등록합니다. 서버 시작 시 전달된 홈의 `aptly/auto-policy.json`을 선택합니다. 변수가 없거나 비어 있거나 상대 경로이면 다른 홈으로 대체하지 않고 거부합니다. MCP 시작 시에는 기본 홈도 `CODEX_HOME="$HOME/.codex"`를 전달해야 합니다. 0.1.11 CLI에서 변수가 없는 일반 터미널의 setup이 `policy_source_home_invalid`로 실패하면 위 예시처럼 기본 홈을 명시하십시오. 후속 CLI 수정에서는 변수가 없을 때 이미 선택한 표준 `~/.codex`를 검증에 사용합니다. 명시한 계정 홈과 잘못된 값의 거부는 유지합니다. 위 예시는 기본 홈용이며 각 계정에서는 해당 계정의 절대 홈 경로로 바꾸십시오. 이는 운영자가 지정한 경로 선택이며 호스트 전체 설정을 인증하는 증거가 아닙니다. [Codex MCP 환경변수 전달](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)을 참고하십시오.
+전환은 `APTLY_HOOK_POLICY_PATH = "@codex-home"`과 `env_vars`의 `CODEX_HOME` 전달을 등록합니다. 서버 시작 시 전달된 홈의 `aptly/auto-policy.json`을 선택합니다. 변수가 없거나 비어 있거나 상대 경로이면 다른 홈으로 대체하지 않고 거부합니다. MCP 시작 시에는 기본 홈도 `CODEX_HOME="$HOME/.codex"`를 전달해야 합니다. 0.1.11 CLI에서 변수가 없는 일반 터미널의 setup이 `policy_source_home_invalid`로 실패하면 위 예시처럼 기본 홈을 명시하십시오. 0.1.12 CLI 수정에서는 변수가 없을 때 이미 선택한 표준 `~/.codex`를 검증에 사용합니다. 명시한 계정 홈과 잘못된 값의 거부는 유지합니다. 위 예시는 기본 홈용이며 각 계정에서는 해당 계정의 절대 홈 경로로 바꾸십시오. 이는 운영자가 지정한 경로 선택이며 호스트 전체 설정을 인증하는 증거가 아닙니다. [Codex MCP 환경변수 전달](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)을 참고하십시오.
 
 전환은 정책 내용·전송 동의·원장 경로·통계 이력·Hook 신뢰를 이동하거나 초기화하지 않습니다. 기존 고정/공유 정책은 명시적으로 전환하지 않으면 유지됩니다. 사용자 정의 실행기, 다른 등록 변경, 소유권 불일치는 자동 복구하지 않습니다. 오류 시 기록을 편집하거나 복사하지 말고 등록을 검토하십시오. 서버를 다시 시작한 뒤 선택한 계정에서 다시 조회하십시오. 성공한 미리보기나 파일 검사는 실행 중 MCP의 갱신 또는 모델 관측을 증명하지 않습니다.
 

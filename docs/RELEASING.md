@@ -1,10 +1,16 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.11 준비 — 미게시
+## 0.1.12 핫픽스 준비 — 미게시
 
-#131에서 가이드 분리(#127·PR #128), 전송 범위 재확인(#126·PR #129), 명시적 Codex 계정 홈 정책 선택(#130·PR #132)을 묶습니다. 버전·한국어 릴리스 노트와 [준비 기록](releases/0.1.11.md)을 갱신하며, 기존 0.1.10 게시 근거는 유지합니다.
+#135·PR #136에서 CLI의 기본 홈 검증을 수정하고 0.1.12로 준비합니다. 사용자는 수정·CI·병합·태그 기반 게시와 두 Mac 갱신을 승인했습니다. 정확한 PR HEAD 검사와 병합 main CI를 확인한 뒤 annotated v0.1.12 태그로 Actions OIDC 게시를 진행합니다. 실제 게시 전에는 후보를 npm latest에 게시했다고 표현하지 않습니다. [핫픽스 노트](release-notes/0.1.12.md)와 [준비 기록](releases/0.1.12.md)을 참고하십시오.
 
-준비 PR은 #132 위에 쌓인 의존 PR입니다. #132 병합 후 기준을 main으로 변경하고 최신 main을 반영한 새 HEAD의 CI를 확인해야 합니다. 준비 PR 병합 후에도 정확한 병합 main CI 성공과 별도 사용자 게시 지시를 확인한 뒤에만 annotated v0.1.11 태그를 생성합니다. 이 문서의 준비 상태는 게시·provenance·실제 호스트 전환의 증거가 아닙니다.
+## 0.1.11 실제 게시 — 2026-11-11
+
+정확한 병합 main `83471cec2a4a041023373425a9107ca4b3a1c4cd`의 [CI 7개 job](https://github.com/abruption/aptly/actions/runs/42968949999) 성공 후 annotated `v0.1.11` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42969314932/attempts/1)를 완료했습니다. 세 job 성공, 검증 시점 npm `latest` 0.1.11, artifact·registry SHA-256·SHA-512 SRI 일치, npm 서명과 SLSA v1 인증서의 소스·태그·workflow·run/attempt identity를 확인했습니다. [GitHub Release](https://github.com/abruption/aptly/releases/tag/v0.1.11)는 draft·prerelease 없이 공개됐습니다.
+
+가이드 분리(#127·PR #128), 전송 범위 재확인(#126·PR #129), 명시적 Codex 계정 홈 정책 선택(#130·PR #132)을 포함합니다. 준비는 #131·PR #133, 게시 기록은 [#134](https://github.com/abruption/aptly/issues/134), 변경은 [한국어 릴리스 노트](release-notes/0.1.11.md), 정확한 digest·인증서·전파 기록은 [실제 게시 근거](releases/0.1.11.md)에 정리했습니다. 초기 registry·attestation 전파 지연을 보존하고 같은 실행의 5번째 attestation 조회에서 200을 확인했으며 태그·게시 job을 반복하지 않았습니다.
+
+두 Mac에서 기본/정본과 선택 계정의 참조를 전환하고 정책·전송 선택·Hook·통계 설정/소유권·원장 보존과 새 MCP 0.1.11을 확인했습니다. 기존 호스트 세션 재로딩과 실제 native 모델·effort 적용은 관측하지 않았습니다. 전환 뒤 `CODEX_HOME` 없는 일반 CLI 설정 실패는 [#135](https://github.com/abruption/aptly/issues/135)로 추적하며, 기본 홈의 임시 읽기 전용 점검은 `CODEX_HOME="$HOME/.codex" aptly setup --check --client codex`로 실행합니다. 이 버전에 수정이 포함됐다고 주장하지 않습니다. 기존 0.1.10 게시 근거와 런타임 MCP의 엄격한 홈 검사는 유지합니다.
 
 ## 0.1.10 게시와 검증
 

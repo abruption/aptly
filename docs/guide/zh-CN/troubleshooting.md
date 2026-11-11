@@ -42,7 +42,7 @@ CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
 CODEX_HOME="$HOME/.codex" aptly stats --client codex
 ```
 
-迁移注册 `APTLY_HOOK_POLICY_PATH = "@codex-home"`，并通过 `env_vars` 转发 `CODEX_HOME`。服务端启动时选择该目录下的 `aptly/auto-policy.json`。变量缺失、为空或为相对路径时会被拒绝，不会选择其他主目录。MCP 启动时仍须显式转发主目录，默认目录也须传入 `CODEX_HOME="$HOME/.codex"`。如果 0.1.11 CLI 在未设置变量的普通终端中返回 `policy_source_home_invalid`，请像上述示例一样显式指定默认目录。尚未发布的 CLI 修复会在变量缺失时验证其已选择的标准 `~/.codex`，同时保留显式账号选择及无效值拒绝。示例使用默认目录；针对账号执行时，请替换为目标账号的绝对主目录。这是操作者指定的来源选择，并非宿主完整配置的证明。请参阅 [Codex MCP 环境变量转发](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)。
+迁移注册 `APTLY_HOOK_POLICY_PATH = "@codex-home"`，并通过 `env_vars` 转发 `CODEX_HOME`。服务端启动时选择该目录下的 `aptly/auto-policy.json`。变量缺失、为空或为相对路径时会被拒绝，不会选择其他主目录。MCP 启动时仍须显式转发主目录，默认目录也须传入 `CODEX_HOME="$HOME/.codex"`。如果 0.1.11 CLI 在未设置变量的普通终端中返回 `policy_source_home_invalid`，请像上述示例一样显式指定默认目录。0.1.12 CLI 修复会在变量缺失时验证其已选择的标准 `~/.codex`，同时保留显式账号选择及无效值拒绝。示例使用默认目录；针对账号执行时，请替换为目标账号的绝对主目录。这是操作者指定的来源选择，并非宿主完整配置的证明。请参阅 [Codex MCP 环境变量转发](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)。
 
 迁移不会移动或重置策略内容、传输同意、账本路径、统计历史或 Hook 信任。现有固定/共享策略在未显式迁移时保持不变。自定义启动器、其他注册修改及所有权不匹配需要本地审查；请勿编辑或复制记录来绕过错误。重启服务端后，请在目标账号中再次检查。预演或文件检查成功并不证明运行中的 MCP 已更新，也不证明已观测到模型。
 
