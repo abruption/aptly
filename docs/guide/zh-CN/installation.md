@@ -48,11 +48,11 @@ npm install -g aptly@latest --ignore-scripts
 aptly setup --client all
 ```
 
-在未发布的源代码中，npm lifecycle 安装也不会询问传输审查。升级到包含该功能的版本后，请在相同账户环境中运行交互式 `aptly setup`、`aptly set default` 或 `aptly set transmission --review`。0.1.10 更新进程无法在更新期间提出新问题；请参见[传输审查](transmission.md#guide-transmission-scope)。
+传输审查从 0.1.11 起提供，npm lifecycle 安装不会询问。从 0.1.10 升级时，请先更新软件包，再在相同账户环境中运行交互式 `aptly setup`、`aptly set default` 或 `aptly set transmission --review`。更新进程不会代为执行新的审查，也不会视为用户已同意；请参见[传输审查](transmission.md#guide-transmission-scope)。
 
 无论安装脚本是否运行，都可以显式执行 `setup`。它会保留已有启动路径；旧路径错误请参见[执行路径恢复步骤](troubleshooting.md#guide-launcher-recovery)。密钥配置、MCP 重启和 Codex `/hooks` 信任审核仍需单独完成。
 
-未发布的安装脚本在已有注册需要审查时，仅向 stderr 输出运行 `aptly set transmission --review` 的提示，不提问，也不记录选择。
+0.1.11 及更高版本的安装脚本在设置成功完成且已注册客户端需要审查时，仅向 stderr 输出运行 `aptly set transmission --review` 的提示，不提问，也不记录选择。
 
 <a id="guide-package-updates"></a>
 

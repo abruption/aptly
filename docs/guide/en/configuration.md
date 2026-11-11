@@ -32,7 +32,7 @@ Claude Code stores Hooks in `~/.claude/settings.json` by default, or `$CLAUDE_CO
 
 ## Configure with the CLI
 
-In unreleased source, the first normal interactive `aptly set default` groups pending transmission reviews by client home. The recommendation is `excerpt`; Enter preserves an existing scope or selects `none` if unselected. See [transmission review](transmission.md#guide-transmission-scope). This review is not in published 0.1.10.
+From 0.1.11, the first normal interactive `aptly set default` groups pending transmission reviews by client home. The recommendation is `excerpt`; Enter preserves an existing scope or selects `none` if unselected. See [transmission review](transmission.md#guide-transmission-scope). This review flow is not supported in 0.1.10, so update first.
 
 The `set` commands require 0.1.1 or later. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
 

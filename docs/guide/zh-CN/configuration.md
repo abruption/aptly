@@ -32,7 +32,7 @@ Claude Code 默认将 Hook 存储在 `~/.claude/settings.json`；设置 `CLAUDE_
 
 ## 使用 CLI 设置
 
-在未发布的源代码中，首次普通交互式 `aptly set default` 会按客户端主目录合并待审查项。推荐 `excerpt`；按 Enter 保留已有范围，未选择时则选择 `none`。请参见[传输审查](transmission.md#guide-transmission-scope)。已发布的 0.1.10 不包含此审查。
+从 0.1.11 起，首次普通交互式 `aptly set default` 会按客户端主目录合并待审查项。推荐 `excerpt`；按 Enter 保留已有范围，未选择时则选择 `none`。请参见[传输审查](transmission.md#guide-transmission-scope)。0.1.10 不支持此重新审查流程，请先更新。
 
 `set` 命令需要 0.1.1 或更高版本。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
 
