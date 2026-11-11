@@ -207,16 +207,22 @@ function updateTomlForwarding(text:string, names:string[]|undefined):string {
   if(!isDeepStrictEqual(toml(rendered),expected))fail('unsupported_toml_layout');
   return rendered;
 }
+/** CLI commands validate their explicitly selected config home, not a running host. */
+function selectedCliPolicyPath(options:SetupOptions):string|undefined {
+  const env=options.env??process.env;
+  return resolvePolicySource(CODEX_HOME_POLICY_SOURCE,env.CODEX_HOME===undefined?{...env,CODEX_HOME:resolved(options,'codex').dir}:env);
+}
 function policyReferenceMatches(entry:ObjectValue,client:Client,policyPath:string,options:SetupOptions):boolean {
   const source=entry.env?.APTLY_HOOK_POLICY_PATH;
   if(source!==CODEX_HOME_POLICY_SOURCE)return source===policyPath;
-  return client==='codex' && entry.env?.CODEX_HOME===undefined && Array.isArray(entry.env_vars) && entry.env_vars.every((x:unknown)=>typeof x==='string') && entry.env_vars.includes('CODEX_HOME') && resolvePolicySource(source,options.env??process.env,options.home)===policyPath;
+  return client==='codex' && entry.env?.CODEX_HOME===undefined && Array.isArray(entry.env_vars) && entry.env_vars.every((x:unknown)=>typeof x==='string') && entry.env_vars.includes('CODEX_HOME') && selectedCliPolicyPath(options)===policyPath;
 }
 
 function resolved(options: SetupOptions, client: Client) {
   const home = resolve(options.home ?? homedir()), env = options.env ?? process.env;
   const override = client === 'codex' ? env.CODEX_HOME : env.CLAUDE_CONFIG_DIR;
   if (override && !isAbsolute(override)) fail('relative_configuration_directory');
+  if(client==='codex'&&override!==undefined)resolvePolicySource(CODEX_HOME_POLICY_SOURCE,env);
   const dir = override || join(home, client === 'codex' ? '.codex' : '.claude');
   const mcpPath = client === 'codex' ? join(dir, 'config.toml') : override ? join(dir, '.claude.json') : join(home, '.claude.json');
   return { dir, mcpPath, hooksPath: join(dir, client === 'codex' ? 'hooks.json' : 'settings.json'), privateDir: join(dir, 'aptly') };
@@ -590,7 +596,7 @@ export function setPolicySource(options:SetupOptions, dryRun=false):SetupResult 
   try {
     const paths=resolved(options,client), policyPath=join(paths.privateDir,'auto-policy.json');
     // Validate the selector even when CODEX_HOME is present but empty.
-    if(resolvePolicySource(CODEX_HOME_POLICY_SOURCE,options.env??process.env,options.home)!==policyPath)fail('policy_source_home_invalid');
+    if(selectedCliPolicyPath(options)!==policyPath)fail('policy_source_home_invalid');
     const snap=(path:string):Snapshot=>{const file=read(path);return {path,before:file.text,after:file.text,mode:file.mode};};
     const mcp=snap(paths.mcpPath),hooks=snap(paths.hooksPath),policy=snap(policyPath),manifest=snap(join(paths.privateDir,'setup-ownership.json'));
     for(const dir of [paths.privateDir,join(paths.privateDir,'state')]) { try {checkedDirectory(dir);privatePermissions(dir,'private_directory_permissions');} catch(e:any) {if(e.code!=='ENOENT')throw e;} }
