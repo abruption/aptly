@@ -29,6 +29,23 @@ aptly stats --client codex
 
 설정 점검이 성공한 뒤 [통계 활성화](statistics.md)를 진행하십시오. `collection.codex: true`는 수집 설정이며 실행 중 호스트가 Hook을 로드·신뢰했다는 증명은 아닙니다. 올바른 계정의 Codex를 재시작하고 `/hooks`에서 실제 항목을 검토하십시오.
 
+### 관리형 계정에서 정책 경로가 다시 바뀌는 경우
+
+0.1.11에 포함될 기능입니다. Orca처럼 기본 홈의 같은 이름 MCP 등록을 계정 홈으로 동기화하는 관리자는 계정에만 수정한 절대 정책 경로를 다시 덮어쓸 수 있습니다. Hook이 남아 있어도 MCP와 통계가 서로 다른 정책을 참조할 수 있습니다.
+
+모든 등록된 Aptly 서버를 새 버전으로 갱신하고 관련 호스트·MCP를 종료한 뒤, 정상 소유권이 있는 기존 Codex 설정에 다음 명시적 전환을 적용하십시오. 먼저 기본/정본 등록이 있는 홈에서 실행하고, 이후 의도한 각 계정의 `CODEX_HOME`을 선택한 환경에서 반복하십시오. 계정 파일만 변경하면 관리자의 동기화로 되돌아갈 수 있습니다.
+
+```sh
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home --dry-run
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home
+CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
+CODEX_HOME="$HOME/.codex" aptly stats --client codex
+```
+
+전환은 `APTLY_HOOK_POLICY_PATH = "@codex-home"`과 `env_vars`의 `CODEX_HOME` 전달을 등록합니다. 서버 시작 시 전달된 홈의 `aptly/auto-policy.json`을 선택합니다. 변수가 없거나 비어 있거나 상대 경로이면 다른 홈으로 대체하지 않고 거부합니다. 기본 홈을 사용할 때도 `CODEX_HOME="$HOME/.codex"`를 명시하여 CLI와 Codex를 실행하십시오. 아래 예시는 기본 홈용이며 각 계정에서는 해당 계정의 절대 홈 경로로 바꾸십시오. 이는 운영자가 지정한 경로 선택이며 호스트 전체 설정을 인증하는 증거가 아닙니다. [Codex MCP 환경변수 전달](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)을 참고하십시오.
+
+전환은 정책 내용·전송 동의·원장 경로·통계 이력·Hook 신뢰를 이동하거나 초기화하지 않습니다. 기존 고정/공유 정책은 명시적으로 전환하지 않으면 유지됩니다. 사용자 정의 실행기, 다른 등록 변경, 소유권 불일치는 자동 복구하지 않습니다. 오류 시 기록을 편집하거나 복사하지 말고 등록을 검토하십시오. 서버를 다시 시작한 뒤 선택한 계정에서 다시 조회하십시오. 성공한 미리보기나 파일 검사는 실행 중 MCP의 갱신 또는 모델 관측을 증명하지 않습니다.
+
 <a id="guide-launcher-recovery"></a>
 
 ## 실행 경로 오류 복구

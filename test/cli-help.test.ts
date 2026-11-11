@@ -120,3 +120,24 @@ test('stdin help exits without waiting for input', { timeout: 10000 }, async t =
   assert.equal(stderr, '');
   f.assertUntouched();
 });
+
+
+test('policy source setup help validates explicit Codex-only migration without writing', t => {
+  const f=fixture(t);
+  for(const args of [
+    ['setup','--client','codex','--policy-source','codex-home','--help'],
+    ['setup','--client','codex','--policy-source','codex-home','--dry-run','--help'],
+  ]) { const result=f.run(args);assertHelp(result,args);assert.match(result.stdout,/CODEX_HOME/); }
+  for(const tail of [
+    ['--policy-source','codex-home'],
+    ['--client','claude','--policy-source','codex-home'],
+    ['--client','codex','--policy-source','other'],
+    ['--client','codex','--policy-source','codex-home','--automatic'],
+    ['--client','codex','--policy-source','codex-home','--transmission','excerpt'],
+    ['--client','codex','--policy-source','codex-home','--migrate-launcher'],
+  ]) {
+    const result=f.run(['setup',...tail,'--help']);assert.equal(result.status,2);assert.equal(result.stdout,'');
+    const execution=f.run(['setup',...tail]);assert.equal(execution.status,1);assert.match(execution.stderr,/operation_failed/);
+  }
+  f.assertUntouched();
+});

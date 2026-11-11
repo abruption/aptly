@@ -29,6 +29,23 @@ aptly stats --client codex
 
 设置检查成功后，请按[统计启用说明](statistics.md)操作。`collection.codex: true` 仅表示收集配置，不证明运行中的宿主已加载或信任 Hook。请重启目标账户的 Codex，并在 `/hooks` 中检查实际条目。
 
+### 托管账号的策略路径再次被覆盖
+
+此功能计划纳入 0.1.11。Orca 等管理器可能将默认主目录中同名 MCP 注册同步到账号目录，从而覆盖仅在账号中修改的绝对策略路径。即使 Hook 保留，MCP 与统计功能仍可能引用不同的策略。
+
+请先升级所有已注册的 Aptly 服务端并停止相关宿主和 MCP 进程。对于所有权记录完整的现有 Codex 配置，请先在默认/权威注册所在的主目录中显式迁移，再在各目标账号已选择其 `CODEX_HOME` 的环境中重复执行。仅修改账号文件仍可能被同步覆盖。
+
+```sh
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home --dry-run
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home
+CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
+CODEX_HOME="$HOME/.codex" aptly stats --client codex
+```
+
+迁移注册 `APTLY_HOOK_POLICY_PATH = "@codex-home"`，并通过 `env_vars` 转发 `CODEX_HOME`。服务端启动时选择该目录下的 `aptly/auto-policy.json`。变量缺失、为空或为相对路径时会被拒绝，不会选择其他主目录。使用默认目录时，也请显式设置 `CODEX_HOME="$HOME/.codex"` 来启动 CLI 和 Codex。示例使用默认目录；针对账号执行时，请替换为目标账号的绝对主目录。这是操作者指定的来源选择，并非宿主完整配置的证明。请参阅 [Codex MCP 环境变量转发](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)。
+
+迁移不会移动或重置策略内容、传输同意、账本路径、统计历史或 Hook 信任。现有固定/共享策略在未显式迁移时保持不变。自定义启动器、其他注册修改及所有权不匹配需要本地审查；请勿编辑或复制记录来绕过错误。重启服务端后，请在目标账号中再次检查。预演或文件检查成功并不证明运行中的 MCP 已更新，也不证明已观测到模型。
+
 <a id="guide-launcher-recovery"></a>
 
 ## 恢复不兼容的启动路径

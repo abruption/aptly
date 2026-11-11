@@ -10,7 +10,7 @@ import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
 import { errorCode } from '../src/types.ts';
 import { budgetErrorDetails } from '../src/budget.ts';
-import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setTransmission, showTransmission, showBudgetStatus, showStatistics, setStatisticsCollection } from '../src/setup.ts';
+import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, configurableEnvironmentKeys, migrateLauncher, setPolicySource, setTransmission, showTransmission, showBudgetStatus, showStatistics, setStatisticsCollection } from '../src/setup.ts';
 import { readEnvironmentValue } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { linuxStoreReadiness } from '../src/linux-store-readiness.ts';
@@ -91,7 +91,7 @@ try {
   }
  }
  else if(['setup','remove'].includes(command)){
-  let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'|undefined;let transmission:'none'|'description'|'excerpt'|undefined;let automatic=false;let check=false;let migrate=false;let dryRun=false;let includeExisting=false;const seen=new Set<string>();
+  let clients:('codex'|'claude')[]=['codex','claude'];let mode:'defaults'|'advisory'|undefined;let transmission:'none'|'description'|'excerpt'|undefined;let automatic=false;let check=false;let migrate=false;let dryRun=false;let includeExisting=false;let policySource=false;const seen=new Set<string>();
    for(let i=0;i<args.length;i++){
     const flag=args[i];if(seen.has(flag))throw new Error('setup_invalid_options');seen.add(flag);
     if(flag==='--check'&&command==='setup'){check=true;continue;}
@@ -101,14 +101,15 @@ try {
     if(flag==='--automatic'&&command==='setup'){automatic=true;continue;}
     const value=args[++i];
     if(flag==='--client'&&['codex','claude','all'].includes(value))clients=value==='all'?['codex','claude']:[value as 'codex'|'claude'];
+    else if(flag==='--policy-source'&&command==='setup'&&value==='codex-home')policySource=true;
     else if(flag==='--transmission'&&command==='setup'&&['none','description','excerpt'].includes(value))transmission=value as 'none'|'description'|'excerpt';
     else if(flag==='--mode'&&command==='setup'&&['defaults','advisory'].includes(value))mode=value as 'defaults'|'advisory';
     else throw new Error('setup_invalid_options');
    }
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   if((check && [...seen].some(flag=>!['--check','--client'].includes(flag)))||(migrate&&(clients.length!==1||automatic||seen.has('--mode')||seen.has('--transmission')))||((dryRun||includeExisting)&&!migrate))throw new Error('setup_invalid_options');
-   let result=check?checkSetup({clients,packageRoot}):migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});
-   if(command==='setup'&&!check&&!migrate&&!automatic&&transmission===undefined)result=await reviewAfterSetup(result,{clients,packageRoot});
+   if((check && [...seen].some(flag=>!['--check','--client'].includes(flag)))||(migrate&&(clients.length!==1||automatic||seen.has('--mode')||seen.has('--transmission')))||(policySource&&(clients.length!==1||clients[0]!=='codex'||[...seen].some(flag=>!['--client','--policy-source','--dry-run'].includes(flag))))||(dryRun&&!migrate&&!policySource)||(includeExisting&&!migrate))throw new Error('setup_invalid_options');
+   let result=policySource?setPolicySource({clients,packageRoot},dryRun):check?checkSetup({clients,packageRoot}):migrate?migrateLauncher({clients,packageRoot},dryRun,includeExisting):command==='setup'?setupHosts({clients,mode,automatic,packageRoot,transmission}):removeSetup({clients});
+   if(command==='setup'&&!check&&!migrate&&!policySource&&!automatic&&transmission===undefined)result=await reviewAfterSetup(result,{clients,packageRoot});
    output(result);
    if(command==='setup'&&automatic&&result.status==='complete'&&result.clients.some(client=>client.transmission_review==='required'))process.stderr.write('Aptly transmission review pending. Run aptly set transmission --review in the intended host environment. No transmission choice was made by installation.\n');
    if(result.status==='partial'&&!automatic)process.exitCode=1;
