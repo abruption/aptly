@@ -103,3 +103,43 @@ test('malformed forwarding ownership fails closed',async t=>{
   assert.equal(removeSetup(o).clients[0].codes[0],'invalid_ownership');assert.equal(content(path),config);
  }
 });
+
+
+test('CLI default home without CODEX_HOME supports source migration and ordinary commands',async t=>{
+ const {setDefaults,setStatisticsCollection,showStatistics,prepareCredentialReference}=await import('../src/setup.ts');
+ const home=createTestTemp(t,'codex-policy-source-cli-default-'),o={home,env:{},packageRoot:resolve('.'),clients:['codex'] as ['codex']};
+ assert.equal(setupHosts({...o,transmission:'excerpt'}).status,'complete');
+ const policy=join(home,'.codex/aptly/auto-policy.json'),hooks=join(home,'.codex/hooks.json'),beforePolicy=content(policy),beforeHooks=content(hooks);
+ assert.equal(setPolicySource(o,true).status,'complete');assert.equal(setPolicySource(o).status,'complete');
+ assert.equal(checkSetup(o).status,'complete');assert.equal(setupHosts(o).status,'complete');
+ assert.equal(setDefaults(o).status,'complete');assert.equal(prepareCredentialReference(o,'codex').result.status,'unchanged');
+ assert.equal(prepareTransmissionReview(o).result.status,'complete');
+ assert.equal(content(hooks),beforeHooks);
+ assert.equal(setStatisticsCollection(true,o).status,'complete');assert.equal(showStatistics(o).clients[0].status,'ok');
+ assert.equal(content(policy),beforePolicy);
+});
+
+test('CLI source selection rejects invalid explicit homes and preserves other account homes',t=>{
+ const home=createTestTemp(t,'codex-policy-source-cli-invalid-'),o={home,env:{},packageRoot:resolve('.'),clients:['codex'] as ['codex']};
+ setupHosts(o);setPolicySource(o);const path=join(home,'.codex/config.toml'),before=content(path);
+ for(const CODEX_HOME of ['', 'relative', join(home,'bad\npath')]){
+  assert.equal(setPolicySource({...o,env:{CODEX_HOME}}).status,'partial');
+  assert.equal(checkSetup({...o,env:{CODEX_HOME}}).status,'partial');assert.equal(content(path),before);
+ }
+ const account={...o,env:{CODEX_HOME:join(home,'account')}};
+ assert.equal(setupHosts({...account,transmission:'none'}).status,'complete');assert.equal(setPolicySource(account).status,'complete');
+ assert.equal(prepareTransmissionReview({...account,forceReview:true}).candidates[0].transmission,'none');
+ assert.equal(prepareTransmissionReview({...o,forceReview:true}).candidates[0].transmission,'unselected');assert.equal(content(path),before);
+});
+
+
+test('CLI setup succeeds from a default-home terminal without CODEX_HOME after source migration',async t=>{
+ const {spawnSync}=await import('node:child_process');
+ const home=createTestTemp(t,'codex-policy-source-real-cli-'),o={home,env:{},packageRoot:resolve('.'),clients:['codex'] as ['codex']};
+ assert.equal(setupHosts({...o,transmission:'excerpt'}).status,'complete');assert.equal(setPolicySource(o).status,'complete');
+ const env={HOME:home,USERPROFILE:home,PATH:process.env.PATH,CI:'true',APTLY_NO_UPDATE_NOTIFIER:'1'};
+ for(const args of [['setup','--check','--client','codex'],['setup','--client','codex']]){
+  const r=spawnSync(process.execPath,[resolve('bin/aptly.ts'),...args],{env,encoding:'utf8',timeout:15000});
+  assert.equal(r.status,0,r.stderr);assert.equal(JSON.parse(r.stdout).status,'complete');
+ }
+});

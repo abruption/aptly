@@ -42,7 +42,7 @@ CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
 CODEX_HOME="$HOME/.codex" aptly stats --client codex
 ```
 
-移行では `APTLY_HOOK_POLICY_PATH = "@codex-home"` と `env_vars` による `CODEX_HOME` の転送を登録します。起動時にそのホームの `aptly/auto-policy.json` を選びます。変数の欠落、空値、相対パスは別のホームに置き換えず拒否します。既定ホームでも `CODEX_HOME="$HOME/.codex"` を明示して CLI と Codex を起動してください。例は既定ホーム用です。各アカウントでは対象の絶対ホームパスに置き換えてください。これは運用者が指定した参照元の選択であり、ホスト全体の設定を証明するものではありません。[Codex MCP の環境変数転送](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)を参照してください。
+移行では `APTLY_HOOK_POLICY_PATH = "@codex-home"` と `env_vars` による `CODEX_HOME` の転送を登録します。起動時にそのホームの `aptly/auto-policy.json` を選びます。変数の欠落、空値、相対パスは別のホームに置き換えず拒否します。MCP 起動時には既定ホームでも `CODEX_HOME="$HOME/.codex"` を明示的に転送する必要があります。変数のない通常の端末で 0.1.11 CLI が `policy_source_home_invalid` を返す場合は、上の例のように既定ホームを明示してください。未公開の CLI 修正では変数がない場合、すでに選択した標準の `~/.codex` を検証に使用します。明示的なアカウント選択と無効値の拒否は維持します。例は既定ホーム用です。各アカウントでは対象の絶対ホームパスに置き換えてください。これは運用者が指定した参照元の選択であり、ホスト全体の設定を証明するものではありません。[Codex MCP の環境変数転送](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)を参照してください。
 
 移行はポリシー内容、送信同意、台帳パス、統計履歴、Hook の信頼を移動または初期化しません。既存の固定/共有ポリシーは明示的に移行しなければ維持されます。カスタムランチャー、無関係な登録変更、所有権の不一致はローカルで確認してください。エラーを回避するために記録を編集・コピーしないでください。サーバーを再起動して対象アカウントで再確認してください。プレビューやファイル検査の成功は、稼働中 MCP の更新やモデルの観測を証明しません。
 
