@@ -10,6 +10,7 @@ import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, res
 import { Router, defaultPolicy } from './core.ts';
 import { loadAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
 import { assertPrivateStatePath } from './files.ts';
+import { CODEX_HOME_POLICY_SOURCE, resolvePolicySource } from './policy-source.ts';
 import { assertWindowsPrivatePath, protectNewWindowsPrivateDirectory, copyWindowsFilePermissions } from './windows-private.ts';
 
 import { STATISTICS_CONFIG_FILE, STATISTICS_KEY_FILE, STATISTICS_DB_FILE, parseStatisticsConfig, serializeStatisticsConfig, readStatistics, type StatisticsConfig } from './statistics.ts';
@@ -30,7 +31,7 @@ export type TransmissionScope = 'none' | 'description' | 'excerpt';
 export interface SetupClientResult { client: Client; status: 'configured' | 'unchanged' | 'removed' | 'skipped' | 'error'; codes: string[]; invalid_budget_keys?:string[]; budget_error?:string; policy_location?: 'default_home' | 'elsewhere'; selected_home_source?: 'default' | 'override'; requires_hook_review?: boolean; recovery?: string[]; transmission?: string; transmission_source?: 'explicit' | 'legacy' | 'unselected'; transmission_review?: 'required' | 'complete'; budget?: { limits:Record<string,number>; added:string[]; updated:string[]; preserved:string[]; inherited:string[]; restart_required:boolean } }
 export interface SetupResult { status: 'complete' | 'partial' | 'skipped'; clients: SetupClientResult[] }
 type Snapshot = { path: string; before: string | null; after: string | null; mode: number; reviewPrivate?: boolean; identity?: string };
-type Ownership = { schema_version: 1; kind: 'aptly-setup-ownership'; client: Client; hook: ObjectValue; mcp_created: boolean; mcp?: ObjectValue; policy: ObjectValue; policy_created: boolean; env_added: Record<string, string>; toml_block?: string };
+type Ownership = { schema_version: 1; kind: 'aptly-setup-ownership'; client: Client; hook: ObjectValue; mcp_created: boolean; mcp?: ObjectValue; policy: ObjectValue; policy_created: boolean; env_added: Record<string, string>; env_vars_added?: string[]; env_vars_was_absent?: boolean; policy_source_previous?: string; toml_block?: string };
 const object = (value: unknown): value is ObjectValue => !!value && typeof value === 'object' && !Array.isArray(value);
 const stringify = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
 const fail = (code: string): never => { throw new Error(code); };
@@ -77,7 +78,7 @@ const q = (value: string) => JSON.stringify(value);
 const blockStart = '# aptly managed MCP start v1';
 const blockEnd = '# aptly managed MCP end v1';
 function newTomlBlock(entry: ObjectValue) {
-  const lines = [blockStart, '[mcp_servers.aptly]', `command = ${q(entry.command)}`, `args = ${JSON.stringify(entry.args)}`, 'env_vars = ["OPENAI_API_KEY"]', '[mcp_servers.aptly.env]'];
+  const lines = [blockStart, '[mcp_servers.aptly]', `command = ${q(entry.command)}`, `args = ${JSON.stringify(entry.args)}`, `env_vars = ${JSON.stringify(entry.env_vars ?? [])}`, '[mcp_servers.aptly.env]'];
   for (const [key, value] of Object.entries(entry.env)) lines.push(`${key} = ${q(value as string)}`);
   return lines.concat(blockEnd, '').join('\n');
 }
@@ -189,6 +190,29 @@ function updateTomlLauncher(text: string, entry: ObjectValue): string {
   if (!isDeepStrictEqual(toml(rendered),expected)) fail('unsupported_toml_layout');
   return rendered;
 }
+
+/** Replace an unambiguous env_vars assignment, preserving every existing forwarded name. */
+function updateTomlForwarding(text:string, names:string[]|undefined):string {
+  const original=toml(text), expected=structuredClone(original);
+  if(names===undefined)delete expected.mcp_servers.aptly.env_vars; else expected.mcp_servers.aptly.env_vars=names;
+  const headers=[...text.matchAll(/^\s*\[([^\n]+)\][ \t]*(?:#[^\n]*)?\r?$/gm)];
+  const header=headers.find(h=>{try{return toml(h[0]+'\naptly_probe = true\n').mcp_servers?.aptly?.aptly_probe===true;}catch{return false;}});
+  if(!header)fail('unsupported_toml_layout');
+  const start=header!.index!+header![0].length,end=headers.find(h=>h.index!>header!.index!)?.index??text.length;
+  let body=text.slice(start,end); const line=/^[ \t]*env_vars[ \t]*=[^\n]*(?:\n|$)/gm, matches=[...body.matchAll(line)];
+  if(matches.length>1 || (original.mcp_servers.aptly.env_vars!==undefined && matches.length!==1))fail('unsupported_toml_layout');
+  if(matches.length)body=body.replace(line,()=>names===undefined?'':`env_vars = ${JSON.stringify(names)}\n`);
+  else if(names!==undefined)body='\n'+`env_vars = ${JSON.stringify(names)}\n`+body.replace(/^\r?\n/,'');
+  const rendered=text.slice(0,start)+body+text.slice(end);
+  if(!isDeepStrictEqual(toml(rendered),expected))fail('unsupported_toml_layout');
+  return rendered;
+}
+function policyReferenceMatches(entry:ObjectValue,client:Client,policyPath:string,options:SetupOptions):boolean {
+  const source=entry.env?.APTLY_HOOK_POLICY_PATH;
+  if(source!==CODEX_HOME_POLICY_SOURCE)return source===policyPath;
+  return client==='codex' && entry.env?.CODEX_HOME===undefined && Array.isArray(entry.env_vars) && entry.env_vars.every((x:unknown)=>typeof x==='string') && entry.env_vars.includes('CODEX_HOME') && resolvePolicySource(source,options.env??process.env,options.home)===policyPath;
+}
+
 function resolved(options: SetupOptions, client: Client) {
   const home = resolve(options.home ?? homedir()), env = options.env ?? process.env;
   const override = client === 'codex' ? env.CODEX_HOME : env.CLAUDE_CONFIG_DIR;
@@ -199,6 +223,9 @@ function resolved(options: SetupOptions, client: Client) {
 }
 function ownership(value: ObjectValue, client: Client): Ownership {
   if (value.schema_version !== 1 || value.kind !== 'aptly-setup-ownership' || value.client !== client || !object(value.hook) || typeof value.mcp_created !== 'boolean' || !object(value.env_added) || !object(value.policy) || typeof value.policy_created !== 'boolean') fail('invalid_ownership');
+  if (value.policy_source_previous !== undefined && (client !== 'codex' || value.mcp_created || typeof value.policy_source_previous !== 'string' || !isAbsolute(value.policy_source_previous) || Object.hasOwn(value.env_added,'APTLY_HOOK_POLICY_PATH'))) fail('invalid_ownership');
+  if (value.env_vars_added !== undefined && (client !== 'codex' || value.mcp_created || !Array.isArray(value.env_vars_added) || value.env_vars_added.length!==1 || value.env_vars_added[0]!=='CODEX_HOME')) fail('invalid_ownership');
+  if (value.env_vars_was_absent !== undefined && (client !== 'codex' || value.mcp_created || typeof value.env_vars_was_absent!=='boolean' || !value.env_vars_added)) fail('invalid_ownership');
   return value as Ownership;
 }
 /** Compatibility restriction only: this does not authenticate arbitrary launcher code. */
@@ -254,6 +281,16 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
       if (!object(servers.aptly)) fail('managed_mcp_changed');
       for (const [key, value] of Object.entries(owned.env_added)) { if (servers.aptly.env?.[key] !== value) fail('managed_entry_changed'); delete servers.aptly.env[key]; }
       mcp.after = client === 'codex' ? removeTomlEnv(mcp.before ?? '', owned.env_added) : stringify(config);
+      if(owned.policy_source_previous !== undefined) {
+        if(servers.aptly.env?.APTLY_HOOK_POLICY_PATH!==CODEX_HOME_POLICY_SOURCE)fail('managed_entry_changed');
+        mcp.after=updateTomlEnv(mcp.after!,{APTLY_HOOK_POLICY_PATH:owned.policy_source_previous});
+      }
+      if(client==='codex' && owned.env_vars_added?.length) {
+        const names=toml(mcp.after!).mcp_servers?.aptly?.env_vars;
+        if(!Array.isArray(names) || owned.env_vars_added.some(name=>names.filter((x:unknown)=>x===name).length!==1))fail('managed_entry_changed');
+        const remaining=names.filter((name:string)=>!owned.env_vars_added!.includes(name));
+        mcp.after=updateTomlForwarding(mcp.after!,owned.env_vars_was_absent && remaining.length===0 ? undefined : remaining);
+      }
     }
     const p = json(policy.before);
     if (!isDeepStrictEqual(p, owned.policy)) fail('managed_policy_changed');
@@ -276,7 +313,8 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     } else {
       if (!object(servers.aptly)) fail('mcp_entry_conflict');
       const configuredPolicy = object(servers.aptly.env) ? servers.aptly.env.APTLY_HOOK_POLICY_PATH : undefined;
-      const mismatch = configuredPolicy !== undefined && configuredPolicy !== policyPath;
+      if(oldOwner?.policy_source_previous !== undefined && configuredPolicy!==CODEX_HOME_POLICY_SOURCE)fail('managed_entry_changed');
+      const mismatch = configuredPolicy !== undefined && !policyReferenceMatches(servers.aptly,client,policyPath,options);
       const detail = mismatch && typeof configuredPolicy === 'string' && configuredPolicy.length > 0 ? {
         policy_location: configuredPolicy === join(resolve(options.home ?? homedir()), client === 'codex' ? '.codex' : '.claude', 'aptly', 'auto-policy.json') ? 'default_home' : 'elsewhere',
         selected_home_source: (client === 'codex' ? env.CODEX_HOME : env.CLAUDE_CONFIG_DIR) ? 'override' : 'default',
@@ -292,7 +330,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
       servers.aptly.command = process.execPath;
       servers.aptly.args = [join(root,'dist','src','server.js')];
     }
-    if (edit && ('credential' in edit || 'migrate' in edit)) requireCredentialRuntime(servers.aptly,root);
+    if ((edit && ('credential' in edit || 'migrate' in edit)) || servers.aptly.env?.APTLY_HOOK_POLICY_PATH===CODEX_HOME_POLICY_SOURCE) requireCredentialRuntime(servers.aptly,root);
     const currentEnv = map(servers.aptly, 'env');
     const originalEnvKeys=new Set(Object.keys(currentEnv)),inheritedBudget=budgetInheritance(servers.aptly,env,client);
     const updates = edit ? editEnvironment(currentEnv,edit,client,inheritedBudget) : {};
@@ -452,7 +490,7 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   }
   return { status: results.some(result => result.status === 'error') ? 'partial' : results.every(result => result.status === 'skipped') ? 'skipped' : 'complete', clients: results };
 }
-const codes = new Set(['transmission_review_requires_setup','transmission_review_invalid_options','statistics_requires_setup','statistics_policy_conflict','statistics_config_invalid','statistics_ownership_invalid','statistics_observers_present','statistics_key_missing','statistics_shared_state','statistics_platform_unsupported','statistics_invalid_options','statistics_observer_missing','unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
+const codes = new Set(['policy_source_home_invalid','policy_source_requires_setup','policy_source_invalid_options','transmission_review_requires_setup','transmission_review_invalid_options','statistics_requires_setup','statistics_policy_conflict','statistics_config_invalid','statistics_ownership_invalid','statistics_observers_present','statistics_key_missing','statistics_shared_state','statistics_platform_unsupported','statistics_invalid_options','statistics_observer_missing','unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
 function safeCode(error: unknown) { return error instanceof Error && codes.has(error.message) ? error.message : 'configuration_io_error'; }
 export function setupHosts(options: SetupOptions = {}): SetupResult { return execute(options, false); }
 /** Snapshot the normal setup plan without applying it; it does not verify a running host. */
@@ -544,6 +582,68 @@ export function migrateLauncher(options: SetupOptions, dryRun = false, includeEx
   } catch(error) { return {status:'partial',clients:[errorResult(client,error)]}; }
 }
 
+/** Explicitly select a per-Codex-home policy without moving any state. */
+export function setPolicySource(options:SetupOptions, dryRun=false):SetupResult {
+  if(options.clients?.length!==1 || options.clients[0]!=='codex' || options.automatic!==undefined || options.mode!==undefined || options.transmission!==undefined || options.selectUnselectedOnly!==undefined)
+    return {status:'partial',clients:[{client:'codex',status:'error',codes:['policy_source_invalid_options']}]};
+  const client='codex' as const;
+  try {
+    const paths=resolved(options,client), policyPath=join(paths.privateDir,'auto-policy.json');
+    // Validate the selector even when CODEX_HOME is present but empty.
+    if(resolvePolicySource(CODEX_HOME_POLICY_SOURCE,options.env??process.env,options.home)!==policyPath)fail('policy_source_home_invalid');
+    const snap=(path:string):Snapshot=>{const file=read(path);return {path,before:file.text,after:file.text,mode:file.mode};};
+    const mcp=snap(paths.mcpPath),hooks=snap(paths.hooksPath),policy=snap(policyPath),manifest=snap(join(paths.privateDir,'setup-ownership.json'));
+    for(const dir of [paths.privateDir,join(paths.privateDir,'state')]) { try {checkedDirectory(dir);privatePermissions(dir,'private_directory_permissions');} catch(e:any) {if(e.code!=='ENOENT')throw e;} }
+    if(policy.before===null || manifest.before===null || mcp.before===null || hooks.before===null)fail('policy_source_requires_setup');
+    privatePermissions(policy.path,'private_file_permissions');privatePermissions(manifest.path,'private_file_permissions');
+    const owner=ownership(json(manifest.before),client), config=toml(mcp.before!),entry=config.mcp_servers?.aptly;
+    if(!object(entry) || !object(entry.env))fail('mcp_entry_conflict');
+    if(!hooksArray(json(hooks.before)).some(item=>isDeepStrictEqual(item,owner.hook)))fail('managed_hook_changed');
+    if(!loadAutomaticHookPolicy(policyPath).policy || !isDeepStrictEqual(json(policy.before),owner.policy))fail('managed_policy_changed');
+    const root=resolve(options.packageRoot ?? join(dirname(fileURLToPath(import.meta.url)),'..',...(import.meta.url.includes('/dist/src/')?['..']:[])));
+    requireCredentialRuntime(entry,root);
+    if(entry.env.CODEX_HOME!==undefined)fail('mcp_environment_conflict');
+    if(entry.env_vars!==undefined && (!Array.isArray(entry.env_vars)||entry.env_vars.some((v:unknown)=>typeof v!=='string')))fail('configuration_shape_conflict');
+    const source=entry.env.APTLY_HOOK_POLICY_PATH, ownedSource=owner.mcp_created ? owner.mcp?.env?.APTLY_HOOK_POLICY_PATH : owner.env_added.APTLY_HOOK_POLICY_PATH;
+    const defaultPath=join(resolve(options.home??homedir()),'.codex','aptly','auto-policy.json');
+    if(![policyPath,defaultPath,CODEX_HOME_POLICY_SOURCE].includes(source) || (ownedSource !== undefined && ![policyPath,defaultPath,CODEX_HOME_POLICY_SOURCE].includes(ownedSource)) || (owner.mcp_created && ownedSource===undefined))fail('managed_entry_changed');
+    const vars=entry.env_vars??[];
+    if(owner.mcp_created) {
+      if(!object(owner.mcp) || !owner.toml_block)fail('invalid_ownership');
+      const expected=structuredClone(owner.mcp!);expected.env.APTLY_HOOK_POLICY_PATH=source;
+      expected.env_vars=vars;
+      const priorVars=owner.mcp!.env_vars??[];
+      if(!isDeepStrictEqual(vars,priorVars) && !isDeepStrictEqual(vars,[...priorVars,'CODEX_HOME']))fail('managed_mcp_changed');
+      if(!isDeepStrictEqual(expected,entry))fail('managed_mcp_changed');
+      const previousBlock=newTomlBlock(entry);
+      if(!mcp.before!.includes(owner.toml_block!) && !mcp.before!.includes(previousBlock))fail('managed_mcp_changed');
+      entry.env.APTLY_HOOK_POLICY_PATH=CODEX_HOME_POLICY_SOURCE;
+      if(!vars.includes('CODEX_HOME'))entry.env_vars=[...vars,'CODEX_HOME'];
+      const nextBlock=newTomlBlock(entry), oldBlock=mcp.before!.includes(owner.toml_block!)?owner.toml_block!:previousBlock;
+      mcp.after=mcp.before!.replace(oldBlock,nextBlock);
+      if(!isDeepStrictEqual(toml(mcp.after),config))fail('managed_mcp_changed');
+      owner.mcp=structuredClone(entry);owner.toml_block=nextBlock;
+    } else {
+      for(const [key,value] of Object.entries(owner.env_added)) if(key!=='APTLY_HOOK_POLICY_PATH' && entry.env[key]!==value)fail('managed_entry_changed');
+      if(owner.policy_source_previous !== undefined && source!==CODEX_HOME_POLICY_SOURCE)fail('managed_entry_changed');
+      const preexistingSelector=ownedSource===undefined && owner.policy_source_previous===undefined && source===CODEX_HOME_POLICY_SOURCE;
+      if(!vars.includes('CODEX_HOME')) {
+        if(owner.env_vars_added?.length)fail('managed_entry_changed');
+        mcp.after=updateTomlForwarding(mcp.after!,[...vars,'CODEX_HOME']);
+        owner.env_vars_added=[...(owner.env_vars_added??[]),'CODEX_HOME'];if(entry.env_vars===undefined)owner.env_vars_was_absent=true;
+      }
+      mcp.after=updateTomlEnv(mcp.after!,{APTLY_HOOK_POLICY_PATH:CODEX_HOME_POLICY_SOURCE});
+      if(ownedSource!==undefined)owner.env_added.APTLY_HOOK_POLICY_PATH=CODEX_HOME_POLICY_SOURCE;
+      else if(!preexistingSelector && owner.policy_source_previous===undefined)owner.policy_source_previous=source;
+    }
+    manifest.after=stringify(owner);
+    const changes=[mcp,manifest].filter(item=>item.before!==item.after);
+    const plan:SetupPlan={changes,observations:[mcp,hooks,policy,manifest],dirs:[],result:{client,status:changes.length?'configured':'unchanged',codes:changes.length?['policy_source_selected','mcp_restart_required']:['policy_source_current']}};
+    if(dryRun)return {status:'complete',clients:[{...plan.result,status:'unchanged',codes:[changes.length?'policy_source_selection_available':'policy_source_current']}]};
+    return execute(options,false,{migrate:true},[plan]);
+  } catch(error) {return {status:'partial',clients:[errorResult(client,error)]};}
+}
+
 /** Explicit operator change; updates policy and its receipt through normal guarded staging. */
 export function setTransmission(scope: TransmissionScope, options: SetupOptions = {}): SetupResult {
   if (!['none','description','excerpt'].includes(scope)) return {status:'partial',clients:(options.clients??['codex','claude']).map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
@@ -611,7 +711,7 @@ export function prepareTransmissionReview(options: SetupOptions & {forceReview?:
       const entry=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly;
       const policySource=read(policyPath),ownerSource=read(join(paths.privateDir,'setup-ownership.json'));
       if (entry===undefined && policySource.text===null && ownerSource.text===null) return {client,status:'skipped',codes:['host_not_configured']};
-      if (!object(entry) || entry.env?.APTLY_HOOK_POLICY_PATH!==policyPath || policySource.text===null || ownerSource.text===null) fail('transmission_review_requires_setup');
+      if (!object(entry) || !policyReferenceMatches(entry,client,policyPath,options) || policySource.text===null || ownerSource.text===null) fail('transmission_review_requires_setup');
       const loaded=loadAutomaticHookPolicy(policyPath);
       if (!loaded.policy) fail('policy_conflict');
       const policy=loaded.policy!,owner=ownership(json(ownerSource.text),client);
@@ -753,7 +853,7 @@ function statisticsPolicy(options:SetupOptions,client:Client,requireRegistration
   const mcp=read(paths.mcpPath),config=client==='codex'?toml(mcp.text??''):json(mcp.text);
   const entry=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly;
   if(!object(entry))fail('statistics_requires_setup');
-  if(entry.env?.APTLY_HOOK_POLICY_PATH!==policyPath)fail('statistics_policy_conflict');
+  if(!policyReferenceMatches(entry,client,policyPath,options))fail('statistics_policy_conflict');
  }
  const loaded=loadAutomaticHookPolicy(policyPath);if(!loaded.policy)fail('statistics_requires_setup');
  return {...paths,policyPath,stateDirectory:loaded.policy!.state_directory};

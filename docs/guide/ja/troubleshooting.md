@@ -29,6 +29,23 @@ aptly stats --client codex
 
 設定検査が成功した後、[統計の有効化](statistics.md)に進んでください。`collection.codex: true` は収集設定を表し、実行中のホストが Hook を読み込み、信頼した証明ではありません。対象アカウントの Codex を再起動し、`/hooks` で実際の項目を確認してください。
 
+### 管理対象アカウントでポリシーパスが戻る場合
+
+0.1.11 に含める予定の機能です。Orca などの管理ツールが既定ホームの同名 MCP 登録をアカウントホームに同期すると、アカウントだけで修正した絶対ポリシーパスが上書きされる場合があります。Hook が残っていても MCP と統計が異なるポリシーを参照することがあります。
+
+登録済みの Aptly サーバーをすべて更新し、対象ホストと MCP プロセスを停止してください。所有権記録が正常な既存 Codex 設定で、まず既定/正本の登録があるホームを明示的に移行し、その後、対象アカウントの `CODEX_HOME` を選択した各環境で繰り返してください。アカウントファイルだけの変更は同期で戻る可能性があります。
+
+```sh
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home --dry-run
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home
+CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
+CODEX_HOME="$HOME/.codex" aptly stats --client codex
+```
+
+移行では `APTLY_HOOK_POLICY_PATH = "@codex-home"` と `env_vars` による `CODEX_HOME` の転送を登録します。起動時にそのホームの `aptly/auto-policy.json` を選びます。変数の欠落、空値、相対パスは別のホームに置き換えず拒否します。既定ホームでも `CODEX_HOME="$HOME/.codex"` を明示して CLI と Codex を起動してください。例は既定ホーム用です。各アカウントでは対象の絶対ホームパスに置き換えてください。これは運用者が指定した参照元の選択であり、ホスト全体の設定を証明するものではありません。[Codex MCP の環境変数転送](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)を参照してください。
+
+移行はポリシー内容、送信同意、台帳パス、統計履歴、Hook の信頼を移動または初期化しません。既存の固定/共有ポリシーは明示的に移行しなければ維持されます。カスタムランチャー、無関係な登録変更、所有権の不一致はローカルで確認してください。エラーを回避するために記録を編集・コピーしないでください。サーバーを再起動して対象アカウントで再確認してください。プレビューやファイル検査の成功は、稼働中 MCP の更新やモデルの観測を証明しません。
+
 <a id="guide-launcher-recovery"></a>
 
 ## 起動パスのエラーからの復旧

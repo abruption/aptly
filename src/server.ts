@@ -14,6 +14,7 @@ import { SpawnContexts } from './spawn-context.ts';
 import { RoutingObservations } from './routing-observations.ts';
 import { ContextRetries } from './context-retry.ts';
 import { statisticsState } from './statistics-policy.ts';
+import { CODEX_HOME_POLICY_SOURCE, resolvePolicySource } from './policy-source.ts';
 
 const taskSchema=z.object({summary:z.string().min(1).max(4000),operation:z.enum(['read_only','write','review','analysis']),context_sufficient:z.boolean()}).strict();
 const constraintsSchema=z.object({model_pinned:z.boolean().optional(),effort_pinned:z.boolean().optional(),role_pinned:z.boolean().optional(),fork_inherits:z.boolean().optional(),provenance_verified:z.boolean().optional()}).strict();
@@ -24,7 +25,9 @@ const observationSchema=z.object({client:hookSchema.client.optional(),event:hook
 });
 const content=(result:Record<string,unknown>):CallToolResult=>({content:[{type:'text',text:JSON.stringify(result)}],structuredContent:result});
 
-export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
+export function createServer({env:inputEnv=process.env}:{env?:NodeJS.ProcessEnv}={}) {
+ const codexBound=inputEnv.APTLY_HOOK_POLICY_PATH===CODEX_HOME_POLICY_SOURCE;
+ const env={...inputEnv,APTLY_HOOK_POLICY_PATH:resolvePolicySource(inputEnv.APTLY_HOOK_POLICY_PATH,inputEnv)};
  const {router,budget,mode,modelInfo,credentialStatus,disabledClients}=runtime(env);
  const observations=new RoutingObservations();
  const contexts=new SpawnContexts();
@@ -76,6 +79,7 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false},
   inputSchema:{...hookSchema,description:z.string().max(4000)}
  },async({client,event,description},extra)=>{
+  if(codexBound&&client!=='codex')return content({status:'rejected',reason:'policy_source_client_mismatch'});
   const policy=loadAutomaticHookPolicy(env.APTLY_HOOK_POLICY_PATH);
   if(!policy.policy?.enabled)return content({status:'rejected',reason:policy.reason});
   if(['none','unselected'].includes(effectiveTransmission(policy.policy)))return content({status:'rejected',reason:'automatic_transmission_disabled'});
@@ -120,6 +124,10 @@ export function createServer({env=process.env}:{env?:NodeJS.ProcessEnv}={}) {
   inputSchema:{...hookSchema,task:taskSchema.optional()}
  },async ({client,event,task},extra)=>{
   observations.begin(client,event);
+  if(codexBound&&client!=='codex'){
+   observations.record({...initialHookObservation(client,event),status:'preserved',reason:'policy_source_client_mismatch'});
+   return {content:[{type:'text',text:'{}'}]};
+  }
   if(env.APTLY_HOOK_POLICY_PATH!==undefined){
    const result=await automaticHook({client,event,router,policyPath:env.APTLY_HOOK_POLICY_PATH,signal:extra.signal,context:()=>contexts.lookup(client,event),onObservation:value=>observations.record(value),onNeedsContext:(seed,current)=>retries.register(seed,current),onBlockedAdvice:(seed,current)=>retries.registerAdvice(seed,current)});
    observations.record(result.observation);

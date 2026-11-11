@@ -29,6 +29,23 @@ aptly stats --client codex
 
 After the setup check succeeds, follow [statistics activation](statistics.md). `collection.codex: true` describes collection configuration, not proof that the running host loaded or trusted the Hook. Restart Codex for the intended account and inspect the actual entries in `/hooks`.
 
+### Policy paths revert in managed accounts
+
+Planned for 0.1.11. A manager such as Orca can mirror a same-name MCP registration from the canonical home and overwrite an account-only absolute policy path. Hooks can remain intact while MCP and statistics reference different policies.
+
+Upgrade every registered Aptly backend first and stop the affected hosts/MCP processes. For an existing Codex setup with intact ownership, explicitly migrate the canonical/default registration first, then repeat in each intended account environment with its selected `CODEX_HOME`. An account-only edit can still be overwritten by synchronization.
+
+```sh
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home --dry-run
+CODEX_HOME="$HOME/.codex" aptly setup --client codex --policy-source codex-home
+CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
+CODEX_HOME="$HOME/.codex" aptly stats --client codex
+```
+
+Migration registers `APTLY_HOOK_POLICY_PATH = "@codex-home"` and forwards `CODEX_HOME` through `env_vars`. At startup, the server selects that home's `aptly/auto-policy.json`. Missing, empty or relative values are rejected without selecting another home. For the default home, explicitly launch the CLI and Codex with `CODEX_HOME="$HOME/.codex"`. The example uses the default home; substitute the intended absolute account home for account-specific commands. This is an operator-declared source selection, not complete host provenance. See [Codex MCP environment forwarding](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers).
+
+Migration does not move or reset policy contents, transmission consent, ledger paths, statistics history or Hook trust. Existing fixed/shared policies remain fixed unless explicitly migrated. Custom launchers, unrelated registration changes and ownership mismatches require local review; do not edit or copy receipts to bypass errors. Restart the server and check again in the intended account. A successful dry-run or file check does not prove the running MCP updated or a model was observed.
+
 <a id="guide-launcher-recovery"></a>
 
 ## Recover an incompatible launcher
