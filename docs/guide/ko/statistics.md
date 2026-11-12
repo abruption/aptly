@@ -22,7 +22,11 @@ aptly stats enable --client codex --codex-native-metadata
 aptly stats disable --client codex
 ```
 
+`aptly stats` 조회와 `--today` 결과의 최상위 `status`는 조회가 완료되면 `complete`(종료 코드 0), 지원하지 않는 통계 요청이나 손상·읽기·저장소 오류가 있으면 `partial`(종료 코드 1)입니다. 수집이 꺼져 있거나 실제로 설정되지 않은 경우도 완료된 조회입니다. 일부 클라이언트가 실패해도 성공한 결과는 유지합니다. 기존 클라이언트 JSON 필드와 값은 유지되므로 전체 객체를 엄격히 검사하는 소비자는 추가된 `status`를 허용해야 합니다. `complete`는 호스트 라우팅·모델·신뢰 준비 상태를 인증하지 않습니다. 예상치 못한 통계 오류는 `statistics_failed`로 보고하며 원시 경로·입력·키·스택은 출력하지 않습니다. 조회는 자동 복구·동의·provider 호출을 수행하지 않습니다.
+
 명령 형식은 `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]`, `aptly stats disable [--client]`입니다. 수집은 기본적으로 꺼져 있고 postinstall에서도 자동 활성화하지 않습니다. enable은 Aptly 소유 명령 관찰자를 설치하고 별도의 `stats-ownership.json`에 기록하며 기존 receipt·MCP·launcher·키·예산·전송 설정은 유지합니다. 활성화 후 MCP와 호스트를 재시작하고 Codex에서는 `/hooks`의 native Hook 신뢰를 검토하십시오.
+
+`stats enable`은 첫 이벤트 전에 빈 통계 DB를 초기화하고 기존 DB는 검증하여 보존합니다. 초기화에 실패하면 등록 설정이 남아 있어도 `partial`과 `statistics_store_initialization_failed`를 반환합니다. 이전 버전에서 활성화 후 이벤트가 없어 DB가 아직 없다면 `stats enable`을 다시 실행하십시오. 조회는 DB를 생성하거나 복구하지 않습니다.
 
 disable은 수집을 끄고 변경되지 않은 소유 관찰자만 제거합니다. 수정되거나 사용자 정의된 관찰자는 경고와 함께 보존하며 데이터와 키도 유지합니다. `remove`는 통계 소유 정의를 검증·제거하지만 데이터는 유지합니다. 별도로 관리하는 수동 관찰자나 사용자 정의 Hook은 자동 채택하지 않습니다.
 
