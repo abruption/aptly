@@ -71,7 +71,7 @@ API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows C
 
 ## 不依赖 Node 版本目录的启动器
 
-此选项是面向 0.1.13 后续版本的开发功能，已发布的 0.1.13 CLI 尚不支持。在 POSIX（macOS/Linux）上显式指定 `--launcher stable`，会将启动器与 Aptly 运行时依赖保存在 Node 版本目录之外的私有位置。它不复制 Node，因此仍须安装受支持的 Node.js 24 以上版本。旧 Node 和原 npm 软件包目录被删除后，保留的启动器可寻找其他受支持安装。GUI 宿主的 PATH 可能没有 `node`，仅改成命令名无法提供相同保证。
+此选项自 0.1.14 起可用。在 POSIX（macOS/Linux）上显式指定 `--launcher stable`，会将启动器与 Aptly 运行时依赖保存在 Node 版本目录之外的私有位置。它不复制 Node，因此仍须安装受支持的 Node.js 24 以上版本。旧 Node 和原 npm 软件包目录被删除后，保留的启动器可寻找其他受支持安装。GUI 宿主的 PATH 可能没有 `node`，仅改成命令名无法提供相同保证。
 
 默认安装、自动注册及既有注册仍使用直接 Node 路径。新注册可使用 `aptly setup --client all --launcher stable`；既有注册请先检查，再显式迁移。Claude 使用 `--client claude`，各 Codex 账号须选择正确的 `CODEX_HOME`。
 
