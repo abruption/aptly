@@ -1,5 +1,11 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.14 게시와 검증
+
+#154·PR #155와 준비 #156·PR #157을 포함한 소스 `e6247f69382b7631aea1ca823280aa40c79a3717`의 정확한 main CI 7개 성공 후 `v0.1.14` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/43176197376/attempts/1)를 완료했습니다. 게시 3개 job 성공, npm latest 0.1.14, artifact/registry archive·SRI 일치, npm 서명과 정확한 소스·태그·workflow·run identity의 provenance를 확인했습니다.
+
+[한국어 릴리즈 노트](release-notes/0.1.14.md), [게시 근거](releases/0.1.14.md), #158을 참고하십시오. Node 버전과 독립된 POSIX 런타임은 명시적 선택 사항이며 기존 직접 실행 방식은 유지됩니다. registry 전파는 같은 게시물을 재조회했고 재게시하지 않았습니다. 두 Mac 설치와 기존 호스트 재로딩 상태는 별도로 확인합니다.
+
 ## 0.1.13 게시와 검증
 
 #140–144·PR #145–149를 순차 병합하고 #150·PR #151에서 버전과 한국어 릴리스 노트를 준비했습니다. 정확한 병합 main `959f34897d2d4dd60745f6a9a38b7a2d0c69fa51`의 [CI 7개 job](https://github.com/abruption/aptly/actions/runs/43127406223) 성공 후 annotated `v0.1.13` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/43127883633/attempts/1)를 완료했습니다. 설치 시험·새 runner 검증/pack·OIDC 게시 3개 job이 성공했습니다.
