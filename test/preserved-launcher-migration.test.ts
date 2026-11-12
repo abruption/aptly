@@ -96,7 +96,7 @@ test('CLI include-existing requires explicit single-client launcher migration an
   ['setup','--client','claude','--migrate-launcher','--include-existing','--automatic'],
   ['setup','--client','claude','--migrate-launcher','--include-existing','--mode','defaults'],
   ['setup','--client','claude','--migrate-launcher','--include-existing','--include-existing']
- ]){const r=run(args);assert.equal(r.status,1);assert.match(r.stderr,/aptly: operation_failed/);}
+ ]){const r=run(args);assert.equal(r.status,1);assert.match(r.stderr,/aptly: setup_invalid_options/);}
  assert.deepEqual(readdirSync(home),[]);
  const help=run(['setup','--help']);assert.equal(help.status,0);assert.match(help.stdout,/--include-existing/);
 });

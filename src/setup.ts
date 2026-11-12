@@ -8,12 +8,13 @@ import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
 import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings, budgetErrorDetails } from './budget.ts';
 import { Router, defaultPolicy } from './core.ts';
-import { loadAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
+import { QuerySnapshot } from './query-snapshot.ts';
+import { loadAutomaticHookPolicy, queryAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
 import { assertPrivateStatePath } from './files.ts';
 import { CODEX_HOME_POLICY_SOURCE, resolvePolicySource } from './policy-source.ts';
 import { assertWindowsPrivatePath, protectNewWindowsPrivateDirectory, copyWindowsFilePermissions } from './windows-private.ts';
 
-import { STATISTICS_CONFIG_FILE, STATISTICS_KEY_FILE, STATISTICS_DB_FILE, parseStatisticsConfig, serializeStatisticsConfig, readStatistics, type StatisticsConfig } from './statistics.ts';
+import { STATISTICS_CONFIG_FILE, STATISTICS_KEY_FILE, STATISTICS_DB_FILE, parseStatisticsConfig, serializeStatisticsConfig, readStatisticsQuery, initializeStatisticsStore, type StatisticsConfig } from './statistics.ts';
 
 type Client = 'codex' | 'claude';
 type ObjectValue = Record<string, any>;
@@ -802,18 +803,57 @@ export function prepareTransmissionReview(options: SetupOptions & {forceReview?:
   }};
 }
 
-/** Read-only redacted policy state. Does not create host directories or contact a provider. */
+/** Query context only: no credential lookup, native discovery or configuration repair. */
+function queryContext(options:SetupOptions,client:Client,snapshot:QuerySnapshot,statistics:boolean,policyMissing:boolean){
+ const paths=resolved(options,client),mcp=snapshot.read(paths.mcpPath);
+ const config=client==='codex'?toml(mcp?.toString('utf8')??''):json(mcp?.toString('utf8')??null);
+ const servers=config[client==='codex'?'mcp_servers':'mcpServers'],entry=servers?.aptly;
+ let failed=(servers!==undefined&&!object(servers))||(entry!==undefined&&(!object(entry)||(entry.env!==undefined&&!object(entry.env))));
+ let statisticsExpected=false;
+ let expected=failed||(object(entry?.env)&&Object.hasOwn(entry.env,'APTLY_HOOK_POLICY_PATH'));
+ try{
+  const receipt=snapshot.read(join(paths.privateDir,'setup-ownership.json'),{privateFile:true});
+  if(receipt){expected=true;ownership(json(receipt.toString('utf8')),client);}
+ }catch{failed=true;expected=true;}
+ if(statistics||policyMissing)try{
+  const statOwner=snapshot.read(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE),{privateFile:true});
+  if(statOwner){expected=true;statisticsOwner(json(statOwner.toString('utf8')),client);statisticsExpected=true;}
+ }catch{failed=true;expected=true;}
+ if(policyMissing&&!expected)try{
+  // A normal remove retains a disabled config and history; this is not broken setup.
+  const bytes=snapshot.read(join(paths.privateDir,'state',STATISTICS_CONFIG_FILE),{privateFile:true,maxBytes:8192,singleLink:true});
+  if(bytes){const state=parseStatisticsConfig(JSON.parse(bytes.toString('utf8')));if(!state){failed=true;expected=true;}else expected=state.enabled_clients.includes(client);}
+  else for(const name of [STATISTICS_KEY_FILE,STATISTICS_DB_FILE])if(snapshot.track(join(paths.privateDir,'state',name),{privateFile:true,singleLink:true,identityOnly:true}))expected=true;
+ }catch{failed=true;expected=true;}
+ return {entry,expected,failed,paths,statisticsExpected};
+}
+/** Redacted policy query; aggregate status is query completion, not host readiness. */
 export function showTransmission(options: SetupOptions = {}) {
-  return {clients:(options.clients??['codex','claude']).map(client=>{
-    try {
-      const {privateDir}=resolved(options,client); noSymlinks(privateDir);
-      const loaded=loadAutomaticHookPolicy(join(privateDir,'auto-policy.json'));
-      if(!loaded.policy)return {client,status:'unavailable',code:loaded.reason};
-      return {client,status:'configured',application_mode:loaded.policy.mode,enabled:loaded.policy.enabled,
-        transmission_review:reviewMatches(transmissionReviewSnapshot(options,client).before,options,client,loaded.policy)?'complete':'required',
-        transmission:effectiveTransmission(loaded.policy),transmission_source:loaded.policy.schema_version===1?'legacy':effectiveTransmission(loaded.policy)==='unselected'?'unselected':'explicit'};
-    }catch(error){return {client,status:'error',code:safeCode(error)};}
-  })};
+ const outcomes=(options.clients??['codex','claude']).map(client=>{
+  const snapshot=new QuerySnapshot();
+  try {
+   const {privateDir}=resolved(options,client),loaded=queryAutomaticHookPolicy(join(privateDir,'auto-policy.json'),snapshot);
+   let expected=false,contextFailed=false;
+   try{
+    const context=queryContext(options,client,snapshot,false,!loaded.policy);expected=context.expected;
+    // Local policy contents cannot certify a conflicting/missing MCP policy binding.
+    // Preserve legacy client fields; aggregate health reports the failed query contract.
+    contextFailed=context.failed||(expected&&(!object(context.entry)||!policyReferenceMatches(context.entry,client,join(privateDir,'auto-policy.json'),options)));
+   }catch{contextFailed=true;}
+   const legacy=()=>{
+    if(!loaded.policy)return {client,status:'unavailable',code:loaded.reason};
+    // Preserve validation of the acknowledgement but read it only once for this query.
+    const markerPath=join(privateDir,TRANSMISSION_REVIEW_FILE);validateReviewPrivate(markerPath);
+    const marker=snapshot.read(markerPath,{privateFile:true,singleLink:true});
+    return {client,status:'configured',application_mode:loaded.policy.mode,enabled:loaded.policy.enabled,
+     transmission_review:reviewMatches(marker?.toString('utf8')??null,options,client,loaded.policy)?'complete':'required',
+     transmission:effectiveTransmission(loaded.policy),transmission_source:loaded.policy.schema_version===1?'legacy':effectiveTransmission(loaded.policy)==='unselected'?'unselected':'explicit'};
+   };
+   const result=legacy();snapshot.verify();
+   return {result,failed:contextFailed||loaded.availability==='error'||(loaded.availability==='absent'&&expected)};
+  }catch(error){return {result:{client,status:'error',code:safeCode(error)},failed:true};}
+ });
+ return {status:outcomes.some(o=>o.failed)?'partial':'complete',clients:outcomes.map(o=>o.result)};
 }
 
 /** Registration snapshot only. Never loads credentials, starts a server or creates a ledger/gate. */
@@ -915,13 +955,13 @@ export function setStatisticsCollection(enabled:boolean,options:SetupOptions&{co
  const clients=[...new Set(options.clients??['codex','claude'])] as Client[];
  if(typeof enabled!=='boolean'||!clients.length||clients.some(c=>!['codex','claude'].includes(c))||options.automatic||options.mode||options.transmission||options.selectUnselectedOnly||(!enabled&&options.codexNativeMetadata!==undefined)||options.codexNativeMetadata&& !clients.includes('codex'))return{status:'partial',clients:clients.map(client=>({client,status:'error',codes:['statistics_invalid_options']}))};
  if(process.platform==='win32')return{status:'partial',clients:clients.map(client=>({client,status:'error',codes:['statistics_platform_unsupported']}))};
- const states=new Set<string>();
+ const states=new Set<string>(),initializationPaths=new Map<Client,string>();
  const plans:SetupPlan[]=clients.map(client=>{
   try{
    if(!enabled){const base=resolved(options,client);if(read(join(base.privateDir,'auto-policy.json')).text===null&&read(join(base.privateDir,STATISTICS_OWNERSHIP_FILE)).text===null&&read(join(base.privateDir,'state',STATISTICS_CONFIG_FILE)).text===null)return{changes:[],observations:[],dirs:[],result:{client,status:'unchanged',codes:['statistics_disabled']}};}
    const paths=statisticsPolicy(options,client,enabled);
    if(enabled){try{assertPrivateStatePath(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE));assertPrivateStatePath(join(paths.stateDirectory,STATISTICS_CONFIG_FILE));}catch{fail('private_directory_permissions');}}
-   if(states.has(paths.stateDirectory))fail('statistics_shared_state');states.add(paths.stateDirectory);
+   if(states.has(paths.stateDirectory))fail('statistics_shared_state');states.add(paths.stateDirectory);initializationPaths.set(client,paths.stateDirectory);
    const observations:Snapshot[]=[],changes:Snapshot[]=[];
    const snap=(path:string,privateFile=true)=>{const result=privateFile?statisticsSnapshot(path):(()=>{const v=read(path);return{path,before:v.text,after:v.text,mode:v.mode};})();observations.push(result);return result;};
    const policy=snap(paths.policyPath);
@@ -964,11 +1004,38 @@ export function setStatisticsCollection(enabled:boolean,options:SetupOptions&{co
   }catch(error){return{changes:[],observations:[],dirs:[],result:errorResult(client,error)};}
  });
  if(enabled&&plans.some(p=>p.result.status==='error'))return{status:'partial',clients:plans.map(p=>p.result.status==='error'?p.result:{...p.result,status:'skipped',codes:['other_host_validation_failed']})};
- return execute(options,false,undefined,plans);
+ const applied=execute(options,false,undefined,plans);
+ if(!enabled||applied.status!=='complete')return applied;
+ // Configuration was applied successfully; initialization failures are reported
+ // as partial setup, never rolled back or hidden as a complete activation.
+ const initialized=applied.clients.map(result=>{
+  try{initializeStatisticsStore({stateDirectory:initializationPaths.get(result.client)!});return result;}
+  catch{return {...result,status:'error' as const,codes:[...result.codes,'statistics_store_initialization_failed']};}
+ });
+ return {status:initialized.some(result=>result.status==='error')?'partial':'complete',clients:initialized};
 }
 /** Snapshot view; no runtime, credentials, provider, budget gate or state creation. */
 export function showStatistics(options:SetupOptions={},today=false){
  const clients=options.clients??['codex','claude'];
- if(process.platform==='win32')return{clients:clients.map(client=>({client,status:'statistics_platform_unsupported',collection:'disabled'}))};
- return{clients:clients.map(client=>{try{const path=statisticsPolicy(options,client);return{client,...readStatistics({stateDirectory:path.stateDirectory},{client,today})};}catch(error){return{client,status:safeCode(error),collection:'disabled'};}})};
+ if(process.platform==='win32')return{status:'partial',clients:clients.map(client=>({client,status:'statistics_platform_unsupported',collection:'disabled'}))};
+ const outcomes=clients.map(client=>{
+  const snapshot=new QuerySnapshot();
+  try{
+   const paths=resolved(options,client),policyPath=join(paths.privateDir,'auto-policy.json');
+   const loaded=queryAutomaticHookPolicy(policyPath,snapshot);
+   const context=queryContext(options,client,snapshot,true,!loaded.policy);
+   if(!object(context.entry)){
+    snapshot.verify();return {result:{client,status:'statistics_requires_setup',collection:'disabled'},failed:context.failed||!!loaded.policy||loaded.availability==='error'||context.expected};
+   }
+   if(!policyReferenceMatches(context.entry,client,policyPath,options)){
+    snapshot.verify();return {result:{client,status:'statistics_policy_conflict',collection:'disabled'},failed:context.failed||loaded.availability!=='absent'||context.expected};
+   }
+   if(!loaded.policy){
+    snapshot.verify();return {result:{client,status:'statistics_requires_setup',collection:'disabled'},failed:context.failed||loaded.availability==='error'||context.expected};
+   }
+   const outcome=readStatisticsQuery({stateDirectory:loaded.policy.state_directory},{client,today},snapshot,context.statisticsExpected);
+   snapshot.verify();return {result:{client,...outcome.result},failed:outcome.failed||context.failed};
+  }catch(error){return {result:{client,status:safeCode(error),collection:'disabled'},failed:true};}
+ });
+ return {status:outcomes.some(o=>o.failed)?'partial':'complete',clients:outcomes.map(o=>o.result)};
 }
