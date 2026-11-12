@@ -27,6 +27,8 @@
 | Codex | `$CODEX_HOME/config.toml`; `CODEX_HOME` 미지정 시 `~/.codex/config.toml` |
 | Claude Code | `~/.claude.json`의 `mcpServers.aptly`; `CLAUDE_CONFIG_DIR` 지정 시 해당 디렉터리의 `.claude.json` |
 
+0.1.14 이후의 수정에서는 `@codex-home` 정책을 사용하는 MCP도 `CODEX_HOME`이 없으면 OS 사용자 홈의 `~/.codex`를 선택합니다. 명시한 절대 경로가 우선하며, 빈 값·상대 경로·제어 문자가 포함된 값은 계속 거절합니다. 게시된 0.1.14는 기본 홈도 환경변수 전달이 필요합니다. 사용자 지정 계정 홈은 자동 탐색하지 않으므로 계정 관리자는 올바른 `CODEX_HOME`을 전달해야 합니다. 사용자 지정 호스트가 이 값을 전달하지 않으면 기본 홈의 정책과 전송 범위가 적용되므로, 계정별 정책을 유지하려면 값을 반드시 전달하십시오.
+
 Claude Code의 Hook 파일은 기본적으로 `~/.claude/settings.json`이며, `CLAUDE_CONFIG_DIR`을 지정하면 `$CLAUDE_CONFIG_DIR/settings.json`입니다. MCP 등록 파일과는 별개입니다. 프로젝트 `.mcp.json`·관리 설정·계정별 디렉터리를 사용한다면 수정하거나 등록하기 전에 `/mcp`에서 활성 항목을 확인하십시오.
 
 <a id="guide-cli-configuration"></a>
