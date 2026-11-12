@@ -16,6 +16,7 @@ MCP の手動設定は[高度な連携](advanced.md#guide-manual-mcp-setup)を�
 - [CLI による設定](#guide-cli-configuration)
 - [キーと再起動](#guide-keys-and-restart)
 - [モデルと環境変数](#guide-models-and-environment)
+- [Node のバージョンディレクトリに依存しないランチャー](#guide-stable-launcher)
 
 <a id="guide-host-config-locations"></a>
 
@@ -65,6 +66,29 @@ API キーは macOS Keychain、インストール済みの Linux `secret-tool`�
 保存のタイムアウトや応答解析の失敗は、OS が新しい値を書き込んだ後にも起こり得ます。失敗時は以前の値を復元し、以前の値がなければ新しい項目を削除して、再読み込みで確認します。復旧を確認できない場合は、元のエラーコードに `credential_rollback_failed` を追加します。どちらのキーが有効かを断定せず、再試行前に OS の資格情報ストアを確認してください。これは可能な範囲での復旧であり、プロセスやホストをまたぐ原子的なトランザクションではありません。
 
 変更後は MCP を再起動し、`get_routing_capabilities` の `provider`、候補、`credential_status` を確認してください。`os_store` はキーを読み込めたことを示し、API 認証の成功を示すものではありません。デフォルト設定と公開変数の設定では、引き続き独自ラッパーを保持します。API キー設定は未確認の起動パスのホスト設定を変更せず、保存を試みていた場合は可能な限りそのホストの旧キーを復元します。既存のラッパーにも新しいキーが自動で適用されるとは想定しないでください。Codex の `/hooks` 信頼承認やホスト権限は迂回しません。
+
+<a id="guide-stable-launcher"></a>
+
+## Node のバージョンディレクトリに依存しないランチャー
+
+このオプションは 0.1.13 より後のバージョン向けの開発機能で、公開済みの 0.1.13 CLI では使用できません。POSIX（macOS/Linux）で `--launcher stable` を明示すると、Node のバージョンディレクトリ外の非公開領域にランチャーと Aptly の実行時依存を保存します。Node 自体はコピーしないため、対応する Node.js 24 以上のインストールが必要です。元の Node と npm パッケージが削除されても、保存済みランチャーは別の対応 Node を探せます。GUI ホストの PATH に `node` がない場合、コマンド名だけでは同じ保証は得られません。
+
+既定・自動登録と既存登録は直接 Node パスを使います。新規登録には `aptly setup --client all --launcher stable` を使えます。既存登録は次のとおり確認後に明示して移行してください。Claude は `--client claude`、各 Codex アカウントは対象の `CODEX_HOME` で実行します。
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher stable --dry-run
+aptly setup --client codex --migrate-launcher --launcher stable
+```
+
+保持済みの標準ランチャーを含める場合は、確認後に `--include-existing` を追加してください。独自・変更済みランチャーや統計 Hook は自動で引き取りません。所有する MCP と観測器の実行先を同時に更新し、収集状態・native メタデータへの同意・キー・ポリシー・台帳・統計履歴を保持します。Codex の新 Hook は `/hooks` で再確認し、信頼を承認してください。自動承認は行いません。
+
+インストール時 Node、標準パス、既定の `~/.nvm/versions/node` 内の正式版、安全な絶対 PATHを順に試します。最新 Node の選択は保証せず、シンボリックリンクや shim を使う管理方式は PATH 内でも拒否される場合があり、検証できる実際の実行ファイルパスのみ対応します。起動時にシェル設定・npm・ネットワークダウンロードは実行しません。stable モードは一般的な Node 起動設定の継承を抑えるため `NODE_OPTIONS`・`NODE_PATH`・`NODE_REPL_EXTERNAL_MODULE` を継承しません。追加 CA が必要な場合は `NODE_EXTRA_CA_CERTS` など別の証明書設定を利用してください。ネイティブアドオンが必要な依存は拒否します。対応ランタイム不在・整合性エラー時の MCP は固定エラーで停止し、観測器は既存の静かな best-effort 動作を維持します。
+
+通常の npm グローバルインストールを主に対象とします。リダイレクト・書き込み可能な上位パスや、ローカルパッケージ外に hoist された依存などは検証できないため拒否します。Windows は直接モードを維持し stable は未対応です。stable 登録は後続のオプションなし setup/migration でも維持します。`aptly update` は実際の npm グローバル CLI で実行し、明示的な移行で新しい Aptly 副本を選択してください。他のホームや実行中プロセスのため、`remove` は古い共有副本を削除しません。`doctor` の副本メタデータ観測は、実行・認証・再読み込み完了の証明ではありません。
+
+通常の setup は既存副本を暗黙に置き換えません。CLI より古い副本は `stable_snapshot_outdated` と明示的な移行案内を返します。所有権が完全に一致する stable 参照なら、副本の欠落・破損・旧形式から現在の CLI の検証済みソースへ明示的に移行できます。同じ generation の破損や未完了 lock は自動で上書き・削除しません。書き込みプロセスと他ホームの参照を確認し、その状態だけを手動で見直してください。独自・変更済み登録を製品所有として引き取りません。
+
+stable 移行は所有観測器も同時に更新しますが、従来の直接モード間の移行では別途統計観測器の更新が必要な場合があります（`statistics_observer_migration_required`）。setup と起動の整合性確認には I/O 負荷があり、探索制限は全ファイルシステム操作の経過時間上限を保証しません。同じユーザーのプログラムやワーカースレッドを隔離する sandbox ではありません。
 
 <a id="guide-keys-and-restart"></a>
 
