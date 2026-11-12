@@ -8,6 +8,7 @@ import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
 import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings, budgetErrorDetails } from './budget.ts';
 import { Router, defaultPolicy } from './core.ts';
+import { planStableRuntime, materializeStableRuntime, validateStableRegistration, stableObserverCommand, type StableRuntimePlan, type StableRegistration } from './stable-runtime.ts';
 import { resolveHostPaths as resolved } from './host-paths.ts';
 import { QuerySnapshot } from './query-snapshot.ts';
 import { loadAutomaticHookPolicy, queryAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
@@ -23,6 +24,7 @@ export interface SetupOptions {
   home?: string;
   env?: NodeJS.ProcessEnv;
   packageRoot?: string;
+  launcher?: 'stable';
   automatic?: boolean;
   clients?: Client[];
   mode?: 'defaults' | 'advisory';
@@ -239,7 +241,16 @@ function ownership(value: ObjectValue, client: Client): Ownership {
   return value as Ownership;
 }
 /** Compatibility restriction only: this does not authenticate arbitrary launcher code. */
-function requireCredentialRuntime(entry: ObjectValue, root: string) {
+function requireCredentialRuntime(entry: ObjectValue, root: string, home?:string, planned?:StableRuntimePlan) {
+  const plannedMatch=planned&&entry.command===planned.descriptor.command&&isDeepStrictEqual(entry.args,planned.descriptor.args);
+  const stable=plannedMatch?null:validateStableRegistration(entry,{home});
+  if(stable||plannedMatch){
+    const payload=stable?.packageRoot??root;
+    try{const server=read(join(payload,'dist/src/server.js')).text,runtime=read(join(payload,'dist/src/runtime.js')).text;
+      if(!server?.includes('./runtime.js')||!runtime?.includes('APTLY_SECRET_BACKEND')||!runtime.includes('APTLY_SECRET_CLIENT'))fail('credential_launcher_unverified');
+    }catch{fail('credential_launcher_unverified');}
+    return;
+  }
   const allowed = [join(root,'dist','src','server.js'), join(root,'src','server.ts')];
   const incompatible=(reason:string):never=>{throw Object.assign(new Error('credential_launcher_unverified'),{reason});};
   if(entry.command!==process.execPath)incompatible('credential_node_mismatch');
@@ -251,7 +262,7 @@ function requireCredentialRuntime(entry: ObjectValue, root: string) {
     if (!server?.includes('./runtime.'+extension) || !runtime?.includes('APTLY_SECRET_BACKEND') || !runtime.includes('APTLY_SECRET_CLIENT')) fail('credential_launcher_unverified');
   } catch { incompatible('credential_runtime_unsupported'); }
 }
-type SetupPlan = { changes: Snapshot[]; observations: Snapshot[]; dirs: string[]; result: SetupClientResult };
+type SetupPlan = { changes: Snapshot[]; observations: Snapshot[]; dirs: string[]; result: SetupClientResult; stableRuntime?:StableRuntimePlan };
 function prepare(options: SetupOptions, client: Client, removing: boolean, edit?: EnvironmentEdit): SetupPlan {
   const env = options.env ?? process.env, paths = resolved(options, client), { dir, mcpPath, hooksPath, privateDir } = paths;
   const changes: Snapshot[] = [], observations: Snapshot[] = [], dirs: string[] = [];
@@ -267,6 +278,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
   const mcp = snap(mcpPath), hooks = snap(hooksPath), policy = snap(policyPath), manifest = snap(manifestPath);
   for (const privateFile of [policy, manifest]) if (privateFile.before !== null) privatePermissions(privateFile.path, 'private_file_permissions');
   observations.push(mcp, hooks, policy, manifest);
+  let stableRuntime:StableRuntimePlan|undefined;
   const oldOwner = manifest.before === null ? undefined : ownership(json(manifest.before), client);
   if (removing && !oldOwner) { if(read(join(privateDir,STATISTICS_OWNERSHIP_FILE)).text!==null)fail('statistics_observers_present'); return { changes, observations, dirs, result: { client, status: 'skipped', codes: ['no_owned_setup'] } }; }
   const hookValue = hook(client), hooksObject = json(hooks.before), entries = hooksArray(hooksObject);
@@ -310,16 +322,20 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     const root = resolve(options.packageRoot ?? join(dirname(fileURLToPath(import.meta.url)), '..', ...(import.meta.url.includes('/dist/src/') ? ['..'] : [])));
     const additions = { APTLY_HOOK_POLICY_PATH: policyPath, ROUTER_LEDGER_PATH: join(stateDir, 'ledger.json') };
     let created = false, tomlBlock: string | undefined;
+    const existingStable=validateStableRegistration(servers.aptly,{home:options.home});
+    if(options.launcher==='stable'&&servers.aptly!==undefined&&!existingStable&&!(edit&&'migrate'in edit))fail('stable_launcher_migration_required');
+    const stableRequested=options.launcher==='stable'||!!existingStable;
+    if(stableRequested&&(servers.aptly===undefined||!!(edit&&'migrate'in edit)))stableRuntime=planStableRuntime({packageRoot:root,home:options.home});
     if (edit && 'migrate' in edit) {
       if (!oldOwner || !object(servers.aptly) || (oldOwner.mcp_created ? !isDeepStrictEqual(servers.aptly, oldOwner.mcp) : !edit.includeExisting)) fail('launcher_migration_not_owned');
       const entry = servers.aptly;
-      if (typeof entry.command !== 'string' || !isAbsolute(entry.command) || !['node','node.exe'].includes(basename(entry.command).toLowerCase()) || !Array.isArray(entry.args) || entry.args.length !== 1 || typeof entry.args[0] !== 'string' || !isAbsolute(entry.args[0]) || !/(?:^|[\\/])(?:dist[\\/]src[\\/]server\.js|src[\\/]server\.ts)$/.test(entry.args[0])) fail('launcher_migration_not_standard');
+      if (!existingStable && (typeof entry.command !== 'string' || !isAbsolute(entry.command) || !['node','node.exe'].includes(basename(entry.command).toLowerCase()) || !Array.isArray(entry.args) || entry.args.length !== 1 || typeof entry.args[0] !== 'string' || !isAbsolute(entry.args[0]) || !/(?:^|[\\/])(?:dist[\\/]src[\\/]server\.js|src[\\/]server\.ts)$/.test(entry.args[0]))) fail('launcher_migration_not_standard');
       if (!entries.some(entry => isDeepStrictEqual(entry,oldOwner!.hook)) || !isDeepStrictEqual(json(policy.before),oldOwner!.policy)) fail('managed_entry_changed');
       for (const [key,value] of Object.entries(oldOwner!.env_added)) if (entry.env?.[key] !== value) fail('managed_entry_changed');
     }
     if (servers.aptly === undefined) {
       created = true;
-      servers.aptly = { ...(client === 'claude' ? { type: 'stdio' } : {}), command: process.execPath, args: [join(root, 'dist', 'src', 'server.js')], ...(client === 'codex' ? { env_vars: ['OPENAI_API_KEY'] } : {}), env: { ROUTER_PROVIDER: edit && 'defaults' in edit ? 'decisions' : env.ROUTER_PROVIDER === 'fixture' ? 'fixture' : 'decisions', ...additions } };
+      servers.aptly = { ...(client === 'claude' ? { type: 'stdio' } : {}), command: stableRuntime?.descriptor.command??process.execPath, args: stableRuntime?.descriptor.args??[join(root, 'dist', 'src', 'server.js')], ...(client === 'codex' ? { env_vars: ['OPENAI_API_KEY'] } : {}), env: { ROUTER_PROVIDER: edit && 'defaults' in edit ? 'decisions' : env.ROUTER_PROVIDER === 'fixture' ? 'fixture' : 'decisions', ...additions } };
     } else {
       if (!object(servers.aptly)) fail('mcp_entry_conflict');
       const configuredPolicy = object(servers.aptly.env) ? servers.aptly.env.APTLY_HOOK_POLICY_PATH : undefined;
@@ -337,10 +353,10 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
       mcp.after = client === 'codex' ? addTomlEnv(mcp.before ?? '', missing) : stringify(config);
     }
     if (edit && 'migrate' in edit) {
-      servers.aptly.command = process.execPath;
-      servers.aptly.args = [join(root,'dist','src','server.js')];
+      servers.aptly.command = stableRuntime?.descriptor.command??process.execPath;
+      servers.aptly.args = stableRuntime?.descriptor.args??[join(root,'dist','src','server.js')];
     }
-    if ((edit && ('credential' in edit || 'migrate' in edit)) || servers.aptly.env?.APTLY_HOOK_POLICY_PATH===CODEX_HOME_POLICY_SOURCE) requireCredentialRuntime(servers.aptly,root);
+    if ((edit && ('credential' in edit || 'migrate' in edit)) || servers.aptly.env?.APTLY_HOOK_POLICY_PATH===CODEX_HOME_POLICY_SOURCE) requireCredentialRuntime(servers.aptly,root,options.home,stableRuntime);
     const currentEnv = map(servers.aptly, 'env');
     const originalEnvKeys=new Set(Object.keys(currentEnv)),inheritedEnvironment=environmentInheritance(servers.aptly,env,client);
     const updates = edit ? editEnvironment(currentEnv,edit,client,inheritedEnvironment) : {};
@@ -416,6 +432,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     result.transmission = effectiveTransmission(policyValue);
     result.transmission_source = policyValue.schema_version === 1 ? 'legacy' : policyValue.transmission === 'unselected' ? 'unselected' : 'explicit';
     manifest.after = stringify(owner);
+    if(edit&&'migrate'in edit)appendStatisticsLauncherMigration(options,client,root,servers.aptly,stableRuntime,policyPath,hooksObject,hooks,changes,observations);
     const review = transmissionReviewSnapshot(options, client);
     observations.push(review);
     if (requestedScope !== undefined) {
@@ -433,7 +450,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
   if (!removing && changes.length) result.status = 'configured';
   const markerIndex = changes.findIndex(item => item.reviewPrivate);
   if (markerIndex >= 0) changes.push(...changes.splice(markerIndex, 1));
-  return { changes, observations, dirs, result };
+  return { changes, observations, dirs, result, ...(stableRuntime?{stableRuntime}:{}) };
 }
 /** Secure sibling staging is short-lived and never a backup; original settings stay in memory. */
 function replace(snapshot: Snapshot, forward: boolean) {
@@ -470,19 +487,21 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   const clients = [...new Set(options.clients ?? ['codex', 'claude'])] as Client[];
   if (clients.some(client => client !== 'codex' && client !== 'claude')) return { status: 'partial', clients: [] };
   const env = options.env ?? process.env;
+  if(options.launcher!==undefined&&(options.launcher!=='stable'||removing||!!(edit&&!('migrate'in edit))))return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['stable_launcher_invalid_options']}))};
   if (options.transmission !== undefined && !['none','description','excerpt'].includes(options.transmission)) return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
   if (!removing && options.automatic && (env.APTLY_SKIP_SETUP === '1' || !!env.CI)) return { status: 'skipped', clients: clients.map(client => ({ client, status: 'skipped', codes: [env.APTLY_SKIP_SETUP === '1' ? 'setup_disabled' : 'ci_environment'] })) };
   const prepared = captured ?? clients.map(client => {
     try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: errorResult(client,e) }; }
   });
   const results = prepared.map(plan => plan.result);
-  if (edit && results.some(result => result.status === 'error')) return { status: 'partial', clients: results.map(result => result.status === 'error' ? result : { ...result, status: 'skipped', codes: ['other_host_validation_failed'] }) };
+  if ((edit||options.launcher==='stable') && results.some(result => result.status === 'error')) return { status: 'partial', clients: results.map(result => result.status === 'error' ? result : { ...result, status: 'skipped', codes: ['other_host_validation_failed'] }) };
   // Each host is independent; prepare every host before committing any host.
   for (const plan of prepared) {
     if (!plan.changes.length) continue;
     const written: Snapshot[] = [], madeDirs: string[] = [];
     try {
       validateObservations(plan);
+      if(plan.stableRuntime){materializeStableRuntime(plan.stableRuntime);validateObservations(plan);}
       for (const path of plan.dirs) {
         noSymlinks(path);
         try { checkedDirectory(path); } catch (e: any) { if (e.code !== 'ENOENT') throw e; mkdirSync(path, { mode: 0o700 }); madeDirs.push(path);
@@ -500,17 +519,20 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   }
   return { status: results.some(result => result.status === 'error') ? 'partial' : results.every(result => result.status === 'skipped') ? 'skipped' : 'complete', clients: results };
 }
-const codes = new Set(['policy_source_home_invalid','policy_source_requires_setup','policy_source_invalid_options','transmission_review_requires_setup','transmission_review_invalid_options','statistics_requires_setup','statistics_policy_conflict','statistics_config_invalid','statistics_ownership_invalid','statistics_observers_present','statistics_key_missing','statistics_shared_state','statistics_platform_unsupported','statistics_invalid_options','statistics_observer_missing','unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
+const codes = new Set(['stable_launcher_platform_unsupported','stable_runtime_unverified','stable_launcher_migration_required','stable_launcher_invalid_options','stable_source_unverified','stable_source_changed','stable_runtime_limit','stable_plan_unverified','stable_runtime_busy','policy_source_home_invalid','policy_source_requires_setup','policy_source_invalid_options','transmission_review_requires_setup','transmission_review_invalid_options','statistics_requires_setup','statistics_policy_conflict','statistics_config_invalid','statistics_ownership_invalid','statistics_observers_present','statistics_key_missing','statistics_shared_state','statistics_platform_unsupported','statistics_invalid_options','statistics_observer_missing','unsafe_ledger','invalid_ledger','budget_ledger_unconfigured','invalid_budget_configuration','ledger_locked','ledger_error','transmission_selection_changed','transmission_invalid_scope','launcher_migration_not_owned','launcher_migration_not_standard','credential_launcher_unverified','environment_invalid_value','environment_sensitive_value','environment_key_unsupported','environment_secret_key_unsupported','unsafe_directory','unsafe_symlink','unsafe_configuration_file','invalid_json','invalid_json_object','configuration_shape_conflict','hook_shape_conflict','invalid_toml','unsupported_toml_layout','relative_configuration_directory','invalid_ownership','managed_hook_changed','managed_mcp_changed','managed_entry_changed','managed_policy_changed','mcp_entry_conflict','mcp_environment_conflict','existing_routing_hook_conflict','policy_conflict','existing_hook_not_owned','concurrent_configuration_change','private_directory_permissions','private_file_permissions']);
 function safeCode(error: unknown) { return error instanceof Error && codes.has(error.message) ? error.message : 'configuration_io_error'; }
 export function setupHosts(options: SetupOptions = {}): SetupResult { return execute(options, false); }
 /** Snapshot the normal setup plan without applying it; it does not verify a running host. */
 export function checkSetup(options: SetupOptions = {}): SetupResult {
   const clients = [...new Set(options.clients ?? ['codex','claude'])] as Client[];
-  if (!clients.length || clients.some(client=>client!=='codex'&&client!=='claude') || options.automatic !== undefined || options.mode !== undefined || options.transmission !== undefined || options.selectUnselectedOnly !== undefined) return {status:'partial',clients:[]};
+  if (!clients.length || clients.some(client=>client!=='codex'&&client!=='claude') || options.automatic !== undefined || options.mode !== undefined || options.transmission !== undefined || options.selectUnselectedOnly !== undefined || options.launcher!==undefined) return {status:'partial',clients:[]};
   const results = clients.map(client => {
     try {
       const plan = prepare(options,client,false);
-      return {...plan.result,status:'unchanged' as const,codes:[plan.changes.length?'setup_check_configure_ready':'setup_check_ok',...plan.result.codes]};
+      const paths=resolved(options,client),config=client==='codex'?toml(read(paths.mcpPath).text??''):json(read(paths.mcpPath).text);
+      const command=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly?.command;
+      const pinned=typeof command==='string'&&/[\\/]\.nvm[\\/]versions[\\/]node[\\/]/.test(command);
+      return {...plan.result,status:'unchanged' as const,codes:[plan.changes.length?'setup_check_configure_ready':'setup_check_ok',...plan.result.codes,...(pinned?['launcher_pinned_to_versioned_node']:[])]};
     } catch (error) { return errorResult(client,error); }
   });
   return {status:results.some(result=>result.status==='error')?'partial':'complete',clients:results};
@@ -611,7 +633,7 @@ export function setPolicySource(options:SetupOptions, dryRun=false):SetupResult 
     if(!hooksArray(json(hooks.before)).some(item=>isDeepStrictEqual(item,owner.hook)))fail('managed_hook_changed');
     if(!loadAutomaticHookPolicy(policyPath).policy || !isDeepStrictEqual(json(policy.before),owner.policy))fail('managed_policy_changed');
     const root=resolve(options.packageRoot ?? join(dirname(fileURLToPath(import.meta.url)),'..',...(import.meta.url.includes('/dist/src/')?['..']:[])));
-    requireCredentialRuntime(entry,root);
+    requireCredentialRuntime(entry,root,options.home);
     if(entry.env.CODEX_HOME!==undefined)fail('mcp_environment_conflict');
     if(entry.env_vars!==undefined && (!Array.isArray(entry.env_vars)||entry.env_vars.some((v:unknown)=>typeof v!=='string')))fail('configuration_shape_conflict');
     const source=entry.env.APTLY_HOOK_POLICY_PATH, ownedSource=owner.mcp_created ? owner.mcp?.env?.APTLY_HOOK_POLICY_PATH : owner.env_added.APTLY_HOOK_POLICY_PATH;
@@ -898,24 +920,42 @@ function statisticEntries(value:ObjectValue,event:string,create=false):any[]{
 }
 function statisticsPolicy(options:SetupOptions,client:Client,requireRegistration=true){
  const paths=resolved(options,client),policyPath=join(paths.privateDir,'auto-policy.json');
+ let stable:StableRegistration|null=null;
  if(requireRegistration){
   const mcp=read(paths.mcpPath),config=client==='codex'?toml(mcp.text??''):json(mcp.text);
   const entry=config[client==='codex'?'mcp_servers':'mcpServers']?.aptly;
   if(!object(entry))fail('statistics_requires_setup');
   if(!policyReferenceMatches(entry,client,policyPath,options))fail('statistics_policy_conflict');
+  stable=validateStableRegistration(entry,{home:options.home});
  }
  const loaded=loadAutomaticHookPolicy(policyPath);if(!loaded.policy)fail('statistics_requires_setup');
- return {...paths,policyPath,stateDirectory:loaded.policy!.state_directory};
+ return {...paths,policyPath,stateDirectory:loaded.policy!.state_directory,stable};
 }
-function statisticsHooks(root:string,client:Client,policyPath:string):Record<string,ObjectValue>{
+function statisticsHooks(root:string,client:Client,policyPath:string,stable?:StableRegistration|null):Record<string,ObjectValue>{
  const observer=join(root,'dist','bin','aptly-observe.js');
- if(read(observer).text===null)fail('statistics_observer_missing');
+ if(!stable&&read(observer).text===null)fail('statistics_observer_missing');
  for(const path of [process.execPath,observer,policyPath])if(!isAbsolute(path)||/[\x00-\x1f\x7f]/.test(path))fail('statistics_invalid_options');
  const quote=(v:string)=>"'"+v.replaceAll("'","'\\''")+"'";
- const command=[process.execPath,'--no-warnings',observer,'--client',client,'--policy-path',policyPath].map(quote).join(' ');
+ const command=stable?stableObserverCommand(stable,client,policyPath):[process.execPath,'--no-warnings',observer,'--client',client,'--policy-path',policyPath].map(quote).join(' ');
  const handler={type:'command',command,timeout:5,statusMessage:'Aptly local execution statistics'};
  const events=client==='codex'?['PostToolUse','SubagentStart','PostModelRequest','SubagentStop']:['PostToolUse','SubagentStart','SubagentStop'];
  return Object.fromEntries(events.map(event=>[event,{...(event==='PostToolUse'?{matcher:client==='codex'?'^(spawn_agent|collaborationspawn_agent|collaboration\\.spawn_agent)$':'^(Agent|Task)$'}:{}),hooks:[{...handler}]}]));
+}
+function appendStatisticsLauncherMigration(options:SetupOptions,client:Client,root:string,entry:ObjectValue,planned:StableRuntimePlan|undefined,policyPath:string,hooksObject:ObjectValue,hooks:Snapshot,changes:Snapshot[],observations:Snapshot[]) {
+ const paths=resolved(options,client),receipt=statisticsSnapshot(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE));observations.push(receipt);
+ if(receipt.before===null)return;
+ const owner=statisticsOwner(json(receipt.before),client),policy=loadAutomaticHookPolicy(policyPath).policy;
+ if(!policy||owner.state_directory!==policy.state_directory)fail('statistics_policy_conflict');
+ for(const[event,definition]of Object.entries(owner.hooks)){
+  const list=statisticEntries(hooksObject,event),matches=list.filter(v=>isDeepStrictEqual(v,definition));
+  if(matches.length!==1)fail('managed_hook_changed');
+ }
+ const stable=planned??validateStableRegistration(entry,{home:options.home});
+ const next=statisticsHooks(root,client,policyPath,stable);
+ for(const[event,definition]of Object.entries(owner.hooks)){const list=statisticEntries(hooksObject,event);list.splice(list.findIndex(v=>isDeepStrictEqual(v,definition)),1);}
+ for(const[event,definition]of Object.entries(next))statisticEntries(hooksObject,event,true).push(definition);
+ receipt.after=stringify({...owner,hooks:next,hooks_fingerprint:createHash('sha256').update(JSON.stringify(next)).digest('hex')});
+ hooks.after=stringify(hooksObject);if(receipt.after!==receipt.before)changes.push(receipt);
 }
 function statisticsSnapshot(path:string):Snapshot{const value=read(path);if(value.text!==null){privatePermissions(path,'private_file_permissions');if(lstatSync(path).nlink!==1)fail('unsafe_configuration_file');}return{path,before:value.text,after:value.text,mode:value.mode};}
 function statisticsConfig(snapshot:Snapshot):StatisticsConfig{
@@ -983,7 +1023,7 @@ export function setStatisticsCollection(enabled:boolean,options:SetupOptions&{co
      state.codex_native_metadata=true;state.codex_home=paths.dir;
     }
     const root=resolve(options.packageRoot??join(dirname(fileURLToPath(import.meta.url)),'..',...(import.meta.url.includes('/dist/src/')?['..']:[])));
-    const entries=statisticsHooks(root,client,paths.policyPath);
+    const entries=statisticsHooks(root,client,paths.policyPath,paths.stable);
     for(const[event,entry]of Object.entries(entries)){const list=statisticEntries(value,event,true);if(list.some(possibleStatisticsObserver))fail('statistics_observers_present');list.push(entry);}
     receipt!.after=stringify({schema_version:1,kind:'aptly-statistics-ownership',client,state_directory:paths.stateDirectory,hooks:entries,hooks_fingerprint:createHash('sha256').update(JSON.stringify(entries)).digest('hex')});
    }else{

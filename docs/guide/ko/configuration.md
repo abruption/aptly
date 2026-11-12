@@ -16,6 +16,7 @@
 - [CLI로 설정하기](#guide-cli-configuration)
 - [키와 재시작](#guide-keys-and-restart)
 - [모델과 환경변수](#guide-models-and-environment)
+- [Node 버전 변경에 강한 실행기](#guide-stable-launcher)
 
 <a id="guide-host-config-locations"></a>
 
@@ -65,6 +66,25 @@ API 키는 macOS Keychain, Linux의 설치된 `secret-tool`, 또는 Windows Cred
 저장 시간 초과나 응답 해석 실패는 OS가 새 값을 기록한 뒤에도 발생할 수 있습니다. 실패하면 이전 값을 복원하거나, 이전 값이 없었다면 새 항목을 제거한 뒤 재조회합니다. 복구 여부를 확인하지 못하면 원래 오류 코드와 함께 `credential_rollback_failed`를 반환합니다. 어느 키가 활성 상태인지 단정하지 말고 재시도 전에 OS 자격 증명 저장소를 확인하십시오. 이는 가능한 범위의 복구이며 프로세스·호스트 전체의 원자적 트랜잭션이 아닙니다.
 
 변경 후 MCP를 재시작하고 `get_routing_capabilities`의 `provider`, 후보 목록, `credential_status`를 확인하십시오. `os_store`는 저장소에서 키를 읽었다는 뜻이며 API 유효성 검증은 아닙니다. 기본 설정과 일반 변수 설정은 기존 사용자 지정 래퍼를 보존합니다. API 키 설정은 호환성이 확인되지 않은 실행 경로의 호스트 설정을 변경하지 않으며, 이미 저장을 시도했다면 해당 호스트의 이전 키를 가능한 경우 복원합니다. 새 키가 기존 래퍼에도 자동 적용된다고 가정하지 마십시오. 명령은 Codex의 `/hooks` 신뢰 승인이나 호스트 권한을 우회하지 않습니다.
+
+<a id="guide-stable-launcher"></a>
+
+## Node 버전 변경에 강한 실행기
+
+이 옵션은 0.1.13 이후 버전을 위한 개발 기능이며, 게시된 0.1.13 CLI에는 없습니다. POSIX(macOS·Linux)에서 `--launcher stable`을 명시하면 Node 버전 폴더 밖의 비공개 위치에 실행기와 Aptly의 런타임 의존성을 보존합니다. Node 바이너리는 복사하지 않으므로 지원되는 Node.js 24 이상 설치본이 필요합니다. 기존 Node와 원본 npm 패키지 폴더가 삭제돼도 보존된 실행기는 다른 지원 설치본을 찾을 수 있습니다. 단순한 `node` 명령은 GUI 호스트의 PATH에 없을 수 있어 같은 보장을 하지 않습니다.
+
+기본 설치·자동 등록과 기존 등록은 계속 직접 Node 경로를 사용합니다. 새 등록에만 `aptly setup --client all --launcher stable`을 사용할 수 있습니다. 기존 등록은 아래처럼 먼저 점검한 후 명시적으로 전환하십시오. Claude는 `--client claude`를 사용하고, 계정별 Codex는 의도한 `CODEX_HOME` 환경에서 실행하십시오.
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher stable --dry-run
+aptly setup --client codex --migrate-launcher --launcher stable
+```
+
+기존에 보존한 표준 실행기를 포함하려면 검토 후 `--include-existing`을 추가하십시오. 사용자 정의·수정된 실행기나 통계 Hook은 자동 채택하지 않습니다. 전환은 소유한 MCP와 통계 관찰자 경로를 함께 갱신하며 수집 여부·native 메타데이터 동의·키·정책·원장·통계 이력을 유지합니다. Codex의 새 Hook은 `/hooks`에서 다시 검토하고 승인하십시오.
+
+실행기는 설치 시 Node, 표준 경로, 기본 `~/.nvm/versions/node`의 정식 버전, 안전한 절대 PATH 순으로 지원 런타임을 탐색합니다. 최신 Node의 자동 선택을 보장하지 않으며 사용자 정의 버전 관리자 경로는 PATH가 없으면 찾지 못할 수 있습니다. 셸 프로필·npm·네트워크 다운로드는 실행하지 않습니다. stable 모드는 코드 주입을 막기 위해 `NODE_OPTIONS`·`NODE_PATH`·`NODE_REPL_EXTERNAL_MODULE`을 상속하지 않습니다. CA 추가가 필요하면 기존 `NODE_EXTRA_CA_CERTS` 등 별도 인증서 설정을 사용하십시오. 네이티브 애드온이 필요한 런타임 묶음은 거부합니다. 런타임 부재/무결성 실패 시 MCP는 고정 오류로 중단하고 통계 관찰자는 기존 best-effort 계약대로 조용히 종료합니다.
+
+이 기능은 일반 npm 전역 설치를 우선 지원합니다. 리다이렉트·쓰기 가능한 상위 경로와 외부로 hoist된 로컬 의존성 등 검증할 수 없는 소스는 거부합니다. Windows는 기존 직접 실행을 유지하며 stable 옵션은 지원하지 않습니다. stable 등록은 플래그 없는 후속 설정·마이그레이션에서도 유지됩니다. `aptly update`는 실제 npm 전역 CLI에서 실행하고, 새 Aptly 버전은 마이그레이션 명령으로 새 사본을 선택하십시오. 기존 사본은 다른 홈과 실행 중 프로세스가 사용할 수 있으므로 `remove`가 자동 삭제하지 않습니다. `doctor`의 사본 메타데이터 관측은 전체 실행·인증·재로딩 검증이 아닙니다.
 
 <a id="guide-keys-and-restart"></a>
 

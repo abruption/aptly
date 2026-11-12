@@ -96,7 +96,7 @@ test('visible terminal passthrough values are not treated as future host configu
 for(const type of ['different-node','wrong-package','missing-package','custom-policy'] as const)test(`ambiguous launcher remains unobserved: ${type}`,posix,t=>{
  const f=fixture(t),pkg=join(f.home,'other-package');mkdirSync(join(pkg,'src'),{recursive:true});writeFileSync(join(pkg,'src/server.ts'),'throw Error("MUST_NOT_RUN")');
  if(type==='wrong-package')writeFileSync(join(pkg,'package.json'),JSON.stringify({name:'other',version:'1.2.3'}));
- f.modify(e=>{if(type==='different-node')e.command=join(f.home,'node');else if(type==='custom-policy'){e.command='/bin/custom';e.env.APTLY_HOOK_POLICY_PATH=join(f.home,'MISSING');}else e.args=[join(pkg,'src/server.ts')];});
+ f.modify(e=>{if(type==='different-node'){e.command=join(f.home,'node');writeFileSync(e.command,'DO_NOT_EXECUTE',{mode:0o700});}else if(type==='custom-policy'){e.command='/bin/custom';e.env.APTLY_HOOK_POLICY_PATH=join(f.home,'MISSING');}else e.args=[join(pkg,'src/server.ts')];});
  const r=f.result();assert.equal(r.status,'complete');assert.equal(r.clients[0].registration,'custom_or_remote_launcher');assert.equal(r.clients[0].policy?.status,'custom_launcher_unobserved');assert.equal(r.clients[0].ledger?.status,'custom_launcher_unobserved');
 });
 for(const type of ['grow','rename','symlink'] as const)test(`size to read ${type} race reports changed observation`,posix,t=>{
@@ -106,4 +106,8 @@ for(const type of ['grow','rename','symlink'] as const)test(`size to read ${type
 });
 test('missing an owned MCP registration is a query failure, not a genuine first use',posix,t=>{
  const f=fixture(t);const c=parse(readFileSync(f.config,'utf8')) as any;delete c.mcp_servers.aptly;writeFileSync(f.config,stringify(c));assert.equal(f.result().clients[0].status,'partial');
+});
+for(const kind of ['node','package'] as const)test(`doctor identifies a missing registered ${kind} without invoking a launcher`,posix,t=>{
+ const f=fixture(t);f.modify(e=>{if(kind==='node')e.command=join(f.home,'missing-node','node');else e.args=[join(f.home,'missing-package/dist/src/server.js')];});
+ const before=tree(f.home),r=f.result();assert.equal(r.status,'partial');assert.equal(r.clients[0].code,kind==='node'?'registered_node_missing':'registered_package_missing');assert.ok(r.clients[0].recovery[0].includes('--launcher stable --dry-run'));assert.deepEqual(tree(f.home),before);
 });

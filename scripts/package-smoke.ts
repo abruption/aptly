@@ -1,11 +1,12 @@
 // Test the installed archive outside the checkout, with lifecycle scripts enabled
 // but Aptly host setup explicitly disabled. No real host or paid provider is used.
 import assert from 'node:assert/strict';
+import {systemAliasAllowed} from '../src/files.ts';
 import { auditDocumentation, auditGuideContent, collectDocumentation } from './docs-check.ts';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync, readdirSync, lstatSync, readlinkSync, copyFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 
 // npm supplies its actual JavaScript entry point, including on Windows.
 // Do not pass .cmd shims to execFileSync or construct a shell command string.
@@ -58,6 +59,51 @@ try {
     const view=JSON.parse(result.stdout);assert.equal(view.status,unsupported?'partial':'complete');assert.equal(view.clients.length,2);
   }
   assert.deepEqual(readdirSync(home),[],'Read queries must not create host state');
+  // Stable runtime is POSIX opt-in. Never weaken filesystem trust for a test.
+  let safeStableHome=process.platform!=='win32';
+  if(safeStableHome)for(let path=home;;path=dirname(path)){
+    let stat=lstatSync(path);
+    if(stat.isSymbolicLink()){
+      if(!systemAliasAllowed(path,stat,readlinkSync(path))){safeStableHome=false;break;}
+      stat=statSync(path);
+    }
+    const stickyRoot=stat.isDirectory()&&stat.uid===0&&!!(stat.mode&0o1000);
+    if((stat.uid!==0&&stat.uid!==process.getuid?.())||((stat.mode&0o022)&&!stickyRoot)){safeStableHome=false;break;}
+    if(dirname(path)===path)break;
+  }
+  if(safeStableHome){
+    const stablePrefix=join(root,'stable-global');mkdirSync(stablePrefix,{mode:0o700});
+    run(process.execPath,[npmCli,'install','--global','--prefix',stablePrefix,'--ignore-scripts','--no-audit','--no-fund',archive],prefix);
+    const stablePackage=join(stablePrefix,'lib/node_modules/aptly'),stableCli=join(stablePackage,'dist/bin/aptly.js');
+    const oldNodeRoot=join(home,'old-node'),oldNode=join(oldNodeRoot,'bin/node'),nextNode=join(home,'.nvm/versions/node','v'+process.versions.node,'bin/node');
+    mkdirSync(dirname(oldNode),{recursive:true,mode:0o700});mkdirSync(dirname(nextNode),{recursive:true,mode:0o700});
+    copyFileSync(process.execPath,oldNode);chmodSync(oldNode,0o700);copyFileSync(process.execPath,nextNode);chmodSync(nextNode,0o700);
+    assert.equal(run(oldNode,['--version'],prefix).trim(),'v'+process.versions.node);
+    const setup=JSON.parse(run(oldNode,[stableCli,'setup','--client','codex','--launcher','stable','--transmission','none'],prefix));assert.equal(setup.status,'complete');
+    writeFileSync(join(prefix,'stable-smoke.mjs'),`
+import assert from 'node:assert/strict';
+import {readFileSync,rmSync} from 'node:fs';
+import {join} from 'node:path';
+import {homedir} from 'node:os';
+import {spawnSync} from 'node:child_process';
+import {parse} from 'smol-toml';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+const source=process.argv[2],expectedVersion=process.argv[3],oldNode=process.argv[4];
+const entry=parse(readFileSync(join(homedir(),'.codex/config.toml'),'utf8')).mcp_servers.aptly;
+assert.deepEqual(entry.args,['serve']);assert.ok(!entry.command.startsWith(source));
+rmSync(source,{recursive:true});rmSync(oldNode,{recursive:true});
+const client=new Client({name:'installed-stable-runtime-smoke',version:'1'});
+const transport=new StdioClientTransport({command:entry.command,args:entry.args,env:{...entry.env,PATH:'',ROUTER_PROVIDER:'fixture',NODE_OPTIONS:'--unsupported-injection-fixture'},stderr:'pipe'});
+let stderr='';transport.stderr?.on('data',c=>stderr+=c);
+try{await client.connect(transport);const r=await client.callTool({name:'get_routing_capabilities',arguments:{}});assert.notEqual(r.isError,true);assert.equal(r.structuredContent.runtime_diagnostics.version,expectedVersion);assert.equal(r.structuredContent.provider,'fixture');}finally{await client.close();}
+assert.equal(stderr,'');
+const observe=spawnSync(entry.command,['observe','--client','codex','--policy-path',entry.env.APTLY_HOOK_POLICY_PATH],{input:'{}',env:{HOME:homedir(),PATH:'',NODE_OPTIONS:'--unsupported-injection-fixture'},encoding:'utf8',timeout:5000});
+assert.equal(observe.status,0);assert.equal(observe.stdout,'');assert.equal(observe.stderr,'');
+`);
+    run(process.execPath,['--no-experimental-strip-types',join(prefix,'stable-smoke.mjs'),stablePackage,metadata.version,oldNodeRoot],prefix);
+    console.log('Installed tarball: stable generation MCP/observer survived original Node-copy and global package removal with empty PATH; paid calls: 0.');
+  }else console.log('Stable runtime executable smoke skipped: unsupported platform or writable temporary-root ancestry; trust was not relaxed.');
   // Resolve all imports from the installed prefix, not this source tree.
   writeFileSync(join(prefix, 'smoke.mjs'), `
 import assert from 'node:assert/strict';

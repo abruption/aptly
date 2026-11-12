@@ -16,6 +16,7 @@
 - [使用 CLI 设置](#guide-cli-configuration)
 - [密钥与重启](#guide-keys-and-restart)
 - [模型与环境变量](#guide-models-and-environment)
+- [不依赖 Node 版本目录的启动器](#guide-stable-launcher)
 
 <a id="guide-host-config-locations"></a>
 
@@ -65,6 +66,25 @@ API 密钥通过 macOS Keychain、已安装的 Linux `secret-tool` 或 Windows C
 保存超时或响应解析失败也可能发生在 OS 已写入新值之后。失败时会尝试恢复旧值；若原来没有值，则删除新条目，然后重新读取确认。如果无法确认恢复结果，会在原始错误代码之外添加 `credential_rollback_failed`。不要假定任一密钥仍然有效，请在重试前检查 OS 凭据存储。这是尽力恢复，并非跨进程或宿主的原子事务。
 
 修改后请重启 MCP，并通过 `get_routing_capabilities` 查看 `provider`、候选和 `credential_status`。`os_store` 仅表示读到了密钥，不代表 API 已通过认证。默认设置和公开变量设置仍会保留自定义包装程序。API 密钥设置不会修改未经确认的启动路径所对应的宿主设置；如果已尝试保存，则会在可能时恢复该宿主的旧密钥。不要假定新密钥会通过现有包装程序自动生效。命令不会绕过 Codex 的 `/hooks` 信任批准或宿主权限。
+
+<a id="guide-stable-launcher"></a>
+
+## 不依赖 Node 版本目录的启动器
+
+此选项是面向 0.1.13 后续版本的开发功能，已发布的 0.1.13 CLI 尚不支持。在 POSIX（macOS/Linux）上显式指定 `--launcher stable`，会将启动器与 Aptly 运行时依赖保存在 Node 版本目录之外的私有位置。它不复制 Node，因此仍须安装受支持的 Node.js 24 以上版本。旧 Node 和原 npm 软件包目录被删除后，保留的启动器可寻找其他受支持安装。GUI 宿主的 PATH 可能没有 `node`，仅改成命令名无法提供相同保证。
+
+默认安装、自动注册及既有注册仍使用直接 Node 路径。新注册可使用 `aptly setup --client all --launcher stable`；既有注册请先检查，再显式迁移。Claude 使用 `--client claude`，各 Codex 账号须选择正确的 `CODEX_HOME`。
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher stable --dry-run
+aptly setup --client codex --migrate-launcher --launcher stable
+```
+
+仅在审核符合条件的既有标准启动器后添加 `--include-existing`。不会自动接管自定义或已修改的启动器及统计 Hook。迁移同时更新 Aptly 所有的 MCP 和观察器目标，保留收集状态、native 元数据同意、密钥、策略、账本和统计历史。请在 Codex `/hooks` 重新审核新 Hook，不会自动批准信任。
+
+依次尝试安装时 Node、标准路径、默认 `~/.nvm/versions/node` 中的正式版本及安全的绝对 PATH 项。不保证选择最新 Node；没有 PATH 时可能找不到自定义版本管理器目录。启动时不加载 shell 配置、不运行 npm，也不下载网络内容。stable 模式主动移除 `NODE_OPTIONS`、`NODE_PATH` 和 `NODE_REPL_EXTERNAL_MODULE` 以阻止代码注入；需要额外 CA 时请使用 `NODE_EXTRA_CA_CERTS` 等独立证书设置。需要原生扩展的运行时依赖会被拒绝。运行时缺失或完整性失败时 MCP 返回固定错误，统计观察器则保持静默的 best-effort 行为。
+
+主要支持普通 npm 全局安装。重定向或可写的上级路径，以及本地软件包外被 hoist 的依赖等不可验证来源会被拒绝。Windows 保留直接模式，不支持 stable。后续不带选项的 setup/migration 保留 stable 模式。请使用实际 npm 全局 CLI 执行 `aptly update`，再显式迁移以选择新 Aptly 副本。`remove` 不自动删除其他主目录或进程仍可能使用的副本。`doctor` 仅观测副本元数据，不证明实际执行、认证或重载就绪。
 
 <a id="guide-keys-and-restart"></a>
 

@@ -16,6 +16,7 @@ For manual MCP configuration, see [Advanced integration](advanced.md#guide-manua
 - [Configure with the CLI](#guide-cli-configuration)
 - [Keys and restarting](#guide-keys-and-restart)
 - [Models and environment variables](#guide-models-and-environment)
+- [Node-version-independent launcher](#guide-stable-launcher)
 
 <a id="guide-host-config-locations"></a>
 
@@ -65,6 +66,25 @@ Results contain host statuses and fixed error codes, never key values. Inspect e
 A store timeout or malformed acknowledgement may occur after the OS has written the new value. On failure, Aptly attempts to restore the previous value (or remove the new entry if none existed), then reads it back. `credential_rollback_failed` is added to the original failure codes when recovery cannot be confirmed; do not assume either key is active. Check the OS credential store before retrying. This is best-effort recovery, not an atomic transaction across processes or hosts.
 
 Restart MCP, then inspect `provider`, candidates, and `credential_status` with `get_routing_capabilities`. `os_store` means a key was loaded, not that the API authenticated it. Default and public-variable setup continue to preserve custom wrappers. API-key setup does not change host settings for an unverified launch path and restores that host's previous key where possible if storage was already attempted. Do not assume a new key automatically takes effect through an existing wrapper. These commands do not bypass Codex `/hooks` trust or host permissions.
+
+<a id="guide-stable-launcher"></a>
+
+## Node-version-independent launcher
+
+This is a development feature for a version after 0.1.13; the published 0.1.13 CLI does not support it. Explicit `--launcher stable` on POSIX (macOS/Linux) preserves an executable and Aptly runtime dependencies in private storage outside versioned Node directories. It does not copy Node: an installed supported Node.js 24+ is still required. After the original Node and npm package directory disappear, the preserved launcher can locate another supported installation. Bare `node` cannot offer that guarantee when a GUI host lacks it in PATH.
+
+Default/automatic and existing registrations keep direct Node paths. Use `aptly setup --client all --launcher stable` only for new registrations. For existing ones, inspect then migrate explicitly as below. Use `--client claude` for Claude and select the intended `CODEX_HOME` for each Codex account.
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher stable --dry-run
+aptly setup --client codex --migrate-launcher --launcher stable
+```
+
+Add `--include-existing` only after reviewing an eligible preserved standard launcher. Modified/custom launchers and statistics Hooks are never adopted automatically. Migration updates owned MCP and observer targets together, preserving collection state, native metadata consent, keys, policies, ledgers and statistics history. Review new Codex Hooks with `/hooks`; trust is never approved automatically.
+
+Resolution tries the installer Node, standard locations, numeric release directories in the default `~/.nvm/versions/node`, then safe absolute PATH entries. It does not promise the newest Node; custom manager roots may be unavailable without PATH. No shell profile, npm or network download runs at startup. Stable mode deliberately removes `NODE_OPTIONS`, `NODE_PATH` and `NODE_REPL_EXTERNAL_MODULE` to block code injection; use separate certificate settings such as `NODE_EXTRA_CA_CERTS` when needed. Runtime closures requiring native addons are refused. Missing runtime or failed integrity stops MCP with a fixed error; observers stay silent and best-effort.
+
+Normal global npm installations are the primary supported source. Redirected/writable ancestors and dependencies hoisted outside a local package cannot be verified and are refused. Windows retains direct mode and rejects the stable option. Stable mode remains sticky across later setup/migration without the flag. Run `aptly update` from the actual global npm CLI; explicitly migrate to select a new Aptly snapshot. Remove retains old/shared snapshots because other homes or running processes may still use them. Doctor observes snapshot metadata, not full execution, authentication or reload readiness.
 
 <a id="guide-keys-and-restart"></a>
 
