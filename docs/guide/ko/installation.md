@@ -48,11 +48,11 @@ npm install -g aptly@latest --ignore-scripts
 aptly setup --client all
 ```
 
-미출시 소스에서도 npm lifecycle 설치는 전송 검토를 묻지 않습니다. 기능이 포함된 릴리스로 업데이트한 후 같은 계정 환경에서 대화형 `aptly setup`, `aptly set default` 또는 `aptly set transmission --review`를 실행하십시오. 0.1.10 업데이트 프로세스는 업데이트 중 새 질문을 할 수 없습니다. [전송 검토](transmission.md#guide-transmission-scope)를 참고하십시오.
+전송 검토는 0.1.11부터 제공하며, npm lifecycle 설치에서는 질문하지 않습니다. 0.1.10에서 업그레이드하는 경우 먼저 패키지를 업데이트한 뒤 같은 계정 환경에서 대화형 `aptly setup`, `aptly set default` 또는 `aptly set transmission --review`를 실행하십시오. 업데이트 프로세스가 새 검토를 대신 실행하거나 동의한 것으로 처리하지 않습니다. [전송 검토](transmission.md#guide-transmission-scope)를 참고하십시오.
 
 명시적 `setup`은 설치 스크립트 실행 여부와 관계없이 사용할 수 있습니다. 기존 실행 경로는 보존하므로 구버전 경로 오류는 [실행 경로 복구 절차](troubleshooting.md#guide-launcher-recovery)를 따르십시오. 키 설정·MCP 재시작과 Codex의 `/hooks` 신뢰 승인은 별도로 필요합니다.
 
-미출시 설치 스크립트는 검토 대기 중인 등록이 있으면 `aptly set transmission --review` 실행 안내만 stderr로 표시하며 질문하거나 선택을 기록하지 않습니다.
+0.1.11 이상 설치 스크립트는 설정이 정상 완료되고 등록된 클라이언트에 검토가 대기 중이면 `aptly set transmission --review` 실행 안내만 stderr로 표시하며 질문하거나 선택을 기록하지 않습니다.
 
 <a id="guide-package-updates"></a>
 

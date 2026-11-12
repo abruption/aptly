@@ -4,7 +4,7 @@
 
 [가이드 목차](../ko.md)
 
-아래 전송 검토는 **아직 출시되지 않은 소스 기능**이며, 공개된 Aptly 0.1.10 패키지에는 포함되지 않습니다.
+아래 전송 검토와 `--review` 명령은 **Aptly 0.1.11부터 제공합니다**. 0.1.10 사용자는 먼저 패키지를 업데이트하십시오.
 
 ## 이 문서의 목차
 
@@ -19,11 +19,11 @@
 
 여기서 전송은 **로컬 작업 정보를 OpenAI Decisions API에 보내는 것**이며 Aptly 개발자에게 작업을 제공하는 기능이 아닙니다. 적용 모드 `defaults/advisory`와 전송 범위는 별개입니다. 신규 등록은 v2 정책의 `unselected` 상태이며 자동 전송하지 않습니다.
 
-공개된 0.1.10의 대화형 `aptly set default`는 미선택 호스트에만 묻고 Enter를 누르면 `none`을 선택합니다. 비대화형 실행과 postinstall은 묻거나 동의한 것으로 처리하지 않습니다.
+0.1.10에서 업그레이드할 때의 참고: 해당 버전의 대화형 `aptly set default`는 미선택 호스트에만 묻고 Enter를 누르면 `none`을 선택합니다. 비대화형 실행과 postinstall은 묻거나 동의한 것으로 처리하지 않습니다.
 
-미출시 소스에서는 첫 일반 대화형 `aptly setup` 또는 `aptly set default`가 검토 대기 중인 클라이언트를 하나로 묶어 현재 값·출처·기본 또는 재정의된 홈을 보여 주고 질문합니다. 권장 항목은 3번 `excerpt`입니다. Enter 또는 유지 선택은 기존 명시·legacy 범위와 `none`을 그대로 보존하며, 미선택 범위는 `none`이 됩니다. 명시적인 `setup --transmission` 또는 `set transmission <scope>`는 실제 선택을 검토 완료로 기록합니다. 클라이언트 홈별 비공개 revision 1 검토 표시는 패키지 버전·모드·통계와 독립적이므로 일반 패치 업데이트나 재시작마다 다시 묻지 않습니다.
+0.1.11부터 첫 일반 대화형 `aptly setup` 또는 `aptly set default`가 검토 대기 중인 클라이언트를 하나로 묶어 현재 값·출처·기본 또는 재정의된 홈을 보여 주고 질문합니다. 권장 항목은 3번 `excerpt`입니다. Enter 또는 유지 선택은 기존 명시·legacy 범위와 `none`을 그대로 보존하며, 미선택 범위는 `none`이 됩니다. 명시적인 `setup --transmission` 또는 `set transmission <scope>`는 실제 선택을 검토 완료로 기록합니다. 클라이언트 홈별 비공개 revision 1 검토 표시는 패키지 버전·모드·통계와 독립적이므로 일반 패치 업데이트나 재시작마다 다시 묻지 않습니다.
 
-아래 새 명령은 명시적 요청에 따라 항상 다시 묻습니다. 공개된 0.1.10에서는 사용할 수 없습니다:
+아래 명령은 0.1.11부터 지원하며 명시적 요청에 따라 항상 다시 묻습니다. 0.1.10에서는 먼저 업데이트하십시오:
 
 ```sh
 aptly set transmission --review
@@ -31,7 +31,7 @@ aptly set transmission --review
 
 취소하면 범위와 검토 표시는 변경되지 않습니다. 일반 setup 또는 default의 전송 외 기본 설정은 이미 적용되었을 수 있습니다. 자동 setup, check, migrate, 전송 범위를 명시한 setup, CI, 비터미널 실행, setup 건너뛰기, npm lifecycle 스크립트, MCP, Hook, help, show, 통계 조회에서는 묻지 않습니다. 질문은 stderr에 출력하며 JSON stdout은 유지합니다. 기존 비활성 정책·모드·실행 래퍼·키·원장·통계·신뢰 설정을 보존합니다.
 
-0.1.10 업데이트 프로세스는 새 질문을 즉시 불러올 수 없습니다. 최초 배포에서는 기능이 포함된 릴리스로 업데이트한 후 대화형 `aptly setup`, `aptly set default` 또는 `aptly set transmission --review`를 실행하십시오. 이 기능이 포함된 이후 업데이트는 새 프로세스를 실행하지 않고 다음 단계를 안내합니다.
+0.1.10의 업데이트 프로세스는 업데이트된 CLI의 새 질문을 즉시 불러오지 않습니다. 0.1.11 이상으로 업데이트한 후 같은 계정 환경에서 대화형 `aptly setup`, `aptly set default` 또는 `aptly set transmission --review`를 실행하십시오. 0.1.11 이상의 `aptly update`도 새 프로세스를 실행하지 않고 후속 설정 명령을 안내합니다.
 
 ```sh
 aptly set transmission --show
@@ -39,6 +39,8 @@ aptly set transmission none
 aptly set transmission description
 aptly set transmission excerpt
 ```
+
+`--show` 결과의 최상위 `status`는 조회가 완료되면 `complete`(종료 코드 0), 예상된 설정이 불완전하거나 손상·읽기 오류가 있으면 `partial`(종료 코드 1)입니다. `none`·`unselected`와 실제 미설정 상태(자동 정책이 예상되지 않는 수동 직접 전용 MCP 포함)는 완료된 조회입니다. 일부 클라이언트가 실패해도 성공한 결과는 유지합니다. 기존 클라이언트 JSON 필드와 값은 유지되므로 전체 객체를 엄격히 검사하는 소비자는 추가된 `status`를 허용해야 합니다. 일부 기존 클라이언트 상태는 미설정과 오류를 구분하지 않으므로 집계에는 확인된 조회 상태도 반영됩니다. `complete`는 호스트 라우팅·모델·신뢰 준비 상태를 인증하지 않습니다. 조회는 자동 복구·동의·provider 호출을 수행하지 않으며 원시 경로·입력·키·스택을 출력하지 않습니다.
 
 위 변경 명령은 세 가지 대안을 보여 줍니다. 원하는 하나만 실행하십시오. `--client codex|claude|all`로 대상을 고를 수 있습니다. `none`은 자동 전송을 끄고 원래 호출을 보존합니다. `description`은 부모 에이전트가 제공한 설명만 허용합니다. 설명이 없으면 API 호출 전에 문맥 보충을 요청하며 native 본문·라벨로 자동 대체하지 않습니다. `defaults`는 해결 전 스폰을 차단하고 `advisory`는 안내만 제공합니다. `excerpt`는 기존 native 발췌와 명시 설명을 허용합니다. 설명의 출처·크기·민감 패턴 검사는 비민감성이나 사용자 동의를 인증하지 않습니다.
 

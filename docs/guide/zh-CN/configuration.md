@@ -32,7 +32,7 @@ Claude Code 默认将 Hook 存储在 `~/.claude/settings.json`；设置 `CLAUDE_
 
 ## 使用 CLI 设置
 
-在未发布的源代码中，首次普通交互式 `aptly set default` 会按客户端主目录合并待审查项。推荐 `excerpt`；按 Enter 保留已有范围，未选择时则选择 `none`。请参见[传输审查](transmission.md#guide-transmission-scope)。已发布的 0.1.10 不包含此审查。
+从 0.1.11 起，首次普通交互式 `aptly set default` 会按客户端主目录合并待审查项。推荐 `excerpt`；按 Enter 保留已有范围，未选择时则选择 `none`。请参见[传输审查](transmission.md#guide-transmission-scope)。0.1.10 不支持此重新审查流程，请先更新。
 
 `set` 命令需要 0.1.1 或更高版本。命令不会自动切换现有启动路径。API 密钥设置仅允许当前软件包的标准 Node/服务器注册，并要求确认运行时支持系统凭据引用。自定义包装程序、旧版本及其他安装位置会以 `credential_launcher_unverified` 被拒绝；请先明确切换注册项或完成升级，再重新执行。
 
@@ -96,6 +96,8 @@ MCP 的 `env` 值是字符串，因此候选数组也必须以 JSON 字符串传
 ```
 
 未设置时使用上述默认值，`[]` 会禁用对应 client 的推荐。空字符串、重复项、不支持的模型或无效 JSON 都会报错。也支持别名 `CLAUDE_MODELS` 和 `CODEX_MODELS`，但同时设置同一提供商的主变量名与别名会报错。候选设置不会覆盖现有选择，也不代表已确认账户的模型访问权限。
+
+`aptly set default` 会保留 MCP `env` 中已有的候选及其别名、Codex `env_vars` 的转发声明，以及当前 CLI 可观察到的 Claude 继承候选。仅当同一模型系列的两个变量名均未配置时，才添加默认候选。即使当前终端无法读取 Codex 转发变量的值，也会保留其声明，不会用默认值替换或把继承值复制到配置文件中。验证有效设置时，CLI 优先使用同名静态 `env` 值。目录验证规则保持不变；别名冲突或格式错误会使配置修改被拒绝。请在重启 MCP 后另行确认最终候选。
 
 ## 相关文档
 

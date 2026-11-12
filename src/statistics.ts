@@ -5,6 +5,7 @@ import { isAbsolute, join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
 import { isRecord, type Client } from './types.ts';
+import { QuerySnapshot } from './query-snapshot.ts';
 
 export const STATISTICS_CONFIG_FILE = 'stats-config.json';
 export const STATISTICS_KEY_FILE = 'stats-key';
@@ -113,6 +114,16 @@ function connection(options: StatisticsOptions, write: boolean): DatabaseSync | 
   if (write) db.exec('PRAGMA max_page_count=8192; PRAGMA secure_delete=ON; BEGIN IMMEDIATE');
   return db;
  } catch(error) { db.close(); throw error; }
+}
+/** Explicit enable-time initialization only; read queries and observers retain their own paths. */
+export function initializeStatisticsStore(options:StatisticsOptions):void {
+ const path=join(options.stateDirectory,STATISTICS_DATABASE_FILE);
+ assertPrivateStatePath(path);checkSidecars(path);
+ if(!existsSync(path))initialize(path);
+ // Validate an existing store without replacing it or opening a write transaction.
+ const db=connection(options,false);
+ if(!db)throw new Error('statistics_database_invalid');
+ db.close();
 }
 type Disposition = StatisticsRecommendation['disposition'];
 interface Expected { profileId: string; model: string; effort?: string; catalogHash?: string }
@@ -234,17 +245,40 @@ function modelState(d:Delegation,c:Child|undefined,ambiguous:boolean,created:num
  if(['haiku','sonnet','opus','fable'].includes(expected)||['haiku','sonnet','opus','fable'].includes(actual))return 'unknown';
  return expected===actual?'model_match':'model_mismatch';
 }
-export function readStatistics(options:StatisticsOptions,filter:{client?:Client|'all';today?:boolean}={}){
+type StatisticsFilter = {client?:Client|'all';today?:boolean};
+function readStatisticsInternal(options:StatisticsOptions,filter:StatisticsFilter,snapshot?:QuerySnapshot,configurationExpected=false){
  const now=(options.now??Date.now)();
  const output={status:'ok',scope:'retained_records',semantics:'retained_routing_records_not_user_acceptance_or_execution_total',observation_completeness:'best_effort_not_full_execution_history',today_basis:'UTC_binding_creation',filter:{client:filter.client??'all',today:filter.today===true},
   collection:{codex:false,claude:false},capacity:{delegations:limit(options.maxDelegations),children:limit(options.maxChildren),reached:false},
   delegations:0,auto:emptyCounts(),advisory:emptyCounts(),blocked:0,explicit_preserved:0,unbound:0,
   effort_actual_unknown:0,application_confirmed:0,unknown_alias_count:0,model_observed:0,model_comparable:0,model_match_denominator:0,observation_denominator:0,
   usage_scope:'not_collected',model_alias_scope:'exact_canonical_model_ids_only',counts_are_lifetime:false};
- const config=loadStatisticsConfig(options);for(const client of config?.enabled_clients??[])output.collection[client]=true;
+ let failed=false;
+ let config:StatisticsConfig|null=null;
+ let configAbsent=false;
+ if(snapshot){
+  try {
+   const bytes=snapshot.read(join(options.stateDirectory,STATISTICS_CONFIG_FILE),{privateFile:true,maxBytes:8192,singleLink:true});
+   if(bytes===null)configAbsent=true;
+   else {config=parseStatisticsConfig(JSON.parse(bytes.toString('utf8')));if(!config)failed=true;}
+  }catch{failed=true;}
+ }else config=loadStatisticsConfig(options);
+ for(const client of config?.enabled_clients??[])output.collection[client]=true;
+ if(snapshot&&configAbsent&&configurationExpected)failed=true;
+ if(snapshot&&configAbsent)try{
+  if(snapshot.track(join(options.stateDirectory,STATISTICS_KEY_FILE),{privateFile:true,singleLink:true,identityOnly:true}))failed=true;
+ }catch{failed=true;}
+ const collectionExpected=!!config?.enabled_clients.some(client=>!filter.client||filter.client==='all'||filter.client===client);
  let db:DatabaseSync|null=null;
  try{
-  db=connection(options,false);if(!db)return output;
+  if(snapshot){
+   let present:boolean|undefined;
+   try{present=snapshot.track(join(options.stateDirectory,STATISTICS_DATABASE_FILE),{privateFile:true,singleLink:true,identityOnly:true});}
+   catch{failed=true;}
+   if(present===false){if(collectionExpected)failed=true;return {result:output,failed};}
+   if(present&&configAbsent)failed=true;
+  }
+  db=connection(options,false);if(!db){if(snapshot&&collectionExpected)failed=true;return {result:output,failed};}
   // All projection inputs must come from one SQLite snapshot. Separate implicit
   // SELECT transactions can otherwise combine old bindings with new child facts.
   db.exec('BEGIN');
@@ -291,6 +325,20 @@ export function readStatistics(options:StatisticsOptions,filter:{client?:Client|
     if(state==='model_match'||state==='model_mismatch'){output.model_comparable++;output.model_match_denominator++;}
    }
   }
-  return output;
- }catch{output.status='unavailable';return output;}finally{try{db?.exec('ROLLBACK');}catch{}try{db?.close();}catch{}}
+  return {result:output,failed};
+ }catch{output.status='unavailable';return {result:output,failed:true};}finally{try{db?.exec('ROLLBACK');}catch{}try{db?.close();}catch{}}
+}
+
+/** Existing best-effort projection, including its historical status semantics. */
+export function readStatistics(options:StatisticsOptions,filter:StatisticsFilter={}){
+ return readStatisticsInternal(options,filter).result;
+}
+
+/** Read the same projection while reporting query failures separately. */
+export function readStatisticsQuery(options:StatisticsOptions,filter:StatisticsFilter={},snapshot?:QuerySnapshot,configurationExpected=false){
+ const owned=snapshot===undefined;
+ const view=snapshot??new QuerySnapshot();
+ const outcome=readStatisticsInternal(options,filter,view,configurationExpected);
+ if(owned)try{view.verify();}catch{outcome.failed=true;}
+ return outcome;
 }

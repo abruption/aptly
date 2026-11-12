@@ -5,6 +5,7 @@ import { isAbsolute, join } from 'node:path';
 import { Router } from './core.ts';
 import { hasSufficientTaskText } from './context-sufficiency.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
+import { QuerySnapshot } from './query-snapshot.ts';
 import { hookInput, hookOutput, validatedHookProfile, profilePreservesChoices, effortKeys } from './hook.ts';
 import type { HookOutput } from './hook.ts';
 import { digestToolInput } from './provenance.ts';
@@ -80,22 +81,35 @@ const safeText = (value: unknown, max: number): value is string => typeof value 
 const sensitive = (value: string): boolean => /\bsk-[A-Za-z0-9_-]{12,}|\bBearer\s+[A-Za-z0-9._~+\/-]{8,}={0,2}/i.test(value);
 const policyKeys = ['schema_version', 'kind', 'mode', 'issuer', 'enabled', 'state_directory'];
 
+function parseAutomaticHookPolicy(value:unknown):AutoPolicy {
+  if (!plain(value)) throw new Error('invalid_policy');
+  const keys = value.schema_version === 2 ? [...policyKeys, 'transmission'] : policyKeys;
+  if (Object.keys(value).length !== keys.length || Object.keys(value).some(key => !keys.includes(key)) ||
+    ![1,2].includes(value.schema_version as number) || (value.schema_version === 2 && !['none','description','excerpt','unselected'].includes(value.transmission as string)) || value.kind !== 'aptly-auto-hook' || (typeof value.mode !== 'string' || !['defaults', 'advisory'].includes(value.mode)) ||
+    value.issuer !== 'operator_installation' || typeof value.enabled !== 'boolean' ||
+    typeof value.state_directory !== 'string' || !isAbsolute(value.state_directory)) throw new Error('invalid_policy');
+  // Validate an existing private state directory, without creating a path from untrusted event data.
+  assertPrivateStatePath(join(value.state_directory, '.aptly-state-check'));
+  const policy = Object.fromEntries(keys.map(key => [key, value[key]])) as unknown as AutoPolicy;
+  return policy;
+}
+function loadedPolicy(policy:AutoPolicy){return {policy,fingerprint:hash(policy),reason:policy.enabled?'automatic_policy_enabled':'automatic_policy_disabled'};}
 export function loadAutomaticHookPolicy(path: unknown): { policy: AutoPolicy | null; reason: string; fingerprint?: string } {
-  if (path === undefined) return { policy: null, reason: 'automatic_policy_missing' };
-  try {
+  if(path===undefined)return {policy:null,reason:'automatic_policy_missing'};
+  try{
     assertPrivateStatePath(path);
-    const value: unknown = JSON.parse(readRegularFile(path, { privateFile: true, maxBytes: 4096 }).toString('utf8'));
-    if (!plain(value)) throw new Error('invalid_policy');
-    const keys = value.schema_version === 2 ? [...policyKeys, 'transmission'] : policyKeys;
-    if (Object.keys(value).length !== keys.length || Object.keys(value).some(key => !keys.includes(key)) ||
-      ![1,2].includes(value.schema_version as number) || (value.schema_version === 2 && !['none','description','excerpt','unselected'].includes(value.transmission as string)) || value.kind !== 'aptly-auto-hook' || (typeof value.mode !== 'string' || !['defaults', 'advisory'].includes(value.mode)) ||
-      value.issuer !== 'operator_installation' || typeof value.enabled !== 'boolean' ||
-      typeof value.state_directory !== 'string' || !isAbsolute(value.state_directory)) throw new Error('invalid_policy');
-    // Validate an existing private state directory, without creating a path from untrusted event data.
-    assertPrivateStatePath(join(value.state_directory, '.aptly-state-check'));
-    const policy = Object.fromEntries(keys.map(key => [key, value[key]])) as unknown as AutoPolicy;
-    return { policy, fingerprint: hash(policy), reason: policy.enabled ? 'automatic_policy_enabled' : 'automatic_policy_disabled' };
-  } catch { return { policy: null, reason: 'automatic_policy_invalid' }; }
+    return loadedPolicy(parseAutomaticHookPolicy(JSON.parse(readRegularFile(path,{privateFile:true,maxBytes:4096}).toString('utf8'))));
+  }catch{return {policy:null,reason:'automatic_policy_invalid'};}
+}
+/** Query-only availability; the Hook's historical missing/invalid reasons remain unchanged. */
+export function queryAutomaticHookPolicy(path:string,snapshot:QuerySnapshot):{policy:AutoPolicy|null;reason:string;availability:'valid'|'absent'|'error'} {
+  try{
+    const bytes=snapshot.read(path,{privateFile:true,maxBytes:4096});
+    if(bytes===null)return {policy:null,reason:'automatic_policy_invalid',availability:'absent'};
+    const policy=parseAutomaticHookPolicy(JSON.parse(bytes.toString('utf8')));
+    snapshot.track(policy.state_directory,{directory:true,privateFile:true,identityOnly:true});
+    return {...loadedPolicy(policy),availability:'valid'};
+  }catch{return {policy:null,reason:'automatic_policy_invalid',availability:'error'};}
 }
 
 interface NativeCall { client: Client; event: UnknownRecord; input: UnknownRecord; callKey: string; digest: string; payloadDigest: string; }
