@@ -185,6 +185,12 @@ Codex が子エージェントの `message` を暗号文として Hook に渡す
 
 ## 診断と開発
 
+`aptly doctor [--client codex|claude|all]` は独立した JSON スキーマ（`kind: aptly-doctor`、`schema_version: 1`）でローカル登録、ポリシー、登録先パッケージのバージョン、台帳メタデータを読み取ります。`complete`/終了コード 0 は照会完了、`partial`/終了コード 1 は観測失敗を示し、ホストの動作を保証しません。接続中の MCP バージョン、Hook の信頼・実行、再起動の必要性、チケット使用量はローカルでは `unknown` です。登録ランチャーの実行、資格情報ストアの照会、API・ネットワーク呼び出し、状態の作成・変更、更新通知は行いません。
+
+安全なパスから台帳サイズを先に確認し、4 MiB 以下のみ既存の保存スキーマで検証して `total`・`complete`・`unknown` 件数を表示します。超過時は本文を読まず `scan_skipped_size_limit` を返します。初回使用で台帳がない場合、履歴は未観測であり 0 件とは断定しません。観測中の変更では `changed_during_observation` として集計を破棄します。診断時間には検証と再確認を含み、書き込み時間は `not_measured` です。キー・パス・環境値・リクエスト ID・タスク本文は出力しません。数字のみのリリース版を表示し、任意のバージョン接尾辞は `unsupported_version_metadata` とします。
+
+接続中の MCP の `get_routing_capabilities.runtime_diagnostics` は応答プロセスのバージョン、ポリシーソースの種類、プロセス内の復旧スロット数 `capacity`・`used`・`remaining`・`expired_retained`・`in_flight` を追加します。期限切れのチケットもスロットを占有し、照会は更新・削除や再試行資格の確認を行いません（`retry_eligibility: not_checked`）。既存の `credential_status` は起動時のスナップショットです。同じバージョンでも設定の再読み込みや全書き込みプロセスの停止は証明できません。厳格な MCP 消費側はこの追加オブジェクトを許容してください。既存の `aptly report` スキーマとファイル出力は維持します。
+
 ```sh
 aptly report --format both --output-dir reports
 ```

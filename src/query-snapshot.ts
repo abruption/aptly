@@ -49,6 +49,11 @@ export class QuerySnapshot {
   }
   return true;
  }
+ /** Checked size from the same observation later verified; does not read the body. */
+ size(path:string,options:Options={}):number|null {
+  if(!this.track(path,options))return null;
+  return this.observations.get(resolve(path))!.metadata!.size;
+ }
  read(path:string,options:Options={}):Buffer|null {
   if(typeof path!=='string'||!isAbsolute(path))throw new Error('unsafe_configuration_file');
   path=resolve(path);if(!this.track(path,options))return null;
@@ -60,10 +65,16 @@ export class QuerySnapshot {
  }
  verify():void {
   for(const [path,observation]of this.observations){
+   try {
    if(signature(observation.metadata,observation.options.identityOnly)!==signature(metadata(path),observation.options.identityOnly))throw new Error('concurrent_configuration_change');
    if(observation.bytes){
     const bytes=readRegularFile(path,{privateFile:observation.options.privateFile,maxBytes:observation.options.maxBytes??4*1024*1024});
     if(!observation.bytes.equals(bytes)||signature(observation.metadata)!==signature(metadata(path)))throw new Error('concurrent_configuration_change');
+   }
+   }catch(error){
+    // A previously observed path becoming redirected/unsafe is an observation change.
+    if(error instanceof Error&&['unsafe_configuration_file','unsafe_path','unsafe_file'].includes(error.message))throw new Error('concurrent_configuration_change');
+    throw error;
    }
   }
  }

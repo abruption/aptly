@@ -10,7 +10,7 @@ const paths = [
   ['serve'], ['capabilities'], ['catalog'], ['catalog', 'refresh'],
   ['recommend'], ['inspect'], ['config'], ['set'], ['set', 'default'],
   ['set', 'env'], ['set', 'transmission'], ['budget'], ['budget', 'status'],
-  ['setup'], ['remove'], ['update'], ['report'],
+  ['setup'], ['remove'], ['update'], ['doctor'], ['report'],
 ];
 
 function fixture(t) {

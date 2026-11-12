@@ -18,6 +18,16 @@ export class ContextRetries {
  private policyPath:unknown;
  private now:()=>number;
  constructor(router:Router,policyPath:unknown,now:()=>number=Date.now) {this.router=router;this.policyPath=policyPath;this.now=now;}
+ /** Snapshot retained slots only; this does not check retry eligibility or mutate entries. */
+ diagnostics() {
+  const now=this.now();let expired_retained=0,in_flight=0;
+  for(const entry of this.entries.values()){
+   if(now-entry.at>=300_000)expired_retained++;
+   if(entry.active)in_flight++;
+  }
+  const used=this.entries.size;
+  return {scope:'this_process',capacity:128,used,remaining:128-used,expired_retained,in_flight,retry_eligibility:'not_checked'} as const;
+ }
  private current(entry:Entry,signal?:AbortSignal):string|undefined {
   if(entry.cancelled||signal?.aborted)return 'context_retry_cancelled';
   if(this.now()-entry.at>=300_000)return 'context_retry_expired';

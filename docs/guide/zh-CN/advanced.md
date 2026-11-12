@@ -185,6 +185,12 @@ export APTLY_MODEL_INFO_PATH=/absolute/private-aptly-state/model-info.json
 
 ## 诊断与开发
 
+`aptly doctor [--client codex|claude|all]` 使用独立的 JSON 架构（`kind: aptly-doctor`、`schema_version: 1`）读取本地注册、策略、注册目标软件包版本和账本元数据。`complete`/退出码 0 表示查询完成，`partial`/退出码 1 表示观测失败，均不保证宿主就绪。本地无法确认已连接 MCP 的版本、Hook 信任与执行、重启需求及票据使用量，因此显示为 `unknown`。命令不执行注册的启动器，不查询凭据存储，不调用 API 或网络，不创建或修改状态，也不显示更新通知。
+
+先通过安全路径检查账本大小，仅对不超过 4 MiB 的文件使用既有存储架构验证后统计 `total`、`complete` 和 `unknown`。更大的文件返回 `scan_skipped_size_limit`，不读取正文。首次使用时账本不存在意味着历史未观测，而非零条记录。观测中发生变更时，以 `changed_during_observation` 丢弃统计。诊断耗时包含验证与复查；写入耗时为 `not_measured`。输出不含密钥、路径、环境值、请求 ID 或任务正文。仅显示纯数字发布版本；任意版本后缀返回 `unsupported_version_metadata`。
+
+已连接 MCP 的 `get_routing_capabilities.runtime_diagnostics` 新增响应进程版本、策略来源类型，以及进程内恢复槽位的 `capacity`、`used`、`remaining`、`expired_retained` 和 `in_flight`。过期票据仍占槽位；查询不会续期或删除票据，也不检查重试资格（`retry_eligibility: not_checked`）。既有 `credential_status` 是启动时快照。版本一致不能证明设置已重载或全部写入进程已停止。严格的 MCP 消费者须允许这个新增对象。既有 `aptly report` 架构与文件导出保持不变。
+
 ```sh
 aptly report --format both --output-dir reports
 ```
