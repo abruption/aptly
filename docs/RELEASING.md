@@ -1,8 +1,12 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.13 출시 준비
+## 0.1.13 게시와 검증
 
-#140–144·PR #145–149를 통합하고 #150에서 버전·[한국어 릴리스 노트](release-notes/0.1.13.md)·호환성 안내를 준비합니다. 준비 PR의 정확한 HEAD 검증과 병합 후 main CI 성공을 구분합니다. 태그 생성·Actions OIDC 게시·registry·서명·provenance 검증은 별도 승인 후 진행하며 아직 완료되지 않았습니다. 이전 게시 근거를 이번 버전의 검증 결과로 재사용하지 않습니다.
+#140–144·PR #145–149를 순차 병합하고 #150·PR #151에서 버전과 한국어 릴리스 노트를 준비했습니다. 정확한 병합 main `959f34897d2d4dd60745f6a9a38b7a2d0c69fa51`의 [CI 7개 job](https://github.com/abruption/aptly/actions/runs/43127406223) 성공 후 annotated `v0.1.13` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/43127883633/attempts/1)를 완료했습니다. 설치 시험·새 runner 검증/pack·OIDC 게시 3개 job이 성공했습니다.
+
+npm `latest` 0.1.13, artifact/registry archive·SHA-512 SRI 일치와 npm 서명, 정확한 소스·태그·workflow·run/attempt에 결합된 provenance를 확인했습니다. registry 전파 중 이전 latest·일시적인 404를 관측했으며 같은 실행의 결과만 재조회했습니다. 태그 이동·게시 재실행·로컬 수동 게시는 하지 않았습니다. [한국어 노트](release-notes/0.1.13.md), [게시 근거](releases/0.1.13.md), #152를 참고하십시오.
+
+후보의 793개 테스트·문서·패키지 검증과 게시 archive의 출처 검증을 구분합니다. 호스트·전역 설치·키·전송 정책·원장·통계·신뢰를 변경하지 않았고 실제 native 모델/effort 적용은 이 게시 검증의 범위가 아닙니다.
 
 ## 0.1.12 게시와 검증
 
