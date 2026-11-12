@@ -233,3 +233,11 @@ test('production candidate loop orders numeric nvm releases and filters PATH wit
  const r=spawnSync('/bin/sh',['-c',script,'fixture','serve'],{env:{PATH:'/first/bin::relative:.:/path with spaces/bin'},encoding:'utf8',timeout:5000});assert.equal(r.status,0,r.stderr);assert.equal(r.stderr,'');
  assert.deepEqual(r.stdout.trim().split('\n'),[f.node,'/opt/homebrew/bin/node','/usr/local/bin/node','/usr/bin/node',...['v26.1.0','v24.10.0','v24.2.0'].map(v=>join(f.home,'.nvm/versions/node',v,'bin/node')),'/first/bin/node','/path with spaces/bin/node']);
 });
+test('production observer supervision duplicates parent stdin before asynchronous shell redirection',{skip:process.platform==='win32'},t=>{
+ const f=fixture(t);let p;unitSourceMetadata(f.pkg,()=>{p=f.plan();materializeStableRuntime(p);});
+ const source=readFileSync(p.command,'utf8'),begin=source.indexOf('# APTLY_OBSERVER_BEGIN'),end=source.indexOf('# APTLY_OBSERVER_END');assert.ok(begin>=0&&end>begin);
+ const record=join(f.home,'supervised-input');save(join(f.home,'bootstrap.cjs'),"require('node:fs').writeFileSync("+JSON.stringify(record)+",require('node:fs').readFileSync(0));");
+ const q=value=>"'"+value.replaceAll("'","'\\''")+"'";
+ const script='quiet=1\ncandidate='+q(process.execPath)+'\nroot='+q(f.home)+'\nstop() { exit 0; }\n'+source.slice(begin,end)+'\n';
+ const r=spawnSync('/bin/sh',['-c',script,'fixture','observe'],{input:'real parent stdin sentinel',encoding:'utf8',timeout:5000});assert.equal(r.status,0,r.stderr);assert.equal(r.stdout,'');assert.equal(r.stderr,'');assert.equal(readFileSync(record,'utf8'),'real parent stdin sentinel');
+});

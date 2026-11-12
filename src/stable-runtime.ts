@@ -357,7 +357,9 @@ try_node() {
  kill "$watchdog" 2>/dev/null; wait "$watchdog" 2>/dev/null
  budget || stop
  [ "$status" -eq 0 ] || return 1
+ # APTLY_OBSERVER_BEGIN
  if [ "$quiet" -eq 1 ]; then
+  exec 3<&0 || stop
   observer_child=
   observer_cleanup() {
    trap - HUP INT TERM
@@ -368,11 +370,13 @@ try_node() {
    exit 0
   }
   trap observer_cleanup HUP INT TERM
-  "$candidate" --no-warnings "$root/bootstrap.cjs" "$@" <&0 >/dev/null 2>&1 & observer_child=$!
+  "$candidate" --no-warnings "$root/bootstrap.cjs" "$@" <&3 3<&- >/dev/null 2>&1 & observer_child=$!
   wait "$observer_child" 2>/dev/null
   trap - HUP INT TERM
+  exec 3<&-
   exit 0
  fi
+ # APTLY_OBSERVER_END
  exec "$candidate" --no-warnings "$root/bootstrap.cjs" "$@"
 }
 # APTLY_CANDIDATES_BEGIN

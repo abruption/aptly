@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {systemAliasAllowed} from '../src/files.ts';
 import { auditDocumentation, auditGuideContent, collectDocumentation } from './docs-check.ts';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync, readdirSync, lstatSync, readlinkSync, copyFileSync, chmodSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync, readdirSync, lstatSync, readlinkSync, copyFileSync, chmodSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 
@@ -14,7 +14,9 @@ const npmCli = process.env.npm_execpath;
 assert.ok(npmCli && isAbsolute(npmCli) && basename(npmCli) === 'npm-cli.js',
   'Run this check with npm run test:package');
 assert.ok(statSync(npmCli).isFile());
-const root = mkdtempSync(join(tmpdir(), 'codex-package smoke-'));
+// Existing setup rejects redirected host paths: use the physical identity of
+// this same temporary directory, not a different temporary-root fallback.
+const root = realpathSync(mkdtempSync(join(tmpdir(), 'codex-package smoke-')));
 const prefix = join(root, 'installed');
 const home = join(root, 'home');
 // Deliberately exclude inherited provider keys, host config and NODE_PATH/options.
