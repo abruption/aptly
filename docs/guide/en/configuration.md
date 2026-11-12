@@ -71,7 +71,7 @@ Restart MCP, then inspect `provider`, candidates, and `credential_status` with `
 
 ## Node-version-independent launcher
 
-This is a development feature for a version after 0.1.13; the published 0.1.13 CLI does not support it. Explicit `--launcher stable` on POSIX (macOS/Linux) preserves an executable and Aptly runtime dependencies in private storage outside versioned Node directories. It does not copy Node: an installed supported Node.js 24+ is still required. After the original Node and npm package directory disappear, the preserved launcher can locate another supported installation. Bare `node` cannot offer that guarantee when a GUI host lacks it in PATH.
+This option is available starting with 0.1.14. Explicit `--launcher stable` on POSIX (macOS/Linux) preserves an executable and Aptly runtime dependencies in private storage outside versioned Node directories. It does not copy Node: an installed supported Node.js 24+ is still required. After the original Node and npm package directory disappear, the preserved launcher can locate another supported installation. Bare `node` cannot offer that guarantee when a GUI host lacks it in PATH.
 
 Default/automatic and existing registrations keep direct Node paths. Use `aptly setup --client all --launcher stable` only for new registrations. For existing ones, inspect then migrate explicitly as below. Use `--client claude` for Claude and select the intended `CODEX_HOME` for each Codex account.
 

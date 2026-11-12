@@ -71,7 +71,7 @@ API キーは macOS Keychain、インストール済みの Linux `secret-tool`�
 
 ## Node のバージョンディレクトリに依存しないランチャー
 
-このオプションは 0.1.13 より後のバージョン向けの開発機能で、公開済みの 0.1.13 CLI では使用できません。POSIX（macOS/Linux）で `--launcher stable` を明示すると、Node のバージョンディレクトリ外の非公開領域にランチャーと Aptly の実行時依存を保存します。Node 自体はコピーしないため、対応する Node.js 24 以上のインストールが必要です。元の Node と npm パッケージが削除されても、保存済みランチャーは別の対応 Node を探せます。GUI ホストの PATH に `node` がない場合、コマンド名だけでは同じ保証は得られません。
+このオプションは 0.1.14 以降で使用できます。POSIX（macOS/Linux）で `--launcher stable` を明示すると、Node のバージョンディレクトリ外の非公開領域にランチャーと Aptly の実行時依存を保存します。Node 自体はコピーしないため、対応する Node.js 24 以上のインストールが必要です。元の Node と npm パッケージが削除されても、保存済みランチャーは別の対応 Node を探せます。GUI ホストの PATH に `node` がない場合、コマンド名だけでは同じ保証は得られません。
 
 既定・自動登録と既存登録は直接 Node パスを使います。新規登録には `aptly setup --client all --launcher stable` を使えます。既存登録は次のとおり確認後に明示して移行してください。Claude は `--client claude`、各 Codex アカウントは対象の `CODEX_HOME` で実行します。
 

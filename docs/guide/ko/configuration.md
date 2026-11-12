@@ -71,7 +71,7 @@ API 키는 macOS Keychain, Linux의 설치된 `secret-tool`, 또는 Windows Cred
 
 ## Node 버전 변경에 강한 실행기
 
-이 옵션은 0.1.13 이후 버전을 위한 개발 기능이며, 게시된 0.1.13 CLI에는 없습니다. POSIX(macOS·Linux)에서 `--launcher stable`을 명시하면 Node 버전 폴더 밖의 비공개 위치에 실행기와 Aptly의 런타임 의존성을 보존합니다. Node 바이너리는 복사하지 않으므로 지원되는 Node.js 24 이상 설치본이 필요합니다. 기존 Node와 원본 npm 패키지 폴더가 삭제돼도 보존된 실행기는 다른 지원 설치본을 찾을 수 있습니다. 단순한 `node` 명령은 GUI 호스트의 PATH에 없을 수 있어 같은 보장을 하지 않습니다.
+이 옵션은 0.1.14부터 지원합니다. POSIX(macOS·Linux)에서 `--launcher stable`을 명시하면 Node 버전 폴더 밖의 비공개 위치에 실행기와 Aptly의 런타임 의존성을 보존합니다. Node 바이너리는 복사하지 않으므로 지원되는 Node.js 24 이상 설치본이 필요합니다. 기존 Node와 원본 npm 패키지 폴더가 삭제돼도 보존된 실행기는 다른 지원 설치본을 찾을 수 있습니다. 단순한 `node` 명령은 GUI 호스트의 PATH에 없을 수 있어 같은 보장을 하지 않습니다.
 
 기본 설치·자동 등록과 기존 등록은 계속 직접 Node 경로를 사용합니다. 새 등록에만 `aptly setup --client all --launcher stable`을 사용할 수 있습니다. 기존 등록은 아래처럼 먼저 점검한 후 명시적으로 전환하십시오. Claude는 `--client claude`를 사용하고, 계정별 Codex는 의도한 `CODEX_HOME` 환경에서 실행하십시오.
 
