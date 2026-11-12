@@ -51,7 +51,7 @@ try {
   assert.equal(run(process.execPath, ['--no-experimental-strip-types', installedCli, '--version'], prefix).trim(), metadata.version);
   assert.ok(run(process.execPath, [installedCli, 'budget', '--help'], prefix).includes('budget status'));
   // Exercise compiled read queries with a fresh HOME; never inspect the operator's account.
-  for(const args of [['stats'],['set','transmission','--show']]){
+  for(const args of [['stats'],['set','transmission','--show'],['doctor']]){
     const unsupported=args[0]==='stats'&&process.platform==='win32';
     const result=spawnSync(process.execPath,['--no-experimental-strip-types',installedCli,...args],{cwd:prefix,env,encoding:'utf8',timeout:15000});
     assert.equal(result.status,unsupported?1:0,result.stderr);assert.equal(result.stderr,'');
@@ -80,6 +80,8 @@ try {
   const names = (await client.listTools()).tools.map(tool => tool.name);
   assert.ok(names.includes('recommend_agent'));
   const capabilities = (await client.callTool({name:'get_routing_capabilities',arguments:{}})).structuredContent;
+  assert.equal(capabilities.runtime_diagnostics.version, '${metadata.version}');
+  assert.equal(capabilities.runtime_diagnostics.context_retries.remaining,128);
   assert.equal(capabilities.budget_configuration.limits.max_daily_calls,200);
   assert.equal(capabilities.budget_configuration.limits.max_total_calls,0);
   assert.equal(capabilities.budget_configuration.limits.max_estimated_usd,0);

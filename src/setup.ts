@@ -8,6 +8,7 @@ import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
 import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings, budgetErrorDetails } from './budget.ts';
 import { Router, defaultPolicy } from './core.ts';
+import { resolveHostPaths as resolved } from './host-paths.ts';
 import { QuerySnapshot } from './query-snapshot.ts';
 import { loadAutomaticHookPolicy, queryAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
 import { assertPrivateStatePath } from './files.ts';
@@ -230,15 +231,6 @@ function policyReferenceMatches(entry:ObjectValue,client:Client,policyPath:strin
   return client==='codex' && entry.env?.CODEX_HOME===undefined && Array.isArray(entry.env_vars) && entry.env_vars.every((x:unknown)=>typeof x==='string') && entry.env_vars.includes('CODEX_HOME') && selectedCliPolicyPath(options)===policyPath;
 }
 
-function resolved(options: SetupOptions, client: Client) {
-  const home = resolve(options.home ?? homedir()), env = options.env ?? process.env;
-  const override = client === 'codex' ? env.CODEX_HOME : env.CLAUDE_CONFIG_DIR;
-  if (override && !isAbsolute(override)) fail('relative_configuration_directory');
-  if(client==='codex'&&override!==undefined)resolvePolicySource(CODEX_HOME_POLICY_SOURCE,env);
-  const dir = override || join(home, client === 'codex' ? '.codex' : '.claude');
-  const mcpPath = client === 'codex' ? join(dir, 'config.toml') : override ? join(dir, '.claude.json') : join(home, '.claude.json');
-  return { dir, mcpPath, hooksPath: join(dir, client === 'codex' ? 'hooks.json' : 'settings.json'), privateDir: join(dir, 'aptly') };
-}
 function ownership(value: ObjectValue, client: Client): Ownership {
   if (value.schema_version !== 1 || value.kind !== 'aptly-setup-ownership' || value.client !== client || !object(value.hook) || typeof value.mcp_created !== 'boolean' || !object(value.env_added) || !object(value.policy) || typeof value.policy_created !== 'boolean') fail('invalid_ownership');
   if (value.policy_source_previous !== undefined && (client !== 'codex' || value.mcp_created || typeof value.policy_source_previous !== 'string' || !isAbsolute(value.policy_source_previous) || Object.hasOwn(value.env_added,'APTLY_HOOK_POLICY_PATH'))) fail('invalid_ownership');

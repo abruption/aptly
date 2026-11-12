@@ -67,6 +67,33 @@ const outcomeReasons: Record<RoutingStatus, readonly string[]> = {
 const isClient = (value: unknown): value is Client => value === 'codex' || value === 'claude';
 const preservedFields = ['model_pinned', 'effort_pinned', 'role_pinned', 'fork_inherits'] as const;
 
+export function validateStoredOutcome(result: unknown): asserts result is RoutingResult {
+  if (!keysOnly(result, ['status', 'reason', 'application', 'policy_version', 'catalog_version', 'profile_id', 'profile', 'usage', 'latency_ms', 'confidence']) ||
+    typeof result.status !== 'string' || !own(outcomeReasons, result.status) || typeof result.reason !== 'string' || !outcomeReasons[result.status as RoutingStatus].includes(result.reason) || result.application !== 'advisory_only' ||
+    !safeVersion(result.policy_version) || !safeVersion(result.catalog_version) ||
+    (own(result, 'latency_ms') && (typeof result.latency_ms !== 'number' || !Number.isFinite(result.latency_ms) || result.latency_ms < 0 || result.latency_ms > 3600000)) ||
+    (own(result, 'confidence') && (typeof result.confidence !== 'number' || !Number.isFinite(result.confidence) || result.confidence < 0 || result.confidence > 1))) throw new Error('invalid_outcome');
+  if (own(result, 'usage')) usageOf(result.usage);
+  if (result.status === 'recommended') {
+    // Validate archival shape/known provenance without requiring membership
+    // in today's selected subset. Eligibility is checked again before reuse.
+    if (!isStoredProfile(result.profile) || result.profile_id !== result.profile.id) throw new Error('invalid_outcome');
+  } else if (own(result, 'profile') || own(result, 'profile_id')) throw new Error('invalid_outcome');
+}
+export function validateLedgerState(state: unknown): asserts state is LedgerState {
+  if (!keysOnly(state, ['version', 'calls', 'estimated_usd', 'days', 'requests']) || state.version !== 1 || !safeInt(state.calls) || typeof state.estimated_usd !== 'number' || !Number.isFinite(state.estimated_usd) || state.estimated_usd < 0 ||
+    !isRecord(state.days) || !isRecord(state.requests)) throw new Error('invalid_ledger');
+  const days = state.days;
+  if (Object.entries(days).some(([day, calls]) => !/^\d{4}-\d{2}-\d{2}$/.test(day) || !safeInt(calls))) throw new Error('invalid_ledger');
+  const validatedDays = days as Record<string, number>;
+  if (Object.values(validatedDays).reduce((a, b) => a + b, 0) !== state.calls) throw new Error('invalid_ledger');
+  for (const [id, record] of Object.entries(state.requests)) {
+    if (!/^[A-Za-z0-9_-]{1,96}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || !keysOnly(record, ['digest', 'state', 'result']) || typeof record.digest !== 'string' || !/^[a-f0-9]{64}$/.test(record.digest) || (record.state !== 'complete' && record.state !== 'unknown')) throw new Error('invalid_ledger');
+    if (record.state === 'complete') validateStoredOutcome(record.result);
+    else if (own(record, 'result')) throw new Error('invalid_ledger');
+  }
+}
+
 export class Router {
   policy: RoutingPolicy;
   provider: RoutingProvider;
@@ -129,19 +156,7 @@ export class Router {
   result(status: RoutingStatus, reason: string, extra: Partial<RoutingResult> = {}): RoutingResult {
     return { status, reason, application: 'advisory_only', policy_version: this.policy.version, catalog_version: this.policy.catalog_version, ...extra };
   }
-  validateOutcome(result: unknown): asserts result is RoutingResult {
-    if (!keysOnly(result, ['status', 'reason', 'application', 'policy_version', 'catalog_version', 'profile_id', 'profile', 'usage', 'latency_ms', 'confidence']) ||
-      typeof result.status !== 'string' || !own(outcomeReasons, result.status) || typeof result.reason !== 'string' || !outcomeReasons[result.status as RoutingStatus].includes(result.reason) || result.application !== 'advisory_only' ||
-      !safeVersion(result.policy_version) || !safeVersion(result.catalog_version) ||
-      (own(result, 'latency_ms') && (typeof result.latency_ms !== 'number' || !Number.isFinite(result.latency_ms) || result.latency_ms < 0 || result.latency_ms > 3600000)) ||
-      (own(result, 'confidence') && (typeof result.confidence !== 'number' || !Number.isFinite(result.confidence) || result.confidence < 0 || result.confidence > 1))) throw new Error('invalid_outcome');
-    if (own(result, 'usage')) usageOf(result.usage);
-    if (result.status === 'recommended') {
-      // Validate archival shape/known provenance without requiring membership
-      // in today's selected subset. Eligibility is checked again before reuse.
-      if (!isStoredProfile(result.profile) || result.profile_id !== result.profile.id) throw new Error('invalid_outcome');
-    } else if (own(result, 'profile') || own(result, 'profile_id')) throw new Error('invalid_outcome');
-  }
+  validateOutcome(result: unknown): asserts result is RoutingResult { validateStoredOutcome(result); }
   load({readOnly=false}:{readOnly?:boolean}={}): void {
     if (!this.ledgerPath) return;
     this.heldLedgerLock?.assertHeld();
@@ -150,17 +165,7 @@ export class Router {
       if (!stat.isFile() || stat.isSymbolicLink() || (readOnly && process.platform!=='win32' && ((stat.mode&0o077)!==0 || (process.getuid && stat.uid!==process.getuid())))) throw new Error('unsafe_ledger');
       if(!readOnly)chmodSync(this.ledgerPath, 0o600);
       const state: unknown = JSON.parse(readFileSync(this.ledgerPath, 'utf8'));
-      if (!keysOnly(state, ['version', 'calls', 'estimated_usd', 'days', 'requests']) || state.version !== 1 || !safeInt(state.calls) || typeof state.estimated_usd !== 'number' || !Number.isFinite(state.estimated_usd) || state.estimated_usd < 0 ||
-        !isRecord(state.days) || !isRecord(state.requests)) throw new Error('invalid_ledger');
-      const days = state.days;
-      if (Object.entries(days).some(([day, calls]) => !/^\d{4}-\d{2}-\d{2}$/.test(day) || !safeInt(calls))) throw new Error('invalid_ledger');
-      const validatedDays = days as Record<string, number>;
-      if (Object.values(validatedDays).reduce((a, b) => a + b, 0) !== state.calls) throw new Error('invalid_ledger');
-      for (const [id, record] of Object.entries(state.requests)) {
-        if (!/^[A-Za-z0-9_-]{1,96}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || !keysOnly(record, ['digest', 'state', 'result']) || typeof record.digest !== 'string' || !/^[a-f0-9]{64}$/.test(record.digest) || (record.state !== 'complete' && record.state !== 'unknown')) throw new Error('invalid_ledger');
-        if (record.state === 'complete') this.validateOutcome(record.result);
-        else if (own(record, 'result')) throw new Error('invalid_ledger');
-      }
+      validateLedgerState(state);
       // All records, counters and outcomes were validated above; no parsed
       // JSON shape is trusted at the file boundary before those checks.
       this.state = state as unknown as LedgerState;

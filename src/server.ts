@@ -27,6 +27,7 @@ const content=(result:Record<string,unknown>):CallToolResult=>({content:[{type:'
 
 export function createServer({env:inputEnv=process.env}:{env?:NodeJS.ProcessEnv}={}) {
  const codexBound=inputEnv.APTLY_HOOK_POLICY_PATH===CODEX_HOME_POLICY_SOURCE;
+ const policySourceKind=codexBound?'codex_home':inputEnv.APTLY_HOOK_POLICY_PATH===undefined?'unconfigured':'fixed';
  const env={...inputEnv,APTLY_HOOK_POLICY_PATH:resolvePolicySource(inputEnv.APTLY_HOOK_POLICY_PATH,inputEnv)};
  const {router,budget,mode,modelInfo,credentialStatus,disabledClients}=runtime(env);
  const observations=new RoutingObservations();
@@ -66,6 +67,7 @@ export function createServer({env:inputEnv=process.env}:{env?:NodeJS.ProcessEnv}
   recommendation:{application:'advisory_only',host_evidence_required:false,constraints:'caller_declared_pins'},
   model_information:{status:modelInfo.status,refresh:'explicit_only',account_access_verified:false},disabled_clients:disabledClients,
   credential_status:credentialStatus,
+  runtime_diagnostics:{version:VERSION,policy_source_kind:policySourceKind,credential_status_observed:'startup_snapshot',context_retries:retries.diagnostics()},
   execution_statistics:{collection:'explicit_operator_opt_in',view:'aptly stats',semantics:'host_reported_model_evidence_not_user_acceptance',effective_effort:'not_measured',usage_rollups:'not_collected'},
   automatic_hook:{status:automatic.reason,mode:automatic.policy?.mode??'disabled',transmission:automatic.policy?effectiveTransmission(automatic.policy):null,transmission_provenance:automatic.policy?(automatic.policy.schema_version===1?'legacy_v1_default':'operator_policy_v2'):'unavailable',host_settings_verified:false,context_tool:'prepare_spawn_context',context_scope:'this_process_exact_event_5_minutes',context_retry_tool:'retry_spawn_recommendation',context_retry_limit:1,fresh_delegation_tool:'prepare_fresh_delegation',fresh_delegation_intent:'caller_declared_not_verified',observation_tool:'get_spawn_routing_observation',observation_scope:'this_process_recent_calls',execution_observation:'not_supported',
    guarantee:{scope:'enabled_trusted_connected_supported_hook_only',missing_hook_detectable:false,unavailable_host_hook:'host_controls_fallback',eligible_defaults_failure:'deny_when_transmission_enabled',inherited_application:'defaults_deny_advisory_feedback',caller_recovery:'model_driven_not_guaranteed'}},

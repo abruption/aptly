@@ -5,6 +5,7 @@ import { serve } from '../src/server.ts';
 import { runtime } from '../src/runtime.ts';
 import { explainSettings } from '../src/inspect.ts';
 import { VERSION } from '../src/version.ts';
+import { collectDoctor } from '../src/doctor.ts';
 import { collectDiagnostics } from '../src/diagnostics.ts';
 import { exportDiagnosticReport } from '../src/report.ts';
 import { fetchModelInfo,saveModelInfo } from '../src/model-info.ts';
@@ -32,6 +33,10 @@ try {
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
    const result=updateGlobalInstallation({packageRoot});output(result.status==='complete'?{...result,next_steps:['aptly setup','aptly set transmission --review']}:result);if(result.status==='error')process.exitCode=1;
    else if(process.stderr.isTTY&&!process.env.CI)process.stderr.write('Run aptly setup after updating; its first interactive run reviews transmission scope. Use aptly set transmission --review for an explicit review, then restart MCP.\n');
+ } else if(command==='doctor'){
+  let clients:('codex'|'claude')[]=['codex','claude'];
+  if(args.length){if(args.length!==2||args[0]!=='--client'||!['codex','claude','all'].includes(args[1]))throw new Error('doctor_invalid_options');clients=args[1]==='all'?['codex','claude']:[args[1] as 'codex'|'claude'];}
+  const result=collectDoctor({clients});output(result);if(result.status==='partial')process.exitCode=1;
  } else if(command==='stats'){
   let action:'enable'|'disable'|undefined,start=0;if(args[0]==='enable'||args[0]==='disable'){action=args[0];start=1;}
   let clients:('codex'|'claude')[]=['codex','claude'];let today=false,native=false;const seen=new Set<string>();
@@ -138,12 +143,12 @@ try {
  const setCodes=['set_environment_key_unsupported','set_invalid_options','set_value_too_large','set_interactive_input_required','set_input_cancelled'];
  const inputCode=['set_input_cancelled','set_interactive_input_required'].includes(message??'')?message:undefined;
  const recognizedInput=(message==='setup_invalid_options'&&['setup','remove'].includes(command))||(message==='input_too_large'&&['recommend','inspect'].includes(command))?message:undefined;
- const code=command==='stats'?(message==='statistics_invalid_options'?message:'statistics_failed'):command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):recognizedInput??inputCode??budgetCode??configCode??'operation_failed';
+ const code=command==='doctor'?(message==='doctor_invalid_options'?message:'doctor_failed'):command==='stats'?(message==='statistics_invalid_options'?message:'statistics_failed'):command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):recognizedInput??inputCode??budgetCode??configCode??'operation_failed';
  const budgetDetails=budgetErrorDetails(error);
  process.stderr.write('aptly: '+code+(budgetDetails.invalid_budget_keys?.length?' ['+budgetDetails.invalid_budget_keys.join(', ')+']':'')+(budgetDetails.budget_error?' ('+budgetDetails.budget_error+')':'')+'\n');process.exitCode=1;
 }
 finally {
- if(!process.exitCode&&!helpHandled&&command!=='stats'){
+ if(!process.exitCode&&!helpHandled&&!['stats','doctor'].includes(command)){
   try {
    const hint=await updateNotification({command,args,env:process.env,stdinIsTTY:!!process.stdin.isTTY,stderrIsTTY:!!process.stderr.isTTY,stdoutIsTTY:!!process.stdout.isTTY,currentVersion:VERSION});
    if(hint)process.stderr.write(hint+'\n');
