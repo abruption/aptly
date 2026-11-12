@@ -97,6 +97,8 @@ MCP `env` values are strings, so candidate arrays must also be passed as JSON st
 
 When unset, the defaults above apply; `[]` disables recommendations for that client. Empty strings, duplicates, unsupported models, and malformed JSON are errors. `CLAUDE_MODELS` and `CODEX_MODELS` are supported aliases, but setting both the primary name and its alias for the same provider is an error. Candidate configuration does not override existing choices or certify model access for an account.
 
+`aptly set default` preserves candidates and aliases already in MCP `env`, Codex `env_vars` declarations, and inherited candidates visible to the current CLI for Claude. It adds default candidates only for a model family with neither name configured. A Codex passthrough is preserved even when its value is unavailable in the current terminal; inherited values are not copied into configuration files. The CLI gives a static `env` value precedence over an inherited value with the same name when validating effective settings. Catalog validation remains in place, so conflicting aliases or malformed values reject the configuration change. Check the final candidates in the restarted MCP separately.
+
 ## Related topics
 
 [Installation and updates](installation.md) · [Automatic recommendations](routing.md) · [Decisions API transmission](transmission.md) · [Advanced MCP integration and development](advanced.md) · [Troubleshooting](troubleshooting.md)

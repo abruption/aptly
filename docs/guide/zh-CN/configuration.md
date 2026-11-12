@@ -97,6 +97,8 @@ MCP 的 `env` 值是字符串，因此候选数组也必须以 JSON 字符串传
 
 未设置时使用上述默认值，`[]` 会禁用对应 client 的推荐。空字符串、重复项、不支持的模型或无效 JSON 都会报错。也支持别名 `CLAUDE_MODELS` 和 `CODEX_MODELS`，但同时设置同一提供商的主变量名与别名会报错。候选设置不会覆盖现有选择，也不代表已确认账户的模型访问权限。
 
+`aptly set default` 会保留 MCP `env` 中已有的候选及其别名、Codex `env_vars` 的转发声明，以及当前 CLI 可观察到的 Claude 继承候选。仅当同一模型系列的两个变量名均未配置时，才添加默认候选。即使当前终端无法读取 Codex 转发变量的值，也会保留其声明，不会用默认值替换或把继承值复制到配置文件中。验证有效设置时，CLI 优先使用同名静态 `env` 值。目录验证规则保持不变；别名冲突或格式错误会使配置修改被拒绝。请在重启 MCP 后另行确认最终候选。
+
 ## 相关文档
 
 [安装与更新](installation.md) · [自动推荐](routing.md) · [Decisions API 传输范围](transmission.md) · [高级 MCP 集成与开发参考](advanced.md) · [问题排查](troubleshooting.md)

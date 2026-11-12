@@ -24,7 +24,7 @@ test('statistics opt-in preserves routing and legacy ownership and is idempotent
  assert.equal(key.length,65);assert.equal(setStatisticsCollection(true,{...f.options,clients:['codex'],codexNativeMetadata:true}).status,'complete');assert.equal(readFileSync(f.hooks,'utf8'),hooks);assert.equal(readFileSync(join(f.state,'stats-key'),'utf8'),key);
  for(const[p,n]of [[receipt,0],[config,1],[policy,2]] as const)assert.equal(readFileSync(p,'utf8'),original[n]);
  assert.equal(checkSetup({...f.options,clients:['codex']}).status,'complete');
- const view=showStatistics({...f.options,clients:['codex']});assert.equal(view.clients[0].collection.codex,true);assert.equal(existsSync(join(f.state,'stats.sqlite')),false);
+ const view=showStatistics({...f.options,clients:['codex']});assert.equal(view.clients[0].collection.codex,true);assert.equal(existsSync(join(f.state,'stats.sqlite')),true);
  const off=setStatisticsCollection(false,{...f.options,clients:['codex']});assert.equal(off.status,'complete');assert.equal(existsSync(join(f.privateDir,'stats-ownership.json')),false);assert.equal(readFileSync(join(f.state,'stats-key'),'utf8'),key);assert.equal(readFileSync(receipt,'utf8'),original[0]);
  assert.deepEqual(JSON.parse(readFileSync(f.hooks,'utf8')).hooks.PostToolUse,data.hooks.PostToolUse);
 });

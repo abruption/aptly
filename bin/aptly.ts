@@ -137,7 +137,8 @@ try {
  const configCode=[caughtCode,message].find(value=>typeof value==='string'&&safeConfigurationCodes.includes(value));
  const setCodes=['set_environment_key_unsupported','set_invalid_options','set_value_too_large','set_interactive_input_required','set_input_cancelled'];
  const inputCode=['set_input_cancelled','set_interactive_input_required'].includes(message??'')?message:undefined;
- const code=command==='stats'?'statistics_invalid_options':command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):inputCode??budgetCode??configCode??'operation_failed';
+ const recognizedInput=(message==='setup_invalid_options'&&['setup','remove'].includes(command))||(message==='input_too_large'&&['recommend','inspect'].includes(command))?message:undefined;
+ const code=command==='stats'?(message==='statistics_invalid_options'?message:'statistics_failed'):command==='update'?(message==='update_invalid_options'?message:'update_failed'):command==='set'?(setCodes.includes(message??'')?message:'set_failed'):command==='report'?(caughtCode&&codes.includes(caughtCode)?caughtCode:'report_failed'):recognizedInput??inputCode??budgetCode??configCode??'operation_failed';
  const budgetDetails=budgetErrorDetails(error);
  process.stderr.write('aptly: '+code+(budgetDetails.invalid_budget_keys?.length?' ['+budgetDetails.invalid_budget_keys.join(', ')+']':'')+(budgetDetails.budget_error?' ('+budgetDetails.budget_error+')':'')+'\n');process.exitCode=1;
 }
