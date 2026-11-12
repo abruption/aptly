@@ -31,7 +31,7 @@ try {
  } else if(command==='update'){
   if(args.length)throw new Error('update_invalid_options');
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   const result=updateGlobalInstallation({packageRoot});output(result.status==='complete'?{...result,next_steps:['aptly setup','aptly set transmission --review']}:result);if(result.status==='error')process.exitCode=1;
+   const result=updateGlobalInstallation({packageRoot});output(result.status==='complete'?{...result,next_steps:['aptly setup','aptly set transmission --review'],...(process.platform!=='win32'?{stable_launcher_update_note:'Existing stable registrations retain their snapshot until an explicit per-client migration; run aptly setup --help for --migrate-launcher --launcher stable.'}:{})}:result);if(result.status==='error')process.exitCode=1;
    else if(process.stderr.isTTY&&!process.env.CI)process.stderr.write('Run aptly setup after updating; its first interactive run reviews transmission scope. Use aptly set transmission --review for an explicit review, then restart MCP.\n');
  } else if(command==='doctor'){
   let clients:('codex'|'claude')[]=['codex','claude'];

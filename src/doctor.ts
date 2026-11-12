@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { parse } from 'smol-toml';
 import { resolveHostPaths } from './host-paths.ts';
-import { validateStableRegistration, stableRuntimeLimits } from './stable-runtime.ts';
+import { validateStableRegistration, stableRuntimeLimits, stableReference } from './stable-runtime.ts';
 import { QuerySnapshot } from './query-snapshot.ts';
 import { queryAutomaticHookPolicy, effectiveTransmission } from './automatic-hook.ts';
 import { validateLedgerState } from './core.ts';
@@ -17,7 +17,7 @@ const unknown='unknown' as const;
 function fail(code:string):never {throw new Error(code);}
 const version=(value:unknown)=>typeof value==='string'&&/^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/.test(value)?value:null;
 const json=(bytes:Buffer)=>{const value:unknown=JSON.parse(bytes.toString('utf8'));if(!isRecord(value))fail('invalid_configuration');return value as Record<string,unknown>;};
-const observationCode=(error:unknown)=>error instanceof Error&&error.message==='concurrent_configuration_change'?'changed_during_observation':error instanceof Error&&['invalid_ledger','invalid_outcome','invalid_usage'].includes(error.message)?'invalid_ledger':error instanceof Error&&['registered_node_missing','registered_package_missing','invalid_configuration','invalid_policy','invalid_policy_binding','missing_hook_registration','invalid_ledger_binding'].includes(error.message)?error.message:'configuration_observation_failed';
+const observationCode=(error:unknown)=>error instanceof Error&&error.message==='concurrent_configuration_change'?'changed_during_observation':error instanceof Error&&['invalid_ledger','invalid_outcome','invalid_usage'].includes(error.message)?'invalid_ledger':error instanceof Error&&['stable_runtime_unverified','registered_node_missing','registered_package_missing','invalid_configuration','invalid_policy','invalid_policy_binding','missing_hook_registration','invalid_ledger_binding'].includes(error.message)?error.message:'configuration_observation_failed';
 
 /** No lock, load, state initialization, provider or filesystem mutation. */
 export function observeDoctorLedger(path:string,snapshot:QuerySnapshot) {
@@ -78,15 +78,14 @@ export function collectDoctor(options:DoctorOptions={}) {
     if(!snapshot.track(entry.command))fail('registered_node_missing');
     if(!snapshot.track(entry.args[0]))fail('registered_package_missing');
    }
-   const stable=validateStableRegistration(entry,{home:options.home,metadataOnly:true});
-   if(stable){
-    snapshot.read(stable.command,{privateFile:true,maxBytes:65536});
-    snapshot.read(join(stable.runtimeRoot,'bootstrap.cjs'),{privateFile:true,maxBytes:65536});
-    snapshot.read(join(stable.runtimeRoot,'manifest.json'),{privateFile:true,maxBytes:stableRuntimeLimits.manifestBytes});
-    snapshot.read(join(stable.packageRoot,'package.json'),{privateFile:true,maxBytes:65536});
-    const checked=validateStableRegistration(entry,{home:options.home,metadataOnly:true});
-    if(!checked||JSON.stringify(checked.manifest)!==JSON.stringify(stable.manifest))fail('invalid_configuration');
+   const reference=stableReference(entry,{home:options.home});
+   if(reference){
+    snapshot.read(reference.command,{privateFile:true,maxBytes:65536});
+    snapshot.read(join(reference.runtimeRoot,'bootstrap.cjs'),{privateFile:true,maxBytes:65536});
+    snapshot.read(join(reference.runtimeRoot,'manifest.json'),{privateFile:true,maxBytes:stableRuntimeLimits.manifestBytes});
+    snapshot.read(join(reference.runtimeRoot,'payload/package.json'),{privateFile:true,maxBytes:65536});
    }
+   const stable=validateStableRegistration(entry,{home:options.home,metadataOnly:true});
    const candidate=standardEntry(entry),stableVersion=stable?version(stable.version):null;
    const target=stable?{status:stableVersion?'observed_numeric_release':'unsupported_version_metadata',version:stableVersion}:candidate?packageObservation(entry,snapshot):{status:'custom_or_remote_launcher',version:null};
    const standard=!!stable||(candidate&&['observed_numeric_release','unsupported_version_metadata'].includes(target.status));
@@ -119,11 +118,11 @@ export function collectDoctor(options:DoctorOptions={}) {
     ledger={status:'not_declared',counts:null,write_timing:'not_measured'};
    }
    snapshot.verify();
-   return {...base,status:'complete',registration:stable?'stable_runtime_registration':standard?'standard_node_registration':'custom_or_remote_launcher',registered_package:target,policy:{source_kind:source,status:policyStatus,transmission},hook_registration:hook,credential_reference:settings.APTLY_SECRET_BACKEND==='os'?'os_reference':Object.hasOwn(settings,'OPENAI_API_KEY')?'inline_environment_present':permitted('OPENAI_API_KEY')?'runtime_environment_permitted':'not_declared',ledger:{...ledger,diagnostic_scan_ms:Math.max(0,performance.now()-started),timing_scope:'full_client_observation_and_rechecks'}};
+   return {...base,status:'complete',...(stable&&stable.version!==VERSION?{stable_snapshot_outdated:true,recovery:[`aptly setup --client ${client} --migrate-launcher${process.platform==='win32'?'':' --launcher stable'} --dry-run`]}:{}),registration:stable?'stable_runtime_registration':standard?'standard_node_registration':'custom_or_remote_launcher',registered_package:target,policy:{source_kind:source,status:policyStatus,transmission},hook_registration:hook,credential_reference:settings.APTLY_SECRET_BACKEND==='os'?'os_reference':Object.hasOwn(settings,'OPENAI_API_KEY')?'inline_environment_present':permitted('OPENAI_API_KEY')?'runtime_environment_permitted':'not_declared',ledger:{...ledger,diagnostic_scan_ms:Math.max(0,performance.now()-started),timing_scope:'full_client_observation_and_rechecks'}};
   }catch(error){
    // A changed observation takes precedence over a parse/validation failure.
    try{snapshot.verify();}catch(changed){if(changed instanceof Error&&changed.message==='concurrent_configuration_change')error=changed;}
-   return {...base,status:'partial',code:observationCode(error),...(['registered_node_missing','registered_package_missing'].includes(observationCode(error))?{recovery:[`aptly setup --client ${client} --migrate-launcher --launcher stable --dry-run`]}:{})};
+   return {...base,status:'partial',code:observationCode(error),...(['stable_runtime_unverified','registered_node_missing','registered_package_missing'].includes(observationCode(error))?{recovery:[`aptly setup --client ${client} --migrate-launcher${process.platform==='win32'?'':' --launcher stable'} --dry-run`]}:{})};
   }
  });
  return {kind:'aptly-doctor',schema_version:1,status:clients.some(c=>c.status==='partial')?'partial':'complete',cli_version:VERSION,scope:'local_configuration_snapshot',readiness:'not_certified',clients};

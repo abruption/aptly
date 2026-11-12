@@ -82,9 +82,13 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 仅在审核符合条件的既有标准启动器后添加 `--include-existing`。不会自动接管自定义或已修改的启动器及统计 Hook。迁移同时更新 Aptly 所有的 MCP 和观察器目标，保留收集状态、native 元数据同意、密钥、策略、账本和统计历史。请在 Codex `/hooks` 重新审核新 Hook，不会自动批准信任。
 
-依次尝试安装时 Node、标准路径、默认 `~/.nvm/versions/node` 中的正式版本及安全的绝对 PATH 项。不保证选择最新 Node；没有 PATH 时可能找不到自定义版本管理器目录。启动时不加载 shell 配置、不运行 npm，也不下载网络内容。stable 模式主动移除 `NODE_OPTIONS`、`NODE_PATH` 和 `NODE_REPL_EXTERNAL_MODULE` 以阻止代码注入；需要额外 CA 时请使用 `NODE_EXTRA_CA_CERTS` 等独立证书设置。需要原生扩展的运行时依赖会被拒绝。运行时缺失或完整性失败时 MCP 返回固定错误，统计观察器则保持静默的 best-effort 行为。
+依次尝试安装时 Node、标准路径、默认 `~/.nvm/versions/node` 中的正式版本及安全的绝对 PATH 项。不保证选择最新 Node；使用符号链接或 shim 的版本管理器即使在 PATH 中也可能被拒绝，仅支持可验证的实际可执行路径。启动时不加载 shell 配置、不运行 npm，也不下载网络内容。stable 模式主动移除 `NODE_OPTIONS`、`NODE_PATH` 和 `NODE_REPL_EXTERNAL_MODULE` 以避免继承常见 Node 启动覆盖设置；需要额外 CA 时请使用 `NODE_EXTRA_CA_CERTS` 等独立证书设置。需要原生扩展的运行时依赖会被拒绝。运行时缺失或完整性失败时 MCP 返回固定错误，统计观察器则保持静默的 best-effort 行为。
 
 主要支持普通 npm 全局安装。重定向或可写的上级路径，以及本地软件包外被 hoist 的依赖等不可验证来源会被拒绝。Windows 保留直接模式，不支持 stable。后续不带选项的 setup/migration 保留 stable 模式。请使用实际 npm 全局 CLI 执行 `aptly update`，再显式迁移以选择新 Aptly 副本。`remove` 不自动删除其他主目录或进程仍可能使用的副本。`doctor` 仅观测副本元数据，不证明实际执行、认证或重载就绪。
+
+普通 setup 不会静默替换既有副本。比 CLI 更旧的选定副本会报告 `stable_snapshot_outdated` 并提供显式迁移说明。所有权完全匹配的 stable 引用可从缺失、损坏或旧格式副本显式迁移到当前 CLI 的已验证来源。同代副本损坏或残留未完成 lock 时，不会自动覆盖或删除；请先检查写入者及其他主目录引用，再手动审核对应状态。不会将自定义或已修改的注册接管为产品所有。
+
+stable 迁移同时更新所属观察器；既有直接模式之间的迁移仍可能需要另行刷新统计观察器（`statistics_observer_migration_required`）。setup 与启动的完整性检查会增加 I/O 开销，受限探测不保证全部文件系统操作的总墙钟时限。这不是隔离同用户程序或工作线程的安全 sandbox。
 
 <a id="guide-keys-and-restart"></a>
 

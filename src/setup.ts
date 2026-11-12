@@ -8,7 +8,7 @@ import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
 import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings, budgetErrorDetails } from './budget.ts';
 import { Router, defaultPolicy } from './core.ts';
-import { planStableRuntime, materializeStableRuntime, validateStableRegistration, stableObserverCommand, type StableRuntimePlan, type StableRegistration } from './stable-runtime.ts';
+import { planStableRuntime, materializeStableRuntime, validateStableRegistration, stableReference, stableObserverCommand, type StableRuntimePlan, type StableRegistration } from './stable-runtime.ts';
 import { resolveHostPaths as resolved } from './host-paths.ts';
 import { QuerySnapshot } from './query-snapshot.ts';
 import { loadAutomaticHookPolicy, queryAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
@@ -322,7 +322,11 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     const root = resolve(options.packageRoot ?? join(dirname(fileURLToPath(import.meta.url)), '..', ...(import.meta.url.includes('/dist/src/') ? ['..'] : [])));
     const additions = { APTLY_HOOK_POLICY_PATH: policyPath, ROUTER_LEDGER_PATH: join(stateDir, 'ledger.json') };
     let created = false, tomlBlock: string | undefined;
-    const existingStable=validateStableRegistration(servers.aptly,{home:options.home});
+    // Explicit migration may replace an exact-owned unavailable/older generation.
+    // Its bytes are never executed or trusted for credential injection; only the
+    // replacement made from this CLI's verified source is used after commit.
+    const ownedStableMigration=edit&&'migrate'in edit&&oldOwner?.mcp_created&&isDeepStrictEqual(servers.aptly,oldOwner.mcp)?stableReference(servers.aptly,{home:options.home}):null;
+    const existingStable=ownedStableMigration??validateStableRegistration(servers.aptly,{home:options.home});
     if(options.launcher==='stable'&&servers.aptly!==undefined&&!existingStable&&!(edit&&'migrate'in edit))fail('stable_launcher_migration_required');
     const stableRequested=options.launcher==='stable'||!!existingStable;
     if(stableRequested&&(servers.aptly===undefined||!!(edit&&'migrate'in edit)))stableRuntime=planStableRuntime({packageRoot:root,home:options.home});
@@ -432,7 +436,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     result.transmission = effectiveTransmission(policyValue);
     result.transmission_source = policyValue.schema_version === 1 ? 'legacy' : policyValue.transmission === 'unselected' ? 'unselected' : 'explicit';
     manifest.after = stringify(owner);
-    if(edit&&'migrate'in edit)appendStatisticsLauncherMigration(options,client,root,servers.aptly,stableRuntime,policyPath,hooksObject,hooks,changes,observations);
+    if(edit&&'migrate'in edit&&stableRuntime)appendStatisticsLauncherMigration(options,client,root,servers.aptly,stableRuntime,policyPath,hooksObject,hooks,changes,observations);
     const review = transmissionReviewSnapshot(options, client);
     observations.push(review);
     if (requestedScope !== undefined) {
@@ -440,8 +444,10 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
       if (review.after !== review.before) changes.push(review);
     }
     result.transmission_review = reviewMatches(review.after, options, client, policyValue) ? 'complete' : 'required';
+    const snapshotOutdated=!!existingStable&&!stableRuntime&&'version'in existingStable&&existingStable.version!==json(read(join(root,'package.json')).text).version;
+    if(snapshotOutdated)result.recovery=[`aptly setup --client ${client} --migrate-launcher --launcher stable --dry-run`];
     if (client === 'codex') result.requires_hook_review = true;
-    result.codes = [...(client === 'codex' ? ['requires_hook_review'] : []), ...(result.transmission === 'unselected' ? ['transmission_selection_required'] : result.transmission_source === 'legacy' ? ['legacy_transmission_excerpt'] : []), ...(requestedScope !== undefined || result.budget?.restart_required ? ['mcp_restart_required'] : [])];
+    result.codes = [...(snapshotOutdated?['stable_snapshot_outdated']:[]),...(client === 'codex' ? ['requires_hook_review'] : []), ...(result.transmission === 'unselected' ? ['transmission_selection_required'] : result.transmission_source === 'legacy' ? ['legacy_transmission_excerpt'] : []), ...(requestedScope !== undefined || result.budget?.restart_required ? ['mcp_restart_required'] : [])];
     dirs.push(dir, privateDir, stateDir);
   }
   // Validate complete desired data before any host file is changed.
@@ -481,7 +487,7 @@ function policyRecovery(client: Client): string[] {
 }
 function errorResult(client: Client, error: unknown): SetupClientResult {
   const detail = (error as {policyConflict?: {policy_location:'default_home'|'elsewhere'; selected_home_source:'default'|'override'}})?.policyConflict;
-  return {client,status:'error',codes:[safeCode(error),...(detail?['hook_policy_path_conflict']:[])],...budgetErrorDetails(error),...(detail?{...detail,recovery:policyRecovery(client)}:{})};
+  return {client,status:'error',codes:[safeCode(error),...(detail?['hook_policy_path_conflict']:[])],...budgetErrorDetails(error),...(detail?{...detail,recovery:policyRecovery(client)}:['stable_runtime_unverified','stable_runtime_busy','stable_snapshot_outdated'].includes(safeCode(error))?{recovery:[`aptly setup --client ${client} --migrate-launcher --launcher stable --dry-run`, 'Review unavailable, modified or busy runtime state locally; do not delete shared generations or locks while referenced or being written.']}:{})};
 }
 function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdit, captured?: SetupPlan[]): SetupResult {
   const clients = [...new Set(options.clients ?? ['codex', 'claude'])] as Client[];
@@ -609,7 +615,7 @@ export function migrateLauncher(options: SetupOptions, dryRun = false, includeEx
     const plan=prepare(options,client,false,edit);
     if(dryRun) return {status:'complete',clients:[{client,status:'unchanged',codes:[plan.changes.length?'launcher_migration_available':'launcher_current'],requires_hook_review:client==='codex'}]};
     const result=execute(options,false,edit,[plan]);
-    if(result.status==='complete') result.clients[0].codes.push('launcher_migrated','mcp_restart_required');
+    if(result.status==='complete') result.clients[0].codes.push('launcher_migrated','mcp_restart_required',...(!plan.stableRuntime&&read(join(resolved(options,client).privateDir,STATISTICS_OWNERSHIP_FILE)).text!==null?['statistics_observer_migration_required']:[]));
     return result;
   } catch(error) { return {status:'partial',clients:[errorResult(client,error)]}; }
 }
@@ -943,7 +949,10 @@ function statisticsHooks(root:string,client:Client,policyPath:string,stable?:Sta
 }
 function appendStatisticsLauncherMigration(options:SetupOptions,client:Client,root:string,entry:ObjectValue,planned:StableRuntimePlan|undefined,policyPath:string,hooksObject:ObjectValue,hooks:Snapshot,changes:Snapshot[],observations:Snapshot[]) {
  const paths=resolved(options,client),receipt=statisticsSnapshot(join(paths.privateDir,STATISTICS_OWNERSHIP_FILE));observations.push(receipt);
- if(receipt.before===null)return;
+ if(receipt.before===null){
+  for(const name of ['PostToolUse','SubagentStart','PostModelRequest','SubagentStop'])if(statisticEntries(hooksObject,name).some(possibleStatisticsObserver))fail('statistics_observers_present');
+  return;
+ }
  const owner=statisticsOwner(json(receipt.before),client),policy=loadAutomaticHookPolicy(policyPath).policy;
  if(!policy||owner.state_directory!==policy.state_directory)fail('statistics_policy_conflict');
  for(const[event,definition]of Object.entries(owner.hooks)){
@@ -963,7 +972,7 @@ function statisticsConfig(snapshot:Snapshot):StatisticsConfig{
  const value=parseStatisticsConfig(json(snapshot.before));if(!value)fail('statistics_config_invalid');return value!;
 }
 function possibleStatisticsObserver(entry:unknown):boolean {
- return object(entry)&&Array.isArray(entry.hooks)&&entry.hooks.some((h:unknown)=>object(h)&&h.type==='command'&&(h.statusMessage==='Aptly local execution statistics'||(typeof h.command==='string'&&h.command.includes('aptly-observe.js'))));
+ return object(entry)&&Array.isArray(entry.hooks)&&entry.hooks.some((h:unknown)=>object(h)&&h.type==='command'&&(h.statusMessage==='Aptly local execution statistics'||(typeof h.command==='string'&&(h.command.includes('aptly-observe.js')||/[\/]aptly[\/]runtimes[\/][a-f0-9]{64}[\/]launch['"]?\s+['"]?observe\b/.test(h.command)))));
 }
 function clearCodexMetadata(state:StatisticsConfig,client:Client){if(client==='codex'){delete state.codex_native_metadata;delete state.codex_home;}}
 function appendStatisticsRemoval(options:SetupOptions,client:Client,hooksObject:ObjectValue,hooks:Snapshot,changes:Snapshot[],observations:Snapshot[]){

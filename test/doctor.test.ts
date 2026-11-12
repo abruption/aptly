@@ -111,3 +111,7 @@ for(const kind of ['node','package'] as const)test(`doctor identifies a missing 
  const f=fixture(t);f.modify(e=>{if(kind==='node')e.command=join(f.home,'missing-node','node');else e.args=[join(f.home,'missing-package/dist/src/server.js')];});
  const before=tree(f.home),r=f.result();assert.equal(r.status,'partial');assert.equal(r.clients[0].code,kind==='node'?'registered_node_missing':'registered_package_missing');assert.ok(r.clients[0].recovery[0].includes('--launcher stable --dry-run'));assert.deepEqual(tree(f.home),before);
 });
+test('Windows direct-launcher recovery never suggests the unsupported stable option',t=>{
+ const f=fixture(t);f.modify(e=>{e.command=join(f.home,'missing','node');});const descriptor=Object.getOwnPropertyDescriptor(process,'platform')!;Object.defineProperty(process,'platform',{...descriptor,value:'win32'});
+ try{const result=collectDoctor({...f.options,clients:['codex']});assert.equal(result.status,'partial');assert.equal(result.clients[0].code,'registered_node_missing');assert.ok(!result.clients[0].recovery[0].includes('--launcher stable'));}finally{Object.defineProperty(process,'platform',descriptor);}
+});

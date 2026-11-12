@@ -79,7 +79,11 @@ try {
     mkdirSync(dirname(oldNode),{recursive:true,mode:0o700});mkdirSync(dirname(nextNode),{recursive:true,mode:0o700});
     copyFileSync(process.execPath,oldNode);chmodSync(oldNode,0o700);copyFileSync(process.execPath,nextNode);chmodSync(nextNode,0o700);
     assert.equal(run(oldNode,['--version'],prefix).trim(),'v'+process.versions.node);
-    const setup=JSON.parse(run(oldNode,[stableCli,'setup','--client','codex','--launcher','stable','--transmission','none'],prefix));assert.equal(setup.status,'complete');
+    const directSetup=JSON.parse(run(oldNode,[stableCli,'setup','--client','codex','--transmission','none'],prefix));assert.equal(directSetup.status,'complete');
+    const collection=JSON.parse(run(oldNode,[stableCli,'stats','enable','--client','codex'],prefix));assert.equal(collection.status,'complete');
+    const preview=JSON.parse(run(oldNode,[stableCli,'setup','--client','codex','--migrate-launcher','--launcher','stable','--dry-run'],prefix));assert.equal(preview.status,'complete');
+    assert.ok(!readdirSync(home).includes('.local'),'dry-run must not materialize a runtime');
+    const setup=JSON.parse(run(oldNode,[stableCli,'setup','--client','codex','--migrate-launcher','--launcher','stable'],prefix));assert.equal(setup.status,'complete');
     writeFileSync(join(prefix,'stable-smoke.mjs'),`
 import assert from 'node:assert/strict';
 import {readFileSync,rmSync} from 'node:fs';
@@ -87,6 +91,7 @@ import {join} from 'node:path';
 import {homedir} from 'node:os';
 import {spawnSync} from 'node:child_process';
 import {parse} from 'smol-toml';
+import {DatabaseSync} from 'node:sqlite';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 const source=process.argv[2],expectedVersion=process.argv[3],oldNode=process.argv[4];
@@ -98,8 +103,14 @@ const transport=new StdioClientTransport({command:entry.command,args:entry.args,
 let stderr='';transport.stderr?.on('data',c=>stderr+=c);
 try{await client.connect(transport);const r=await client.callTool({name:'get_routing_capabilities',arguments:{}});assert.notEqual(r.isError,true);assert.equal(r.structuredContent.runtime_diagnostics.version,expectedVersion);assert.equal(r.structuredContent.provider,'fixture');}finally{await client.close();}
 assert.equal(stderr,'');
-const observe=spawnSync(entry.command,['observe','--client','codex','--policy-path',entry.env.APTLY_HOOK_POLICY_PATH],{input:'{}',env:{HOME:homedir(),PATH:'',NODE_OPTIONS:'--unsupported-injection-fixture'},encoding:'utf8',timeout:5000});
-assert.equal(observe.status,0);assert.equal(observe.stdout,'');assert.equal(observe.stderr,'');
+const hooks=JSON.parse(readFileSync(join(homedir(),'.codex/hooks.json'),'utf8')).hooks;
+const command=hooks.SubagentStart[0].hooks[0].command;assert.ok(command.includes(entry.command));assert.ok(!command.includes(source));assert.ok(!command.includes(oldNode));
+const policy=JSON.parse(readFileSync(entry.env.APTLY_HOOK_POLICY_PATH,'utf8')),database=join(policy.state_directory,'stats.sqlite');
+const count=()=>{const db=new DatabaseSync(database,{readOnly:true});try{return db.prepare('SELECT count(*) AS n FROM children').get().n;}finally{db.close();}};
+const before=count();
+const observe=spawnSync('/bin/sh',['-c',command],{input:JSON.stringify({hook_event_name:'SubagentStart',session_id:'fixture-parent',agent_id:'fixture-child'}),env:{HOME:homedir(),PATH:'',NODE_OPTIONS:'--unsupported-injection-fixture'},encoding:'utf8',timeout:5000});
+assert.equal(observe.status,0);assert.equal(observe.stdout,'');assert.equal(observe.stderr,'');assert.equal(count(),before+1);
+console.log('Stable smoke: a qualified fallback served MCP and the registered shell observer recorded one fixture event; manager-specific selection is not inferred.');
 `);
     run(process.execPath,['--no-experimental-strip-types',join(prefix,'stable-smoke.mjs'),stablePackage,metadata.version,oldNodeRoot],prefix);
     console.log('Installed tarball: stable generation MCP/observer survived original Node-copy and global package removal with empty PATH; paid calls: 0.');

@@ -81,3 +81,38 @@ test('explicitly included preserved standard registration stays user-owned throu
  assert.equal(migrateLauncher({...options,launcher:'stable'},false).status,'partial');complete(migrateLauncher({...options,launcher:'stable'},false,true));const first=f.entry().command;assert.ok(validateStableRegistration(f.entry(),{home:f.home}));assert.equal(f.entry().env.CUSTOM_KEEP,'unchanged');
  complete(setCredentialReference(options));complete(migrateLauncher(options,false,true));assert.equal(f.entry().command,first);complete(removeSetup(options));assert.equal(f.entry().command,first);assert.equal(f.entry().env.CUSTOM_KEEP,'unchanged');assert.equal(existsSync(first),true);
 });
+test('exact-owned unavailable or corrupted stable generation can migrate to current verified source',posix,t=>{
+ for(const damage of ['payload','bootstrap','deleted']as const){
+  const f=fixture(t),options={...f.options,clients:['codex']as['codex']};complete(setupHosts({...options,launcher:'stable'}));const previous=validateStableRegistration(f.entry(),{home:f.home})!;
+  if(damage==='payload')writeFileSync(join(previous.packageRoot,'dist/src/runtime.js'),'corrupt');
+  if(damage==='bootstrap')writeFileSync(join(previous.runtimeRoot,'bootstrap.cjs'),'throw Error("must never execute old code")');
+  if(damage==='deleted')fs.rmSync(previous.runtimeRoot,{recursive:true});
+  assert.equal(setCredentialReference(options).status,'partial');const pkg=JSON.parse(readFileSync(join(f.root,'package.json'),'utf8'));pkg.version='0.1.13-next';writeFileSync(join(f.root,'package.json'),JSON.stringify(pkg));
+  complete(migrateLauncher({...options,launcher:'stable'},true));complete(migrateLauncher({...options,launcher:'stable'},false));assert.notEqual(f.entry().command,previous.command);assert.ok(validateStableRegistration(f.entry(),{home:f.home}));
+ }
+});
+test('plain setup/check and doctor disclose outdated stable snapshots without changing selection',posix,t=>{
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};const pkg=JSON.parse(readFileSync(join(f.root,'package.json'),'utf8'));pkg.version='0.1.12';writeFileSync(join(f.root,'package.json'),JSON.stringify(pkg));complete(setupHosts({...options,launcher:'stable'}));const original=f.entry().command;
+ pkg.version='0.1.13';writeFileSync(join(f.root,'package.json'),JSON.stringify(pkg));const setup=setupHosts(options);complete(setup);assert.ok(setup.clients[0].codes.includes('stable_snapshot_outdated'));assert.equal(f.entry().command,original);
+ const check=checkSetup(options);complete(check);assert.ok(check.clients[0].codes.includes('stable_snapshot_outdated'));const doctor=collectDoctor(options);complete(doctor);assert.equal(doctor.clients[0].stable_snapshot_outdated,true);
+});
+test('modified stable statistics observers retain guard and duplicate prevention after label changes',posix,t=>{
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};complete(setupHosts({...options,launcher:'stable'}));complete(setStatisticsCollection(true,options));
+ const path=join(f.home,'.codex/hooks.json'),hooks=JSON.parse(readFileSync(path,'utf8'));delete hooks.hooks.PostToolUse[0].hooks[0].statusMessage;writeFileSync(path,JSON.stringify(hooks));
+ assert.equal(removeSetup(options).status,'partial');const off=setStatisticsCollection(false,options);complete(off);assert.ok(off.clients[0].codes.includes('statistics_observers_retained_modified'));
+ const on=setStatisticsCollection(true,options);assert.equal(on.status,'partial');assert.ok(on.clients[0].codes.includes('statistics_observers_present'));
+});
+test('legacy migration preserves modified legacy statistics commands and reports separate refresh',posix,t=>{
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};complete(setupHosts(options));complete(setStatisticsCollection(true,options));const path=join(f.home,'.codex/hooks.json'),hooks=JSON.parse(readFileSync(path,'utf8'));hooks.hooks.PostToolUse[0].hooks[0].command+=' --custom';writeFileSync(path,JSON.stringify(hooks));const original=readFileSync(path);
+ const migrated=migrateLauncher(options,false);complete(migrated);assert.ok(migrated.clients[0].codes.includes('statistics_observer_migration_required'));assert.deepEqual(readFileSync(path),original);
+});
+test('doctor tracks stable metadata before validation so an observation race is named correctly',posix,t=>{
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};complete(setupHosts({...options,launcher:'stable'}));
+ const original=fs.openSync;let changed=false;
+ fs.openSync=((path,...args)=>{const result=original(path,...args);if(String(path).endsWith('/manifest.json')&&!changed){changed=true;writeFileSync(String(path),'{}');}return result;})as typeof fs.openSync;syncBuiltinESMExports();
+ try{const result=collectDoctor(options);assert.equal(changed,true);assert.equal(result.status,'partial');assert.equal(result.clients[0].code,'changed_during_observation');}finally{fs.openSync=original;syncBuiltinESMExports();}
+});
+test('stable migration refuses unowned product-like observers instead of leaving broken legacy hooks',posix,t=>{
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};complete(setupHosts(options));complete(setStatisticsCollection(true,options));const before=readFileSync(f.config);fs.unlinkSync(join(f.home,'.codex/aptly/stats-ownership.json'));
+ const result=migrateLauncher({...options,launcher:'stable'},false);assert.equal(result.status,'partial');assert.ok(result.clients[0].codes.includes('statistics_observers_present'));assert.deepEqual(readFileSync(f.config),before);assert.equal(existsSync(join(f.home,'.local')),false);
+});

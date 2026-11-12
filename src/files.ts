@@ -43,9 +43,9 @@ export function readRegularFile(path: unknown,{privateFile=false,maxBytes=65536}
   if(!stat.isFile()||stat.dev!==before.dev||stat.ino!==before.ino||stat.size>maxBytes||
    (privateFile&&process.platform!=='win32'&&((stat.mode&0o077)||(process.getuid&&stat.uid!==process.getuid()))))throw new Error('unsafe_file');
   if(privateFile&&process.platform==='win32')assertWindowsPrivatePath(path);
-  const buffer=Buffer.alloc(maxBytes+1);let size=0;
+  const buffer=Buffer.alloc(Math.min(maxBytes+1,stat.size+1));let size=0;
   while(size<buffer.length){const count=readSync(fd,buffer,size,buffer.length-size,null);if(!count)break;size+=count;}
-  if(size>maxBytes)throw new Error('unsafe_file');
+  if(size>maxBytes||size>stat.size||fstatSync(fd).size!==stat.size)throw new Error('unsafe_file');
   return buffer.subarray(0,size);
  }finally{if(fd!==undefined)closeSync(fd);}
 }
