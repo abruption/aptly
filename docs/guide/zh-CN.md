@@ -1,5 +1,7 @@
 # Aptly 使用指南
 
+本指南以 Aptly 0.1.13 为准。各主题分别保留功能最低版本和旧版本恢复说明。
+
 [한국어](ko.md) · [English](en.md) · **简体中文** · [日本語](ja.md)
 
 [返回 README](../../README.zh-CN.md)

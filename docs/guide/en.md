@@ -1,5 +1,7 @@
 # Aptly user guide
 
+This guide targets Aptly 0.1.13. Each topic preserves feature-specific minimum versions and recovery instructions for older releases.
+
 [한국어](ko.md) · **English** · [简体中文](zh-CN.md) · [日本語](ja.md)
 
 [Back to README](../../README.en.md)

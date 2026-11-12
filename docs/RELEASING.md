@@ -1,5 +1,9 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.13 출시 준비
+
+#140–144·PR #145–149를 통합하고 #150에서 버전·[한국어 릴리스 노트](release-notes/0.1.13.md)·호환성 안내를 준비합니다. 준비 PR의 정확한 HEAD 검증과 병합 후 main CI 성공을 구분합니다. 태그 생성·Actions OIDC 게시·registry·서명·provenance 검증은 별도 승인 후 진행하며 아직 완료되지 않았습니다. 이전 게시 근거를 이번 버전의 검증 결과로 재사용하지 않습니다.
+
 ## 0.1.12 게시와 검증
 
 #135·PR #136의 CLI 기본 홈 핫픽스를 소스 `85c42a043038b3d2c783a4c9e9a6332e4ae7d317`의 annotated `v0.1.12` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42972177084/attempts/1)했습니다. 최종 PR 검사 19개와 정확한 병합 main CI 7개 성공을 구분했고 게시 3개 job이 성공했습니다. npm latest 0.1.12, artifact/registry archive·SHA-512 SRI, npm 서명과 정확한 소스·태그·workflow·run identity의 provenance를 확인했습니다.

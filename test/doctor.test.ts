@@ -7,6 +7,7 @@ import {syncBuiltinESMExports} from 'node:module';
 import {stringify,parse} from 'smol-toml';
 import {collectDoctor,observeDoctorLedger,DOCTOR_LEDGER_SCAN_LIMIT} from '../src/doctor.ts';
 import {QuerySnapshot} from '../src/query-snapshot.ts';
+import { VERSION } from '../src/version.ts';
 import {Router,defaultPolicy,validateLedgerState} from '../src/core.ts';
 import {setupHosts,setPolicySource} from '../src/setup.ts';
 import {createTestTemp} from '../test-support/temp.ts';
@@ -26,7 +27,7 @@ test('doctor completes genuine absence and never creates a state directory',posi
 });
 test('standard Node server registration, absent first-use ledger and runtime unknowns',posix,t=>{
  const f=fixture(t),before=tree(f.home),r=f.result();assert.equal(r.status,'complete',JSON.stringify(r));
- for(const c of r.clients){assert.equal(c.registered_package?.version,'0.1.12');assert.equal(c.ledger?.status,'absent');assert.equal(c.ledger?.counts,null);for(const k of ['connected_mcp_version','hook_trust','hook_execution','restart_required','retry_ticket_usage','credential_validity'])assert.equal(c[k],'unknown');}
+ for(const c of r.clients){assert.equal(c.registered_package?.version,VERSION);assert.equal(c.ledger?.status,'absent');assert.equal(c.ledger?.counts,null);for(const k of ['connected_mcp_version','hook_trust','hook_execution','restart_required','retry_ticket_usage','credential_validity'])assert.equal(c[k],'unknown');}
  assert.deepEqual(tree(f.home),before);
 });
 test('validated ledger counts use the same archival outcome rules as the existing loader',posix,t=>{
