@@ -31,7 +31,7 @@ After the setup check succeeds, follow [statistics activation](statistics.md). `
 
 ### Policy paths revert in managed accounts
 
-Planned for 0.1.11. A manager such as Orca can mirror a same-name MCP registration from the canonical home and overwrite an account-only absolute policy path. Hooks can remain intact while MCP and statistics reference different policies.
+This policy-source migration is available from 0.1.11. A manager such as Orca can mirror a same-name MCP registration from the canonical home and overwrite an account-only absolute policy path. Hooks can remain intact while MCP and statistics reference different policies.
 
 Upgrade every registered Aptly backend first and stop the affected hosts/MCP processes. For an existing Codex setup with intact ownership, explicitly migrate the canonical/default registration first, then repeat in each intended account environment with its selected `CODEX_HOME`. An account-only edit can still be overwritten by synchronization.
 
@@ -42,7 +42,7 @@ CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
 CODEX_HOME="$HOME/.codex" aptly stats --client codex
 ```
 
-Migration registers `APTLY_HOOK_POLICY_PATH = "@codex-home"` and forwards `CODEX_HOME` through `env_vars`. At startup, the server selects that home's `aptly/auto-policy.json`. Missing, empty or relative values are rejected without selecting another home. MCP startup still requires an explicit forwarded home, including `CODEX_HOME="$HOME/.codex"` for the default home. If the 0.1.11 CLI reports `policy_source_home_invalid` in an ordinary terminal without the variable, use the explicit default home as above. The 0.1.12 CLI fix validates its already selected standard `~/.codex` when the variable is absent; explicit account selection and invalid-value rejection remain intact. The example uses the default home; substitute the intended absolute account home for account-specific commands. This is an operator-declared source selection, not complete host provenance. See [Codex MCP environment forwarding](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers).
+Migration registers `APTLY_HOOK_POLICY_PATH = "@codex-home"` and forwards `CODEX_HOME` through `env_vars`. At startup, the server selects that home's `aptly/auto-policy.json`. Missing, empty or relative values are rejected without selecting another home. MCP startup still requires an explicit forwarded home, including `CODEX_HOME="$HOME/.codex"` for the default home. If the 0.1.11 CLI reports `policy_source_home_invalid` in an ordinary terminal without the variable, use the explicit default home as above. From 0.1.12, the CLI validates its already selected standard `~/.codex` when the variable is absent. CLI default-home selection is separate from environment forwarding at MCP startup; explicit account selection and invalid-value rejection remain intact. The example uses the default home; substitute the intended absolute account home for account-specific commands. This is an operator-declared source selection, not complete host provenance. See [Codex MCP environment forwarding](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers).
 
 Migration does not move or reset policy contents, transmission consent, ledger paths, statistics history or Hook trust. Existing fixed/shared policies remain fixed unless explicitly migrated. Custom launchers, unrelated registration changes and ownership mismatches require local review; do not edit or copy receipts to bypass errors. Restart the server and check again in the intended account. A successful dry-run or file check does not prove the running MCP updated or a model was observed.
 
@@ -83,6 +83,8 @@ A successful Codex configuration needs no reset. Retry only the affected host an
 <a id="guide-ledger-lock-recovery"></a>
 
 ## Interrupted processes and ledger locks
+
+Ledger PREFLIGHT reads do not change file permissions or contents. On POSIX, owner-only permissions such as `0600` and `0400` are accepted; `0644` or an incorrect owner is refused through existing failure paths (for example, `ledger_error`), without automatic `chmod` or retry. Before explicitly repairing permissions, confirm the exact intended local file and its owner, and stop relevant writers. Never delete or reset the ledger, `unknown` records, reservations, cache, locks, or journals as a fix. Subsequent legitimate writes still occur under the existing writer lock and may normalize permissions to `0600`. Windows ownership and private-access guards remain unchanged; POSIX mode bits do not guarantee Windows ACLs.
 
 This locking design requires Aptly `0.1.2` or later and is not included in npm `0.1.1`. The JSON ledger keeps its request IDs, `unknown` records, completed cache, call counts, and reserved costs. Only persistent ledgers use Node.js 24's built-in SQLite. The adjacent `ledger.json.lock` remains after a normal exit; its presence alone does not mean an active lock. With the new design, process exit releases the OS lock so a later request can use the same ledger. It does not retry an existing uncertain ID or refund reserved costs.
 

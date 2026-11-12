@@ -48,11 +48,11 @@ npm install -g aptly@latest --ignore-scripts
 aptly setup --client all
 ```
 
-未リリースのソースでも npm lifecycle インストールは送信レビューを質問しません。機能を含むリリースへ更新後、同じアカウント環境で対話形式の `aptly setup`、`aptly set default` または `aptly set transmission --review` を実行してください。0.1.10 の更新プロセスは更新中に新しい質問をできません。[送信レビュー](transmission.md#guide-transmission-scope)を参照してください。
+送信レビューは 0.1.11 以降で提供され、npm lifecycle インストールでは質問しません。0.1.10 からアップグレードする場合は、先にパッケージを更新し、同じアカウント環境で対話形式の `aptly setup`、`aptly set default` または `aptly set transmission --review` を実行してください。更新プロセスが新しいレビューを代行したり、同意したものとして扱ったりすることはありません。[送信レビュー](transmission.md#guide-transmission-scope)を参照してください。
 
 スクリプトの実行にかかわらず、明示的な `setup` を利用できます。既存の起動パスは保持するため、旧パスのエラーは[実行パスの復旧手順](troubleshooting.md#guide-launcher-recovery)に従ってください。キー設定・MCP の再起動と Codex の `/hooks` 信頼確認は別途必要です。
 
-未リリースのインストールスクリプトは、確認待ちの登録がある場合に `aptly set transmission --review` の実行案内だけを stderr に表示し、質問や選択の記録は行いません。
+0.1.11 以降のインストールスクリプトは、設定が正常に完了し、登録済みクライアントにレビュー待ちがある場合に `aptly set transmission --review` の実行案内だけを stderr に表示し、質問や選択の記録は行いません。
 
 <a id="guide-package-updates"></a>
 

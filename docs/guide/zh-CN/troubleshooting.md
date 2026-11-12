@@ -31,7 +31,7 @@ aptly stats --client codex
 
 ### 托管账号的策略路径再次被覆盖
 
-此功能计划纳入 0.1.11。Orca 等管理器可能将默认主目录中同名 MCP 注册同步到账号目录，从而覆盖仅在账号中修改的绝对策略路径。即使 Hook 保留，MCP 与统计功能仍可能引用不同的策略。
+此策略引用迁移功能从 0.1.11 起提供。Orca 等管理器可能将默认主目录中同名 MCP 注册同步到账号目录，从而覆盖仅在账号中修改的绝对策略路径。即使 Hook 保留，MCP 与统计功能仍可能引用不同的策略。
 
 请先升级所有已注册的 Aptly 服务端并停止相关宿主和 MCP 进程。对于所有权记录完整的现有 Codex 配置，请先在默认/权威注册所在的主目录中显式迁移，再在各目标账号已选择其 `CODEX_HOME` 的环境中重复执行。仅修改账号文件仍可能被同步覆盖。
 
@@ -42,7 +42,7 @@ CODEX_HOME="$HOME/.codex" aptly setup --check --client codex
 CODEX_HOME="$HOME/.codex" aptly stats --client codex
 ```
 
-迁移注册 `APTLY_HOOK_POLICY_PATH = "@codex-home"`，并通过 `env_vars` 转发 `CODEX_HOME`。服务端启动时选择该目录下的 `aptly/auto-policy.json`。变量缺失、为空或为相对路径时会被拒绝，不会选择其他主目录。MCP 启动时仍须显式转发主目录，默认目录也须传入 `CODEX_HOME="$HOME/.codex"`。如果 0.1.11 CLI 在未设置变量的普通终端中返回 `policy_source_home_invalid`，请像上述示例一样显式指定默认目录。0.1.12 CLI 修复会在变量缺失时验证其已选择的标准 `~/.codex`，同时保留显式账号选择及无效值拒绝。示例使用默认目录；针对账号执行时，请替换为目标账号的绝对主目录。这是操作者指定的来源选择，并非宿主完整配置的证明。请参阅 [Codex MCP 环境变量转发](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)。
+迁移注册 `APTLY_HOOK_POLICY_PATH = "@codex-home"`，并通过 `env_vars` 转发 `CODEX_HOME`。服务端启动时选择该目录下的 `aptly/auto-policy.json`。变量缺失、为空或为相对路径时会被拒绝，不会选择其他主目录。MCP 启动时仍须显式转发主目录，默认目录也须传入 `CODEX_HOME="$HOME/.codex"`。如果 0.1.11 CLI 在未设置变量的普通终端中返回 `policy_source_home_invalid`，请像上述示例一样显式指定默认目录。从 0.1.12 起，CLI 在变量缺失时使用已选择的标准 `~/.codex` 进行验证。CLI 的默认主目录选择与 MCP 启动时的环境转发是两回事，显式账号选择及无效值拒绝仍然保留。示例使用默认目录；针对账号执行时，请替换为目标账号的绝对主目录。这是操作者指定的来源选择，并非宿主完整配置的证明。请参阅 [Codex MCP 环境变量转发](https://learn.chatgpt.com/docs/extend/mcp#stdio-servers)。
 
 迁移不会移动或重置策略内容、传输同意、账本路径、统计历史或 Hook 信任。现有固定/共享策略在未显式迁移时保持不变。自定义启动器、其他注册修改及所有权不匹配需要本地审查；请勿编辑或复制记录来绕过错误。重启服务端后，请在目标账号中再次检查。预演或文件检查成功并不证明运行中的 MCP 已更新，也不证明已观测到模型。
 
@@ -83,6 +83,8 @@ aptly setup --client claude --migrate-launcher --include-existing
 <a id="guide-ledger-lock-recovery"></a>
 
 ## 进程中断与账本锁定
+
+账本 PREFLIGHT 读取不会更改文件权限或内容。在 POSIX 上，仅所有者可访问的权限（例如 `0600`、`0400`）可以接受；`0644` 或错误的所有者会通过现有失败路径（例如 `ledger_error`）被拒绝，不会自动执行 `chmod` 或重试。显式修复权限之前，请确认准确的目标本地文件及其所有者，并停止相关写入进程。请勿为修复问题而删除或重置账本、`unknown` 记录、预留、缓存、锁或 journal。之后的正常写入仍在现有写入锁下进行，并可能将权限规范为 `0600`。Windows 的所有权和私有访问保护保持不变；POSIX 权限位不能保证 Windows ACL。
 
 此锁定方案需要 Aptly `0.1.2` 或更高版本，npm `0.1.1` 不包含。JSON 账本保留原有的请求 ID、`unknown` 记录、已完成缓存、调用次数和预留成本。只有持久化账本使用 Node.js 24 内置的 SQLite。相邻的 `ledger.json.lock` 在正常退出后仍会保留；仅凭文件存在，不能判断锁仍被占用。新方案在进程退出时释放 OS 锁，后续请求可继续使用同一账本，但不会重试原有的结果不明 ID，也不会退回预留成本。
 

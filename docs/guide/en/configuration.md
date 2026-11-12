@@ -32,7 +32,7 @@ Claude Code stores Hooks in `~/.claude/settings.json` by default, or `$CLAUDE_CO
 
 ## Configure with the CLI
 
-In unreleased source, the first normal interactive `aptly set default` groups pending transmission reviews by client home. The recommendation is `excerpt`; Enter preserves an existing scope or selects `none` if unselected. See [transmission review](transmission.md#guide-transmission-scope). This review is not in published 0.1.10.
+From 0.1.11, the first normal interactive `aptly set default` groups pending transmission reviews by client home. The recommendation is `excerpt`; Enter preserves an existing scope or selects `none` if unselected. See [transmission review](transmission.md#guide-transmission-scope). This review flow is not supported in 0.1.10, so update first.
 
 The `set` commands require 0.1.1 or later. Commands do not automatically switch existing launch paths. API-key setup accepts only the current package’s standard Node/server registration with a verified OS-source-compatible runtime. Custom wrappers, older versions, and other installation prefixes are rejected with `credential_launcher_unverified`; explicitly switch the registration or upgrade it before trying again.
 
@@ -96,6 +96,8 @@ MCP `env` values are strings, so candidate arrays must also be passed as JSON st
 ```
 
 When unset, the defaults above apply; `[]` disables recommendations for that client. Empty strings, duplicates, unsupported models, and malformed JSON are errors. `CLAUDE_MODELS` and `CODEX_MODELS` are supported aliases, but setting both the primary name and its alias for the same provider is an error. Candidate configuration does not override existing choices or certify model access for an account.
+
+`aptly set default` preserves candidates and aliases already in MCP `env`, Codex `env_vars` declarations, and inherited candidates visible to the current CLI for Claude. It adds default candidates only for a model family with neither name configured. A Codex passthrough is preserved even when its value is unavailable in the current terminal; inherited values are not copied into configuration files. The CLI gives a static `env` value precedence over an inherited value with the same name when validating effective settings. Catalog validation remains in place, so conflicting aliases or malformed values reject the configuration change. Check the final candidates in the restarted MCP separately.
 
 ## Related topics
 
