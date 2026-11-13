@@ -27,6 +27,8 @@ For manual MCP configuration, see [Advanced integration](advanced.md#guide-manua
 | Codex | `$CODEX_HOME/config.toml`; `~/.codex/config.toml` when `CODEX_HOME` is unset |
 | Claude Code | `mcpServers.aptly` in `~/.claude.json`; `.claude.json` inside `CLAUDE_CONFIG_DIR` when that directory is configured |
 
+Starting with 0.1.15, the fix lets MCP using the `@codex-home` policy select `~/.codex` under the OS user home when `CODEX_HOME` is absent. An explicit absolute path takes precedence; explicitly empty, relative or control-character-containing values remain rejected. Published 0.1.14 still requires the variable to be forwarded even for the default home. Custom account homes are not discovered automatically, so account managers must forward the correct `CODEX_HOME`. If a custom host omits this value, the default home’s policy and transmission scope apply; forward it to preserve account-specific policy.
+
 Claude Code stores Hooks in `~/.claude/settings.json` by default, or `$CLAUDE_CONFIG_DIR/settings.json` when `CLAUDE_CONFIG_DIR` is set. This is separate from MCP registration. If project `.mcp.json`, managed settings, or account-specific directories are in use, check the active entry in `/mcp` before editing or adding a registration.
 
 <a id="guide-cli-configuration"></a>

@@ -27,6 +27,8 @@ MCP の手動設定は[高度な連携](advanced.md#guide-manual-mcp-setup)を�
 | Codex | `$CODEX_HOME/config.toml`。`CODEX_HOME` 未指定の場合は `~/.codex/config.toml` |
 | Claude Code | `~/.claude.json` の `mcpServers.aptly`。`CLAUDE_CONFIG_DIR` 指定時は、そのディレクトリの `.claude.json` |
 
+0.1.15 以降では、`@codex-home` ポリシーを使う MCP も `CODEX_HOME` が未指定の場合に OS ユーザーのホーム内の `~/.codex` を選択します。明示された絶対パスが優先され、空の値・相対パス・制御文字を含む値は引き続き拒否します。公開済みの 0.1.14 では、既定のホームでも環境変数の転送が必要です。カスタムのアカウントホームは自動探索しないため、アカウント管理ツールは正しい `CODEX_HOME` を転送してください。 カスタムホストがこの値を渡さない場合、既定ホームのポリシーと送信範囲が適用されるため、アカウント別ポリシーを維持するには必ず渡してください。
+
 Claude Code の Hook ファイルは通常 `~/.claude/settings.json` ですが、`CLAUDE_CONFIG_DIR` を指定すると `$CLAUDE_CONFIG_DIR/settings.json` になります。MCP 登録とは別です。プロジェクトの `.mcp.json`、管理設定、アカウント別ディレクトリを使う場合は、編集・追加前に `/mcp` で有効な登録を確認してください。
 
 <a id="guide-cli-configuration"></a>

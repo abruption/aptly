@@ -27,6 +27,8 @@
 | Codex | `$CODEX_HOME/config.toml`；未设置 `CODEX_HOME` 时为 `~/.codex/config.toml` |
 | Claude Code | `~/.claude.json` 中的 `mcpServers.aptly`；设置 `CLAUDE_CONFIG_DIR` 时为该目录中的 `.claude.json` |
 
+自 0.1.15 起，修复允许使用 `@codex-home` 策略的 MCP 在未设置 `CODEX_HOME` 时选择 OS 用户主目录下的 `~/.codex`。显式指定的绝对路径优先；显式空值、相对路径或含控制字符的值仍会被拒绝。已发布的 0.1.14 即使使用默认主目录，也仍需传递该变量。自定义账户目录不会被自动查找，因此账户管理工具必须传递正确的 `CODEX_HOME`。 若自定义宿主未传递此值，将应用默认主目录的策略与传输范围；请传递该值以保留账户专属策略。
+
 Claude Code 默认将 Hook 存储在 `~/.claude/settings.json`；设置 `CLAUDE_CONFIG_DIR` 时则使用 `$CLAUDE_CONFIG_DIR/settings.json`。此文件与 MCP 注册分开。若使用项目 `.mcp.json`、托管设置或账户专用目录，请先通过 `/mcp` 确认当前注册，再编辑或添加。
 
 <a id="guide-cli-configuration"></a>
