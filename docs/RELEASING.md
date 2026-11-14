@@ -1,120 +1,60 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.15 게시와 검증
+
+[릴리즈 노트](release-notes/0.1.15.md) · [게시·출처 검증 기록](releases/0.1.15.md)
+
 ## 0.1.14 게시와 검증
 
-#154·PR #155와 준비 #156·PR #157을 포함한 소스 `e6247f69382b7631aea1ca823280aa40c79a3717`의 정확한 main CI 7개 성공 후 `v0.1.14` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/43176197376/attempts/1)를 완료했습니다. 게시 3개 job 성공, npm latest 0.1.14, artifact/registry archive·SRI 일치, npm 서명과 정확한 소스·태그·workflow·run identity의 provenance를 확인했습니다.
-
-[한국어 릴리즈 노트](release-notes/0.1.14.md), [게시 근거](releases/0.1.14.md), #158을 참고하십시오. Node 버전과 독립된 POSIX 런타임은 명시적 선택 사항이며 기존 직접 실행 방식은 유지됩니다. registry 전파는 같은 게시물을 재조회했고 재게시하지 않았습니다. 두 Mac 설치와 기존 호스트 재로딩 상태는 별도로 확인합니다.
+[릴리즈 노트](release-notes/0.1.14.md) · [게시·출처 검증 기록](releases/0.1.14.md)
 
 ## 0.1.13 게시와 검증
 
-#140–144·PR #145–149를 순차 병합하고 #150·PR #151에서 버전과 한국어 릴리스 노트를 준비했습니다. 정확한 병합 main `959f34897d2d4dd60745f6a9a38b7a2d0c69fa51`의 [CI 7개 job](https://github.com/abruption/aptly/actions/runs/43127406223) 성공 후 annotated `v0.1.13` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/43127883633/attempts/1)를 완료했습니다. 설치 시험·새 runner 검증/pack·OIDC 게시 3개 job이 성공했습니다.
-
-npm `latest` 0.1.13, artifact/registry archive·SHA-512 SRI 일치와 npm 서명, 정확한 소스·태그·workflow·run/attempt에 결합된 provenance를 확인했습니다. registry 전파 중 이전 latest·일시적인 404를 관측했으며 같은 실행의 결과만 재조회했습니다. 태그 이동·게시 재실행·로컬 수동 게시는 하지 않았습니다. [한국어 노트](release-notes/0.1.13.md), [게시 근거](releases/0.1.13.md), #152를 참고하십시오.
-
-후보의 793개 테스트·문서·패키지 검증과 게시 archive의 출처 검증을 구분합니다. 호스트·전역 설치·키·전송 정책·원장·통계·신뢰를 변경하지 않았고 실제 native 모델/effort 적용은 이 게시 검증의 범위가 아닙니다.
+[릴리즈 노트](release-notes/0.1.13.md) · [게시·출처 검증 기록](releases/0.1.13.md)
 
 ## 0.1.12 게시와 검증
 
-#135·PR #136의 CLI 기본 홈 핫픽스를 소스 `85c42a043038b3d2c783a4c9e9a6332e4ae7d317`의 annotated `v0.1.12` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42972177084/attempts/1)했습니다. 최종 PR 검사 19개와 정확한 병합 main CI 7개 성공을 구분했고 게시 3개 job이 성공했습니다. npm latest 0.1.12, artifact/registry archive·SHA-512 SRI, npm 서명과 정확한 소스·태그·workflow·run identity의 provenance를 확인했습니다.
-
-두 Mac의 등록 서버를 갱신하고 정책·전송 선택·Hook·원장·통계 설정을 보존했습니다. 게시된 compiled CLI로 CODEX_HOME 없는 기본 홈의 setup 점검·일반 setup·통계 조회를 확인했습니다. 새 MCP 프로세스를 확인했으며 기존 호스트 세션의 재로딩과 native 모델/effort 관측은 별도입니다. 전송 확인 질문에는 자동 답변하지 않았습니다. [한국어 노트](release-notes/0.1.12.md), [게시 근거](releases/0.1.12.md), #137을 참고하십시오.
+[릴리즈 노트](release-notes/0.1.12.md) · [게시·출처 검증 기록](releases/0.1.12.md)
 
 ## 0.1.11 실제 게시 — 2026-11-11
 
-정확한 병합 main `83471cec2a4a041023373425a9107ca4b3a1c4cd`의 [CI 7개 job](https://github.com/abruption/aptly/actions/runs/42968949999) 성공 후 annotated `v0.1.11` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42969314932/attempts/1)를 완료했습니다. 세 job 성공, 검증 시점 npm `latest` 0.1.11, artifact·registry SHA-256·SHA-512 SRI 일치, npm 서명과 SLSA v1 인증서의 소스·태그·workflow·run/attempt identity를 확인했습니다. [GitHub Release](https://github.com/abruption/aptly/releases/tag/v0.1.11)는 draft·prerelease 없이 공개됐습니다.
-
-가이드 분리(#127·PR #128), 전송 범위 재확인(#126·PR #129), 명시적 Codex 계정 홈 정책 선택(#130·PR #132)을 포함합니다. 준비는 #131·PR #133, 게시 기록은 [#134](https://github.com/abruption/aptly/issues/134), 변경은 [한국어 릴리스 노트](release-notes/0.1.11.md), 정확한 digest·인증서·전파 기록은 [실제 게시 근거](releases/0.1.11.md)에 정리했습니다. 초기 registry·attestation 전파 지연을 보존하고 같은 실행의 5번째 attestation 조회에서 200을 확인했으며 태그·게시 job을 반복하지 않았습니다.
-
-두 Mac에서 기본/정본과 선택 계정의 참조를 전환하고 정책·전송 선택·Hook·통계 설정/소유권·원장 보존과 새 MCP 0.1.11을 확인했습니다. 기존 호스트 세션 재로딩과 실제 native 모델·effort 적용은 관측하지 않았습니다. 전환 뒤 `CODEX_HOME` 없는 일반 CLI 설정 실패는 [#135](https://github.com/abruption/aptly/issues/135)로 추적하며, 기본 홈의 임시 읽기 전용 점검은 `CODEX_HOME="$HOME/.codex" aptly setup --check --client codex`로 실행합니다. 이 버전에 수정이 포함됐다고 주장하지 않습니다. 기존 0.1.10 게시 근거와 런타임 MCP의 엄격한 홈 검사는 유지합니다.
+[릴리즈 노트](release-notes/0.1.11.md) · [게시·출처 검증 기록](releases/0.1.11.md)
 
 ## 0.1.10 게시와 검증
 
-2026-11-10에 실제 소스 `2acf74ca48c38d6541ba16f04f2e5054bd633ecb`의 annotated `v0.1.10` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42768525205/attempts/1)를 완료했습니다. 준비 PR #123의 검사 19개와 정확한 병합 main CI 7개 성공을 구분해 확인했으며, 설치 시험·새 runner 검증/pack·게시 3개 job이 성공했습니다. npm `latest`는 0.1.10이고 artifact·registry SHA-256·SHA-512 SRI 일치를 확인했습니다.
-
-선택형 로컬 실행 통계(#120·PR #121), Actions 의존성(PR #112·#117·#116·#113), 개발용 Node 타입(PR #114)을 포함합니다. Node.js 24 이상과 24·26 CI 검증을 유지합니다. 준비는 #122·PR #123, 실제 게시 기록은 [#124](https://github.com/abruption/aptly/issues/124)와 [0.1.10 근거](releases/0.1.10.md), 사용자 변경은 [한국어 릴리스 노트](release-notes/0.1.10.md)에서 확인하십시오. 준비 기반 main `7589cef9c1f5ed72725e6feeaff84487635914db`와 실제 태그 소스를 구분합니다.
-
-npm 서명 invalid·missing 0건과 정확한 0.1.10 SLSA v1 bundle·인증서 identity를 검증했습니다. 소스·태그·workflow·run/attempt 결합과 GitHub-hosted 실행을 확인했으며, [한국어 GitHub Release](https://github.com/abruption/aptly/releases/tag/v0.1.10)는 정식 Latest입니다. 공개 시각은 `2026-11-10T06:31:45Z`입니다. registry의 초기 이전 latest와 attestation 404를 보존했고 같은 게시 실행의 6번째 attestation 조회에서 200을 확인했습니다. 태그·게시 job은 재실행하지 않았습니다.
-
-통계는 기존 설치와 postinstall에서 자동 활성화되지 않습니다. POSIX의 명시적 `stats enable`, Codex native 메타데이터의 별도 동의·Hook 신뢰 검토와 모델 증거/실제 effort 구분을 유지합니다. 전역 설치·실제 호스트 설정·키·전송 정책·운영 원장·예산·보호 규칙은 변경하지 않았습니다. 이전 버전의 archive·digest를 새 증거로 사용하지 않았고, 새 Actions의 실제 artifact 전달·OIDC 게시는 이번 실행으로 확인했습니다. 다음 게시도 준비 PR 병합·정확한 main CI 성공과 별도 지시를 따릅니다.
+[릴리즈 노트](release-notes/0.1.10.md) · [게시·출처 검증 기록](releases/0.1.10.md)
 
 ## 0.1.9 게시와 검증
 
-2026-11-09에 source `0b77bec4ecf402ccf3d6bd278499631bd12d76c0`의 annotated `v0.1.9` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42610755012/attempts/1)를 수행했습니다. 준비 PR #115 검사 19개와 정확한 병합 main CI 7개 성공을 구분해 확인한 뒤 태그를 생성했습니다. 설치 시험·새 runner 검증/pack·게시 3개 job이 성공했고 npm `latest`는 0.1.9로 확인했습니다. 이번 artifact와 registry archive의 SHA-256이 일치했습니다.
-
-Linux 키 저장소 사전 진단(#105·PR #107), 설정 홈 간 정책 충돌과 읽기 전용 점검(#106·PR #108), 보안 CI(#109·PR #110)를 포함합니다. Dependabot PR #112·#113·#114·#116·#117은 포함하지 않았고 기존 승인된 Actions 핀을 유지했습니다. 준비는 #111·PR #115, 게시 기록은 [#118](https://github.com/abruption/aptly/issues/118)에서 관리합니다. [한국어 릴리스 노트](release-notes/0.1.9.md)와 [실제 게시 근거](releases/0.1.9.md)에 소스·태그·실행·digest·범위를 기록합니다.
-
-npm 서명 검증의 invalid·missing 0건과 정확한 0.1.9의 SLSA v1 bundle·인증서 identity를 확인했습니다. 실제 archive의 소스 SHA·태그·workflow·run/attempt 결합도 검증했습니다. attestation 초기 404를 보존하고 7번째 조회에서 200을 확인했으며 태그·게시 job은 재실행하지 않았습니다. [한국어 GitHub Release](https://github.com/abruption/aptly/releases/tag/v0.1.9)는 정식 Latest이며 공개 시각은 `2026-11-09T11:44:09Z`입니다. 기존 키·정책·원장·사용량·완료/불명 결과와 Hook 신뢰를 보존하며 실제 호스트 설정이나 Linux 저장소 의존성을 자동 변경하지 않습니다. CLI 버전·수동 진단·fixture 성공은 실행 중 MCP의 갱신·실제 키 저장·native 적용·API 품질과 별개입니다. 다음 게시도 준비 PR 병합·정확한 main CI 성공과 별도 게시 지시를 따릅니다.
+[릴리즈 노트](release-notes/0.1.9.md) · [게시·출처 검증 기록](releases/0.1.9.md)
 
 ## 0.1.8 게시와 검증
 
-2026-11-09에 source `783402345d9dddb8fcbacc4f615b95791e27f6d1`의 `v0.1.8` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42538795929)를 수행했습니다. 정확한 병합 main CI 7개 성공 후 태그를 생성했고 설치 시험·새 runner 패키징·게시 3개 job이 성공했습니다. npm latest는 0.1.8이며 artifact·registry SHA-256/512 일치·npm 서명·SLSA v1 인증서의 소스·태그·workflow·run/attempt identity를 확인했습니다.
-
-[한국어 릴리즈 노트](release-notes/0.1.8.md)와 [불변 게시 근거](releases/0.1.8.md)에 소스·태그 객체·실행·digest·범위를 기록합니다. 준비는 #101·PR #102, 게시 기록은 #103입니다. 준비 HEAD의 검사 18개와 병합 main의 7개 job을 구분하며, 이전 버전의 검증 결과를 이번 출처로 재사용하지 않았습니다.
-
-attestation 초기 404 후 7번째 조회에서 200을 확인할 때까지 같은 게시 실행을 읽기 전용으로 확인했습니다. 이번 게시 후 검증에는 실패한 npm 설치·서명 재시도나 태그·게시 재실행이 없었습니다. CLI 설치/연결·로컬 예산 예약·실제 게시 출처·제품 품질의 증거는 구분합니다. 전역 설치·실제 설정/키/원장/예산·배포 보호 규칙은 변경하지 않았습니다. 다음 게시도 준비 PR 병합·정확한 main CI 성공과 별도 게시 지시를 따릅니다.
+[릴리즈 노트](release-notes/0.1.8.md) · [게시·출처 검증 기록](releases/0.1.8.md)
 
 ## 0.1.7 게시와 검증
 
-2026-11-08에 source `79ae693cbd0a7e59e79c00db32de916ccea6af87`의 `v0.1.7` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42472447519)를 수행했습니다. 정확한 병합 main CI 7개 성공 후 태그를 생성했고 설치 시험·새 runner 패키징·게시 3개 job이 성공했습니다. npm latest는 0.1.7이며 artifact·registry SHA-256과 SHA-512 integrity·npm 서명·SLSA v1 provenance의 인증서 identity를 확인했습니다.
-
-[한국어 릴리즈 노트](release-notes/0.1.7.md)와 [불변 게시 근거](releases/0.1.7.md)에 소스·태그·run/attempt·digest와 범위를 기록합니다. 준비는 #93·PR #94, 게시 기록은 #95입니다. #92가 #90 브랜치에 먼저 병합된 뒤 main으로 통합된 경로를 확인했으며 준비 기반 main과 실제 게시 SHA를 구분합니다.
-
-attestation 초기 404 후 7번째 조회에서 200을 확인할 때까지 같은 게시물을 읽기 전용으로 기다렸습니다. 이번 검증에서는 실패한 npm 설치·서명 재시도나 태그·게시 재실행이 없었습니다. 신규 미선택 무전송·기존 v1 호환·confidence 기본 동작 유지의 구현 범위와 실제 자식 품질 평가는 구분합니다. 전역 설치·운영 원장·호스트 설정·키·보호 규칙은 변경하지 않았습니다. 다음 버전 게시도 준비 PR 병합과 정확한 main CI 확인 후 별도 지시를 따릅니다.
+[릴리즈 노트](release-notes/0.1.7.md) · [게시·출처 검증 기록](releases/0.1.7.md)
 
 ## 0.1.6 게시와 검증
 
-2026-11-07에 `v0.1.6` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42377420833)를 수행했습니다. 설치 시험·새 runner 패키징·게시 3개 job이 성공했고 확인 당시 npm `latest`는 0.1.6입니다. [한국어 릴리즈 노트](release-notes/0.1.6.md)와 [실제 검증 기록](releases/0.1.6.md)에 변경·소스·실행·digest와 검증 범위를 기록합니다.
-
-준비 PR #86이 병합된 `a6306f6c2f08237516ec513a06d449e261e8aaad`의 main CI 7개 성공 후 태그를 생성했습니다. 이번 artifact와 registry 파일은 SHA-256·SHA-512 SRI에서 일치했고, 정확한 npm SLSA v1 bundle 및 GitHub 인증서 SAN·소스·태그·workflow·실행 identity를 검증했습니다. 준비 기반 main과 실제 게시 소스를 구분하고 이전 버전의 결과를 재사용하지 않았습니다.
-
-provenance endpoint의 초기 404→200 전파를 읽기 전용으로 기다렸으며, 첫 격리 npm 설치 `ETIMEDOUT` 실패를 보존한 뒤 같은 게시 실행의 검증을 완료했습니다. 두 현상의 원인을 동일시하지 않으며 태그·게시 job을 재실행하지 않았습니다. 실제 OIDC 게시·인증서를 확인했으며 로컬 npm 관리자 설정을 새로 조회했다고 주장하지 않습니다.
-
-별도 독립 위임 준비·다국어 맥락 검사·POSIX 설정 복구·Windows ACL 진단을 포함합니다. 호출자 선언·서버 실행 미관측·과거 Windows 원인 미확정 경계를 유지합니다. 전역 설치·운영 원장·호스트 설정·키는 변경하지 않았습니다.
+[릴리즈 노트](release-notes/0.1.6.md) · [게시·출처 검증 기록](releases/0.1.6.md)
 
 ## 0.1.5 게시와 검증
 
-2026-11-07에 `v0.1.5` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42329906551)를 실행했습니다. 설치 시험·새 runner 패키징·게시의 세 job이 모두 성공했고, 확인 당시 npm `latest`는 0.1.5입니다. [한국어 릴리즈 노트](release-notes/0.1.5.md)와 [실제 검증 기록](releases/0.1.5.md)에 변경·source SHA·run·attempt·digest와 검증 결과를 기록합니다.
-
-PR #74가 스택 브랜치의 PR #72까지 main에 통합한 `eb283ab1394a777c572c89a75c5436f4c95af302`를 사용했습니다. 정확한 main CI 7개 성공 후 태그를 push했고 새 실행의 artifact와 registry archive가 SHA-256·SHA-512 SRI에서 일치했습니다. npm의 정확한 SLSA v1 bundle과 GitHub 인증서 SAN·소스·태그·workflow·실행 identity 검증을 통과했습니다.
-
-초기 두 번의 npm 서명 검증 `E404`와 별도 provenance URL의 404→200 응답을 보존하고, 동일 게시 실행의 읽기 전용 검증을 완료했습니다. 태그나 게시 job은 재실행하지 않았습니다. 실제 OIDC 게시와 인증서를 확인했으며 로컬 npm 관리자의 Trusted Publisher 목록을 새로 조회했다고 주장하지 않습니다.
-
-한 번의 맥락 보충·명확한 defaults 차단·복구 관측·호환 기본값을 포함합니다. 상속 적용 차단과 호출자 주도 복구 경계는 유지합니다. 전역 설치·운영 원장·호스트 설정·키는 변경하지 않았습니다.
+[릴리즈 노트](release-notes/0.1.5.md) · [게시·출처 검증 기록](releases/0.1.5.md)
 
 ## 0.1.4 게시와 검증
 
-2026-11-06에 `v0.1.4` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42203064758)를 실행했습니다. 설치 시험·새 runner 패키징·게시의 세 job이 모두 성공했고, 확인 당시 npm `latest`는 0.1.4입니다. [한국어 릴리즈 노트](release-notes/0.1.4.md)와 [실제 검증 기록](releases/0.1.4.md)에 변경·source SHA·run·attempt·digest와 검증 결과를 기록합니다.
-
-main CI 7개 성공 후 정확한 소스 `85667a95693bcd083c57f857eba73ec69db1ab60`에 태그를 생성했습니다. 새 실행 artifact와 registry archive의 SHA-256·SHA-512 SRI가 일치했고, npm의 정확한 SLSA v1 bundle과 GitHub 인증서 SAN·소스·태그·workflow·실행 identity 검증을 통과했습니다. 이전 버전의 결과는 재사용하지 않았습니다.
-
-최초 설치·서명 검증 외부 명령은 실패했지만 정확한 npm 오류 코드가 보존되지 않아 원인은 미확정입니다. 그 실패 이력을 보존하고 같은 source/run에 대한 읽기 전용 검증을 새로 수행해 성공했습니다. 별도로 확인한 registry 전파 지연을 이 실패의 원인으로 단정하지 않습니다. 태그나 게시 job은 재실행하지 않았습니다.
-
-이 버전은 #60·#62의 사전 추천·부분 선택 보존·호출별 진단·명시적 설명 전달을 포함합니다. `automatic_hook.last_result`는 `get_spawn_routing_observation`으로 전환해야 하며, 상속 모델 적용 차단과 자동 설명 생성기 미제공 경계는 유지합니다. 과거 검증용 어댑터 결과를 제품의 자동 모델 전환 성공으로 해석하지 마십시오.
-
-게시 전 GitHub `npm` environment의 `v*` 태그 제한을 조회했습니다. 로컬 npm 관리자 Trusted Publisher 목록은 이번에 조회하지 않았습니다. 실제 OIDC 게시와 인증서 기반 검증으로 결과를 확인했으며, 실제 전역 설치·호스트 설정·운영 원장·자격 저장소는 변경하지 않았습니다.
+[릴리즈 노트](release-notes/0.1.4.md) · [게시·출처 검증 기록](releases/0.1.4.md)
 
 ## 0.1.3 게시와 검증
 
-2026-11-06에 `v0.1.3` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42162474877)를 실행했습니다. 설치 시험·새 runner 패키징·게시의 세 job이 모두 성공했으며, 확인 당시 npm `latest`는 0.1.3입니다. [한국어 릴리즈 노트](release-notes/0.1.3.md)와 [0.1.3 실제 검증 기록](releases/0.1.3.md)에 변경 이슈·업그레이드 순서·source SHA·run·attempt·digest와 검증 결과를 기록합니다.
-
-이번 버전은 보존된 표준 등록의 명시적 이전(`--include-existing`), 검증된 전역 설치의 `aptly update`와 npm dry-run 거절, 대화형 CLI의 신규 버전 알림, npm 설치 스크립트 허용 안내를 포함합니다. 0.1.2에는 업데이트 명령이 없으므로 최초 전환은 npm 설치로 수행해야 합니다. 일반 설치 명령은 `npm install -g aptly@latest --allow-scripts=aptly`입니다. 관련 writer 중지·원장 보존과 호스트 재시작·신뢰 검토 경계는 유지합니다.
-
-새 실행의 artifact와 registry archive가 SHA-256·SHA-512 SRI에서 일치했고, npm의 정확한 SLSA v1 bundle과 GitHub CLI 인증서 검증을 통과했습니다. 소스·태그·workflow·실행 identity 및 SAN을 대조했으며 이전 버전의 검증 결과를 재사용하지 않았습니다. registry 전파 지연은 읽기 전용 조회로 기다렸고 게시를 재실행하지 않았습니다.
-
-게시 전 GitHub `npm` environment의 `v*` 태그 제한을 조회했습니다. 로컬 npm 관리자 Trusted Publisher 목록은 이번에 조회하지 않았으므로 새로 확인했다고 기록하지 않습니다. 실제 Actions OIDC 게시 성공과 인증서 기반 provenance로 배포 결과를 확인했습니다. 전역 설치·실제 호스트 설정·운영 원장·자격 저장소는 이번 게시·검증에서 변경하지 않았습니다.
+[릴리즈 노트](release-notes/0.1.3.md) · [게시·출처 검증 기록](releases/0.1.3.md)
 
 ## 0.1.2 게시와 검증
 
-2026-11-06에 `v0.1.2` 태그로 [Actions OIDC 게시](https://github.com/abruption/aptly/actions/runs/42151554506)를 실행하고, registry 파일·무결성과 인증서 기반 provenance를 검증했습니다. 확인 당시 npm `latest`는 0.1.2입니다. source SHA·run·attempt·digest·검증 결과는 [0.1.2 릴리즈 근거](releases/0.1.2.md)에 기록했습니다. 이후 버전도 준비 PR 병합과 main CI 확인 후 태그를 push하면 실제 게시가 시작됩니다. 일반 설치 문서는 계속 `aptly@latest`를 사용합니다.
-
-이 버전은 실행 경로 사전 진단·명시적 갱신, 설정 중 충돌 감지와 조건부 키 복구, 프로세스 수명 원장 잠금, 분류 전송 필드 제한과 공유 안내를 포함합니다. 기본 confidence·공유 정책을 변경한 릴리즈는 아니며 #14·#15는 별도 결정 사항입니다. 상세 변경은 [Changelog](../CHANGELOG.md), 잠금 이전 경계는 [원장 잠금 안내](LEDGER_LOCKING.md)를 확인하십시오.
-
-영속 원장 사용자는 설치 전에 관련 호스트·MCP·CLI writer를 모두 정지하고 함께 업그레이드해야 합니다. 구형 writer와 새 영구 SQLite `.lock`의 혼합 운영은 지원하지 않습니다. 기존 빈/미확인 잠금은 자동 복구하지 않으며, 원장·비용·`unknown`·완료 캐시를 보존한 보수적 오프라인 전환만 안내합니다. 이번 게시·검증에서는 실제 운영 원장을 이전하거나 키를 수집하지 않았습니다.
-
-배포 워크플로의 일회성 설치 시험과 새 runner의 패키징을 분리한 경계는 유지합니다. 이번 실행에서 새로 만든 artifact와 registry 파일을 독립적으로 비교하고 npm 서명 검증·GitHub CLI 인증서 정책 검증을 통과했습니다. 이전 0.1.1의 archive digest·실행 번호·검증 성공을 0.1.2의 결과로 재사용하지 않았습니다. 아래 재현 절차의 버전·태그·source SHA·run·attempt는 검증할 릴리즈의 실제 값으로 바꿔 사용하십시오.
-
-0.1.2 게시 전 GitHub `npm` environment의 `v*` 태그 제한은 조회로 재확인했습니다. 로컬 npm 관리자 세션 만료로 Trusted Publisher 설정 목록의 새 조회는 불가능했으므로, 이를 새로 확인했다고 기록하지 않습니다. 로컬 npm 로그인은 Actions 배포에 사용하지 않았으며, 기존 OIDC 경로의 실제 게시 성공과 검증된 인증서 identity로 이번 실행을 확인했습니다.
+[릴리즈 노트](release-notes/0.1.2.md) · [게시·출처 검증 기록](releases/0.1.2.md)
 
 ## 0.1.1 게시와 Issue #18
 

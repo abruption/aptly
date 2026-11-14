@@ -1,10 +1,10 @@
-# インストールと更新
+# インストール・更新
 
 [한국어](../ko/installation.md) · [English](../en/installation.md) · [简体中文](../zh-CN/installation.md) · [日本語](../ja/installation.md)
 
 [ガイド目次](../ja.md)
 
-## このページの目次
+## この文書の目次
 
 - [インストール](#guide-installation)
 - [npm インストールスクリプトの許可](#guide-npm-install-scripts)
@@ -17,50 +17,39 @@
 
 ## インストール
 
-Node.js 24 以上と Claude Code または Codex が必要です。npm の最新安定版をグローバルにインストールするには、次のコマンドを実行してください:
-
-**既存の永続台帳を 0.1.2 以降に更新する前に**、その台帳にアクセスする可能性があるすべてのホスト、MCP サーバー、単独 CLI、旧版プロセスを停止してください。新しい永続ロックは旧版の書き込み側と併用できません。新規インストールでは旧ロックの隔離は不要です。旧版の空のロックが残る場合は、[台帳の移行手順](troubleshooting.md#guide-ledger-lock-recovery)に従い、確認済みの旧ロックだけをオフラインで隔離し、JSON 台帳、`unknown` 記録、費用、完了済みキャッシュを保持してください。
+Node.js 24 以上、Claude Code または Codex、OpenAI API キーが必要です。
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
 aptly set default
+aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`aptly --version` でインストール済みのバージョンを確認してください。Node.js 環境を切り替えると再インストールが必要な場合があります。
+`set default` はホストを登録し、Decisions API に送る情報の範囲を尋ねます。キーは非表示入力で OS の資格情報ストアに保存します。ホストを再起動し、Codex の `/hooks` で新しい Hook を承認してください。
 
-`postinstall` は、現在のユーザーの既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使う場合は、インストールプロセスにも同じ環境を渡してください。まだ存在しないホストディレクトリは自動登録ではスキップし、明示的な `setup` で作成できます。必要なホストだけを登録するには、`--client codex` または `--client claude` を使用してください。
-
-新規登録では `ROUTER_PROVIDER=decisions`、Hook の `defaults` ポリシー、ホストごとの非公開台帳を指定します。他の既存設定・Hook と、既存の Aptly のコマンド・環境・provider・台帳パスは保持します。既存の fixture 設定を自動で有料モードに切り替えることはありません。
+インストールスクリプトは既存のホストディレクトリに MCP・Hook を登録します。ディレクトリがない場合は `aptly setup --client all` で登録してください。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使うアカウントでは、インストール・設定にも同じ環境を渡す必要があります。既存の設定と実行ラッパーは保持します。[アカウントホーム・キー設定](configuration.md)を参照してください。
 
 <a id="guide-npm-install-scripts"></a>
 
 ## npm インストールスクリプトの許可
 
-上記の `--allow-scripts=aptly` は、そのインストールで Aptly の `postinstall` を明示的に許可します。npm 11.19.1 で対応を確認しており、ユーザー全体の npm 許可設定は変更しません。[npm 公式ガイド](https://docs.npmjs.com/cli/v11/commands/npm-rebuild/#allow-scripts)を参照してください。
-
-`npm warn install-scripts ... not yet covered by allowScripts` は、許可ポリシーに未登録であることを示します。npm 11.19.1 では、この警告だけでスクリプトがブロックされたとは判断できません。npm のバージョン・厳格なポリシー・`ignore-scripts` によって挙動が異なり、インストール成功だけでは MCP・Hook の登録成功を確認できません。postinstall の出力は npm によって非表示になる場合があります。
-
-このオプションに未対応の npm を使う場合や、自動登録の代わりに手動設定する場合は、次を実行してください。
+`--allow-scripts=aptly` はそのインストールの `postinstall` のみを許可し、npm 全体の設定は変更しません（npm 11.19.1 で確認）。オプションに対応していない場合や自動登録を望まない場合は、次を実行してください。
 
 ```sh
 npm install -g aptly@latest --ignore-scripts
 aptly setup --client all
 ```
 
-送信レビューは 0.1.11 以降で提供され、npm lifecycle インストールでは質問しません。0.1.10 からアップグレードする場合は、先にパッケージを更新し、同じアカウント環境で対話形式の `aptly setup`、`aptly set default` または `aptly set transmission --review` を実行してください。更新プロセスが新しいレビューを代行したり、同意したものとして扱ったりすることはありません。[送信レビュー](transmission.md#guide-transmission-scope)を参照してください。
+インストールの成功や `npm warn install-scripts` だけで Hook の登録を判断しないでください。npm のバージョン・ポリシーによってスクリプトが省略される場合があります。[npm の案内](https://docs.npmjs.com/cli/v11/commands/npm-rebuild/#allow-scripts)
 
-スクリプトの実行にかかわらず、明示的な `setup` を利用できます。既存の起動パスは保持するため、旧パスのエラーは[実行パスの復旧手順](troubleshooting.md#guide-launcher-recovery)に従ってください。キー設定・MCP の再起動と Codex の `/hooks` 信頼確認は別途必要です。
-
-0.1.11 以降のインストールスクリプトは、設定が正常に完了し、登録済みクライアントにレビュー待ちがある場合に `aptly set transmission --review` の実行案内だけを stderr に表示し、質問や選択の記録は行いません。
+インストールスクリプトは送信の同意を取得しません。その後、対話形式の `aptly setup`、`aptly set default` または `aptly set transmission --review` で[送信範囲](transmission.md)を選んでください。
 
 <a id="guide-package-updates"></a>
 
 ## パッケージの更新
 
-`aptly update` は **Aptly 0.1.3 以降で利用できます**。確認済みの npm グローバルインストールが必要で、実行中のパッケージと一致する確認済み prefix に `aptly@latest` をインストールします。ローカルインストール・ソースチェックアウト・確認できないパスは拒否します。 npm の有効な設定が `dry-run=true` の場合は、インストール前に `update_dry_run_enabled` で拒否します。設定を確認できない場合は `update_configuration_unverified` で停止し、試行のみの実行を更新成功とは報告しません。
-
-更新前に、上記の台帳移行手順に従い、台帳を使用する他のホスト・MCP・CLI プロセスを停止してください。インストールスクリプトは実行しないため、更新後に明示的に設定し、ホストを再起動してください。
+関連するホスト・MCP・CLI を停止し、検証済みのグローバル npm インストールで実行してください。
 
 ```sh
 aptly update
@@ -68,32 +57,35 @@ aptly setup --client all
 aptly --version
 ```
 
-既存の MCP 起動パスやユーザーラッパーは自動移行しません。旧パスが残る場合は[実行パスの復旧手順](troubleshooting.md#guide-launcher-recovery)に従ってください。キー設定と Codex の `/hooks` 信頼確認は別途必要です。npm の認証・ネットワーク・権限エラーが発生した場合は手動インストールの案内を使用してください。更新の自動インストールは行いません。
+`update` は同じ npm prefix に最新バージョンをインストールし、設定・キーを保持します。インストールスクリプトは実行しません。設定後にホストを再起動してください。npm エラーやローカル・ソースインストールでは、上記の手動インストールコマンドを使ってください。`dry-run=true` の npm 設定は拒否します。
+
+stable ランチャーの保存コピーはグローバルパッケージとは別です。[明示的な移行](configuration.md#guide-stable-launcher)で更新してください。以前の Node パスが失われた場合は[起動パスの復旧](troubleshooting.md#guide-launcher-recovery)に従ってください。
+
+<details>
+<summary>0.1.2 より前の台帳からのアップグレード</summary>
+
+同じ台帳を使う旧バージョンのホスト・MCP・CLI writer をすべて停止してください。新しい永続ロックは旧 writer と併用できません。以前の空のロックは[台帳ロックの移行](troubleshooting.md#guide-ledger-lock-recovery)に従ってオフラインで隔離し、JSON 台帳・unknown・費用・完了キャッシュは保持してください。
+
+</details>
 
 <a id="guide-version-notifications"></a>
 
 ## 新しいバージョンの通知
 
-**Aptly 0.1.3 以降では**、対話形式の通常 CLI コマンドで最新の安定版を確認し、新版があれば stderr に `aptly update` を案内します。 標準入出力と標準エラー出力がすべてターミナルの場合のみ動作し、MCP サーバー・自動 setup・推薦や分類の経路・パイプ・CI では確認しません。JSON stdout と MCP・Hook の応答は変更しません。
-
-公開 npm レジストリから Aptly のバージョン情報のみを取得し、キー・タスク要約・ホスト設定は送信しません。ネットワークと応答読み取りは 800ms・16KiB に制限し、結果を `~/.cache/aptly/update-check.json` に 24 時間キャッシュします。失敗後は 1 時間待機し、通信・キャッシュエラーで元のコマンドを失敗させません。CLI の環境に `APTLY_NO_UPDATE_NOTIFIER=1` を設定すると確認を停止できます。この変数は `aptly set env` の対象ではありません。通知による自動更新は行いません。
+対話形式の CLI は最新バージョンを確認し、stderr に通知します。自動更新はしません。MCP・Hook・パイプ・CI では確認しません。公開 npm バージョン情報のみを取得し、タスク・キー・設定は送信しません。結果を 24 時間キャッシュし、エラーで元のコマンドが失敗することはありません。無効にするには実行環境に `APTLY_NO_UPDATE_NOTIFIER=1` を設定してください（`set env` の対象ではありません）。
 
 <a id="guide-command-help"></a>
 
-## コマンドヘルプ（0.1.8 以降）
-
-コマンド・サブコマンドごとの統一されたヘルプは Aptly 0.1.8 以降で利用できます。次の形式を使えます。
+## コマンドヘルプ
 
 ```sh
 aptly --help
 aptly setup -h
-aptly set default --help
 aptly set env OPENAI_API_KEY --help
-aptly budget status --help
 aptly help catalog refresh
 ```
 
-`--help`・`-h`・`aptly help <コマンド経路>` は使用法だけを表示します。設定・指定ファイル・stdin・資格情報ストアの読み取り、質問、設定変更、API・モデル情報取得、インストール・更新、更新通知は実行しません。有効なオプションの後にもヘルプを付けられますが、不明な経路・オプション、不正な指定値、矛盾する組み合わせはエラーです。必須の位置引数を省略して使用法を調べられます。`--output --help` のようにヘルプをオプション値の位置に置くと、値の欠落として扱います。
+`--help`・`-h`・`aptly help <コマンドパス>` は使い方のみを表示し、設定・キーの参照や API 呼び出しを行いません。不正なオプションや値の欠落はエラーです。
 
 <a id="guide-skip-and-remove"></a>
 
@@ -105,10 +97,6 @@ aptly setup --client codex --mode defaults
 aptly remove --client all
 ```
 
-`CI` や npm `--ignore-scripts` でも登録をスキップします。後から `setup` で登録できます。モード変更時は登録を削除して希望の `--mode` で再設定します。`advisory` は推薦のみを返します。`partial` ではホスト別のエラーコードを確認してください。削除時はユーザー変更済みの項目を保持し、競合を報告します。
+`CI`・`--ignore-scripts` でも自動登録をスキップします。`remove` は変更されていない Aptly 所有の項目のみを削除し、ユーザーの変更は保持します。`partial` の場合はホスト別のエラーを確認してください。モードを変更するには削除後、希望する `--mode` で登録してください。`advisory` も送信範囲が許可すればタスク情報を送信します。
 
-## 関連文書
-
-[初期設定と候補モデル](configuration.md) · [トラブルシューティング](troubleshooting.md)
-
-[ガイド目次](../ja.md)
+[設定](configuration.md) · [トラブルシューティング](troubleshooting.md) · [ガイド目次](../ja.md)
