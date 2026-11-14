@@ -1,30 +1,25 @@
 # Aptly 使用指南
 
-本指南以 Aptly 0.1.13 为准。各主题分别保留功能最低版本和旧版本恢复说明。
-
 [한국어](ko.md) · [English](en.md) · **简体中文** · [日本語](ja.md)
 
-[返回 README](../../README.zh-CN.md)
+[README](../../README.zh-CN.md)
 
-韩语文档是正本。本指南介绍 Aptly 的常规安装与使用方法。可以安装软件包，并不表示所有账户都能访问相关模型。子代理的实际执行、审批、沙箱与 MCP 权限仍由 Claude Code 或 Codex 负责。
+韩语文档为正本。首次使用请按安装 → 初始设置 → 自动推荐的顺序阅读。
 
-首次使用请按 **安装与更新 → 初始设置 → 自动推荐** 的顺序阅读。
+| 任务 | 文档 |
+|---|---|
+| 安装、更新与移除 | [安装](zh-CN/installation.md) |
+| API 密钥、账户主目录、候选模型与 stable 启动器 | [设置](zh-CN/configuration.md) |
+| Hook 行为、推荐保留与应用条件 | [自动推荐](zh-CN/routing.md) |
+| 选择发送给 OpenAI Decisions API 的信息 | [传输范围](zh-CN/transmission.md) |
+| 调用与费用上限 | [预算](zh-CN/budget.md) |
+| 比较推荐与实际执行 | [统计](zh-CN/statistics.md) |
+| 注册、凭据存储与账本错误 | [问题排查](zh-CN/troubleshooting.md) |
+| 手动 MCP 设置、直接推荐与开发 | [高级集成](zh-CN/advanced.md) |
+| 测量方法与成本折算 | [成本实测](zh-CN/benchmarks.md) |
 
-## 主题文档
-
-- [安装与更新](zh-CN/installation.md)
-- [初始设置与候选模型](zh-CN/configuration.md)
-- [自动推荐](zh-CN/routing.md)
-- [Decisions API 传输范围](zh-CN/transmission.md)
-- [预算限制](zh-CN/budget.md)
-- [执行统计](zh-CN/statistics.md)
-- [问题排查](zh-CN/troubleshooting.md)
-- [高级 MCP 集成与开发参考](zh-CN/advanced.md)
-- [成本实测](zh-CN/benchmarks.md)
-
-## 旧链接导航
-
-保留现有书签锚点。选择条目可打开新文档中的对应章节。文档结构调整不要求重新设置或重新输入密钥。
+<details>
+<summary>旧文档链接</summary>
 
 <a id="安装"></a>
 - [安装](zh-CN/installation.md#guide-installation)
@@ -88,3 +83,5 @@
 - [进程中断与账本锁定](zh-CN/troubleshooting.md#guide-ledger-lock-recovery)
 <a id="诊断与开发"></a>
 - [诊断与开发](zh-CN/advanced.md#guide-diagnostics-and-development)
+
+</details>

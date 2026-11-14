@@ -1,30 +1,25 @@
 # Aptly 使用ガイド
 
-このガイドは Aptly 0.1.13 を対象としています。機能ごとの最小バージョンと旧バージョンの復旧手順は各文書で区別します。
-
 [한국어](ko.md) · [English](en.md) · [简体中文](zh-CN.md) · **日本語**
 
-[README に戻る](../../README.ja.md)
+[README](../../README.ja.md)
 
-韓国語版が正本です。このガイドでは Aptly の基本的なインストール方法と使い方を説明します。パッケージをインストールできることは、すべてのアカウントでモデルにアクセスできることを意味しません。子エージェントの実行・承認・サンドボックス・MCP 権限は、Claude Code または Codex が管理します。
+韓国語版が正本です。初めて使う場合は、インストール → 初期設定 → 自動推薦の順にお読みください。
 
-初めて使う場合は **インストールと更新 → 初期設定 → 自動推薦** の順にお読みください。
+| 作業 | 文書 |
+|---|---|
+| インストール・更新・削除 | [インストール](ja/installation.md) |
+| API キー・アカウントホーム・候補モデル・stable ランチャー | [設定](ja/configuration.md) |
+| Hook の動作・推薦の保留・適用条件 | [自動推薦](ja/routing.md) |
+| OpenAI Decisions API に送る情報の選択 | [送信範囲](ja/transmission.md) |
+| 呼び出し・費用の上限 | [予算](ja/budget.md) |
+| 推薦と実際の実行の比較 | [統計](ja/statistics.md) |
+| 登録・資格情報ストア・台帳のエラー | [トラブルシューティング](ja/troubleshooting.md) |
+| 手動 MCP 設定・直接推薦・開発 | [高度な連携](ja/advanced.md) |
+| 測定方法と費用換算 | [費用実測](ja/benchmarks.md) |
 
-## 主題別の文書
-
-- [インストールと更新](ja/installation.md)
-- [初期設定と候補モデル](ja/configuration.md)
-- [自動推薦](ja/routing.md)
-- [Decisions API の送信範囲](ja/transmission.md)
-- [予算上限](ja/budget.md)
-- [実行統計](ja/statistics.md)
-- [トラブルシューティング](ja/troubleshooting.md)
-- [高度な MCP 連携と開発参考](ja/advanced.md)
-- [費用の実測](ja/benchmarks.md)
-
-## 以前のリンク
-
-既存のブックマークのアンカーを保持します。項目を選ぶと新しい文書の該当節を開きます。文書構成の変更に伴う再設定やキーの再入力は不要です。
+<details>
+<summary>以前の文書へのリンク</summary>
 
 <a id="インストール"></a>
 - [インストール](ja/installation.md#guide-installation)
@@ -88,3 +83,5 @@
 - [プロセス中断と台帳ロック](ja/troubleshooting.md#guide-ledger-lock-recovery)
 <a id="診断と開発"></a>
 - [診断と開発](ja/advanced.md#guide-diagnostics-and-development)
+
+</details>

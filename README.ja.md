@@ -10,61 +10,34 @@
 
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · **日本語**
 
-**タスクに適した Claude Code・Codex のサブエージェント用モデルと effort を選ぶローカル MCP です。**
-
 </div>
 
-Aptly は必要最小限のタスク要約を OpenAI Decisions API で分類し、あらかじめ許可された実行プロファイルを推薦します。インストールした Hook は、明示的な指定のない新しい汎用サブエージェントのデフォルト値を自動で選択できます。サブエージェントの実行と権限に関する判断は、既存のホストが行います。
-
-独自テストでは、**API 換算コストが約 52～58% 減少しました**。[測定条件と詳細結果](docs/guide/ja/benchmarks.md#guide-cost-benchmarks)をご覧ください。
+Claude Code・Codex のサブエージェントにモデルと推論強度を推薦します。タスクの要約を OpenAI Decisions API に送信し、明示されたモデル・推論強度・実行権限は保持します。
 
 ## クイックスタート
 
-Node.js **24 以上**と Claude Code または Codex が必要です。初めてインストールする場合は、以下のコマンドで最新の安定版をグローバルにインストールして設定してください。
+Node.js **24 以上**、Claude Code または Codex、OpenAI API キーが必要です。
 
 ```sh
 npm install -g aptly@latest --allow-scripts=aptly
 aptly set default
 aptly set env OPENAI_API_KEY
-aptly --version
 ```
 
-`aptly --version` でインストール済みのバージョンを確認してください。対応する npm では、`--allow-scripts=aptly` で Aptly のインストールスクリプトを許可します。このオプションに対応していない npm では、[インストール案内](docs/guide/ja/installation.md#guide-installation)の明示的なインストール・設定手順に従ってください。 Aptly 0.1.7 以降、新規登録は自動送信せず、`aptly set default` で OpenAI Decisions API への送信範囲を選択します。
-
-インストール時の `postinstall` は、既存のホスト設定ディレクトリに MCP と `PreToolUse` Hook を登録します。自動登録をスキップした場合や、ホストに設定ディレクトリがまだない場合も、`setup` を明示的に実行して登録できます。他の既存設定・Hook と、既存の Aptly の実行コマンド・環境は保持します。
-
-分類用の `OPENAI_API_KEY` は、`aptly set env OPENAI_API_KEY` の非表示入力で OS の資格情報ストアに保存するか、安全な実行環境から MCP プロセスに渡してください。キーをコマンドライン・リクエスト・設定 JSON・リポジトリに記載しないでください。ホストまたは MCP を再起動した後、**Codex では `/hooks` で新しい Hook を確認し、信頼を承認**してください。[インストール・キー・登録の詳細](docs/guide/ja/installation.md#guide-installation)を確認してください。
+`set default` で送信範囲を選び、API キーは非表示入力で登録します。ホストを再起動した後、**Codex では `/hooks` で新しい Hook を確認・承認**してください。[インストール・キー設定](docs/guide/ja/installation.md)で npm の互換オプションとアカウント別の設定を確認できます。
 
 ## 更新
-
-npm でグローバルインストール済みの Aptly 0.1.3 以降を更新するには、関連するホスト・MCP・CLI の書き込みプロセスをすべて停止し、[インストールとアップグレードの案内](docs/guide/ja/installation.md#guide-installation)で台帳の移行と手動での代替手順を確認してください。既存のキー設定は保持されるため、キーの再入力は不要です。コマンド実行後に再起動してください。
 
 ```sh
 aptly update
 aptly setup --client all
 ```
 
-## 使用方法
-
-| 方法 | 動作 |
-|---|---|
-| 自動 Hook | 新しい呼び出しの制約を確認し、未指定のデフォルト値を推薦します |
-| 直接推薦 | `recommend_agent` または `aptly recommend` でプロファイルを受け取り、実行するかどうかをホストで明示的に判断します |
-| fixture | キーやネットワークを使わず、ローカルで生成した試験用の推薦を確認できます。実際の Decisions の結果ではありません |
-
-Aptly 0.1.4 以降では継承呼び出しも推薦を評価します。適用には Codex の明示的な `fork_turns: "none"`、または履歴制約のない Claude Code の汎用呼び出しが必要で、指定済みフィールドは保持します。推薦・Hook 引数更新・実際の子の実行は別です。適用条件は[ガイド](docs/guide/ja/routing.md#guide-automatic-routing)を参照してください。
+ホストを再起動してください。キーの再入力は不要です。stable ランチャーや以前のバージョンから移行する場合は、[更新案内](docs/guide/ja/installation.md#guide-package-updates)を確認してください。
 
 ## ドキュメント
 
-- [使用ガイド](docs/guide/ja.md): インストール・削除、キー、Hook、直接推薦、エラー復旧
-- [インストール・削除](docs/guide/ja/installation.md#guide-installation)と [CLI 設定](docs/guide/ja/configuration.md#guide-cli-configuration): npm のグローバルインストール、ホスト登録、再起動と信頼の承認
-- [モデルと環境変数](docs/guide/ja/configuration.md#guide-models-and-environment): 6 つのデフォルトプロファイルと候補の設定
-- [コンテキストの提供](docs/guide/ja/advanced.md#guide-context-delivery): 暗号化されたメッセージとリポジトリ URL の制約
-- [費用実測](docs/guide/ja/benchmarks.md#guide-cost-benchmarks): README 翻訳レビューのトークン・換算費用と測定範囲
-- [診断・開発](docs/guide/ja/advanced.md#guide-diagnostics-and-development): ローカル report と無料の検証コマンド
-
-韓国語版が正本です。英語・簡体字中国語・日本語のドキュメントは同じ使用範囲を説明しており、ドキュメントの言語を選んでも CLI・MCP の出力言語は変わりません。
-
-## ライセンス
-
-[MIT](LICENSE)。
+- [使用ガイド](docs/guide/ja.md): 設定・自動推薦・予算・統計・トラブルシューティング
+- [候補モデルの設定](docs/guide/ja/configuration.md#guide-models-and-environment)
+- [送信範囲](docs/guide/ja/transmission.md): Decisions API に送る情報
+- [費用実測](docs/guide/ja/benchmarks.md): 小規模な README レビュー試験で子レビュー・分類費の API 換算額が約 52～58% 減少。タスク全体の費用やサブスクリプションの実請求額の削減率ではありません。

@@ -1,30 +1,25 @@
 # Aptly user guide
 
-This guide targets Aptly 0.1.13. Each topic preserves feature-specific minimum versions and recovery instructions for older releases.
-
 [한국어](ko.md) · **English** · [简体中文](zh-CN.md) · [日本語](ja.md)
 
-[Back to README](../../README.en.md)
+[README](../../README.en.md)
 
-Korean is the canonical documentation. This guide covers general Aptly installation and usage. Package availability does not establish model access for every account. Claude Code or Codex controls native subagent execution, approvals, sandboxing, and MCP permissions.
+Korean is the canonical documentation. For your first setup, read Installation → Configuration → Automatic recommendations.
 
-For a first setup, read **Installation → Configuration → Automatic recommendations**.
+| Task | Guide |
+|---|---|
+| Install, update, or remove | [Installation](en/installation.md) |
+| API keys, account homes, models, stable launcher | [Configuration](en/configuration.md) |
+| Hook behavior, abstention, and application conditions | [Automatic recommendations](en/routing.md) |
+| Choose what to send to the OpenAI Decisions API | [Transmission scope](en/transmission.md) |
+| Call and cost limits | [Budget](en/budget.md) |
+| Compare recommendations with actual execution | [Statistics](en/statistics.md) |
+| Registration, credential store, and ledger errors | [Troubleshooting](en/troubleshooting.md) |
+| Manual MCP setup, direct recommendations, and development | [Advanced integration](en/advanced.md) |
+| Measurement and cost conversion | [Measured costs](en/benchmarks.md) |
 
-## Topics
-
-- [Installation and updates](en/installation.md)
-- [Configuration and model candidates](en/configuration.md)
-- [Automatic recommendations](en/routing.md)
-- [Decisions API transmission](en/transmission.md)
-- [Budget limits](en/budget.md)
-- [Execution statistics](en/statistics.md)
-- [Troubleshooting](en/troubleshooting.md)
-- [Advanced MCP integration and development](en/advanced.md)
-- [Measured costs](en/benchmarks.md)
-
-## Previous links
-
-Existing bookmark anchors remain available. Select an entry to open its section in the new topic page. This documentation move does not require setup or key re-entry.
+<details>
+<summary>Previous links</summary>
 
 <a id="installation"></a>
 - [Installation](en/installation.md#guide-installation)
@@ -88,3 +83,5 @@ Existing bookmark anchors remain available. Select an entry to open its section 
 - [Interrupted processes and ledger locks](en/troubleshooting.md#guide-ledger-lock-recovery)
 <a id="diagnostics-and-development"></a>
 - [Diagnostics and development](en/advanced.md#guide-diagnostics-and-development)
+
+</details>

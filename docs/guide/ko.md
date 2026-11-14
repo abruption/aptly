@@ -1,30 +1,25 @@
 # Aptly 사용 가이드
 
-이 안내는 Aptly 0.1.13을 기준으로 합니다. 기능별 최소 버전과 이전 버전의 복구 안내는 각 문서에서 구분합니다.
-
 **한국어** · [English](en.md) · [简体中文](zh-CN.md) · [日本語](ja.md)
 
-[README로 돌아가기](../../README.md)
+[README](../../README.md)
 
-한국어가 정본입니다. 이 안내는 Aptly의 일반적인 설치·사용 방법을 설명합니다. 패키지를 설치할 수 있다는 사실이 모든 계정의 모델 접근 가능성을 뜻하지는 않습니다. 실제 자식 실행·승인·샌드박스·MCP 권한은 Claude Code 또는 Codex가 담당합니다.
+한국어가 정본입니다. 처음 사용한다면 설치 → 초기 설정 → 자동 추천 순서로 읽으십시오.
 
-처음 사용하는 경우 **설치·업데이트 → 초기 설정 → 자동 추천** 순서로 읽으십시오.
+| 작업 | 문서 |
+|---|---|
+| 설치·업데이트·제거 | [설치](ko/installation.md) |
+| API 키·계정 홈·모델 후보·stable 실행기 | [설정](ko/configuration.md) |
+| Hook 동작·추천 보류·적용 조건 | [자동 추천](ko/routing.md) |
+| OpenAI Decisions API에 보낼 정보 선택 | [전송 범위](ko/transmission.md) |
+| 호출·비용 한도 | [예산](ko/budget.md) |
+| 추천과 실제 실행 비교 | [통계](ko/statistics.md) |
+| 등록·자격 저장소·원장 오류 | [문제 해결](ko/troubleshooting.md) |
+| 수동 MCP 설정·직접 추천·개발 | [고급 연동](ko/advanced.md) |
+| 측정 방법과 비용 환산 | [비용 실측](ko/benchmarks.md) |
 
-## 주제별 문서
-
-- [설치·업데이트](ko/installation.md)
-- [초기 설정·모델 후보](ko/configuration.md)
-- [자동 추천](ko/routing.md)
-- [Decisions API 전송 범위](ko/transmission.md)
-- [예산 한도](ko/budget.md)
-- [실행 통계](ko/statistics.md)
-- [문제 해결](ko/troubleshooting.md)
-- [고급 MCP 연동·개발 참고](ko/advanced.md)
-- [비용 실측](ko/benchmarks.md)
-
-## 이전 링크 안내
-
-기존 북마크의 앵커를 보존합니다. 원하는 항목을 선택하면 새 문서의 해당 절로 이동합니다. 문서 구조 변경을 위해 설정이나 키를 다시 입력할 필요는 없습니다.
+<details>
+<summary>이전 문서 링크</summary>
 
 <a id="설치"></a>
 - [설치](ko/installation.md#guide-installation)
@@ -88,3 +83,5 @@
 - [중단된 프로세스와 원장 잠금](ko/troubleshooting.md#guide-ledger-lock-recovery)
 <a id="진단과-개발"></a>
 - [진단과 개발](ko/advanced.md#guide-diagnostics-and-development)
+
+</details>

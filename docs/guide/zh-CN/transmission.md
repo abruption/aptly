@@ -4,34 +4,32 @@
 
 [指南目录](../zh-CN.md)
 
-下述传输审查和 `--review` 命令**从 Aptly 0.1.11 起提供**。0.1.10 用户请先更新软件包。
+## 目录
 
-## 本页目录
-
-- [Decisions API 传输范围](#guide-transmission-scope)
-- [传输内容与过滤限制](#guide-transmission-limits)
+- [选择传输范围](#guide-transmission-scope)
+- [传输内容与限制](#guide-transmission-limits)
 
 <a id="guide-transmission-scope"></a>
 
-## Decisions API 传输范围
+## 选择传输范围
 
-本节传输范围命令从 Aptly 0.1.7 起提供。
+传输目标是 **OpenAI Decisions API**，而非 Aptly 开发者。新注册处于未选择（`unselected`）状态，不会自动传输。
 
-这里的传输是指**将本地任务信息发送至 OpenAI Decisions API**，不是向 Aptly 开发者提供任务的功能。应用模式 `defaults/advisory` 与传输范围相互独立。新注册使用 v2 策略的 `unselected` 状态，不自动传输。
+| 范围 | 可为自动推荐发送的信息 |
+|---|---|
+| `none` | 不自动传输，保留原调用 |
+| `description` | 仅发送调用方提供的说明；没有说明时请求补充上下文 |
+| `excerpt` | 允许明确说明和受支持的原生任务摘录 |
 
-从 0.1.10 升级时请注意：该版本中的交互式 `aptly set default` 仅询问未选择的宿主，按 Enter 选择 `none`。非交互运行和 postinstall 不提示，也不视为同意。
+首次运行交互式 `setup` 或 `set default` 时，会询问待审核主目录的范围。推荐 `excerpt`；按 Enter 保留现有选择，未选择时则选用 `none`。自动安装、CI 和非终端执行不视为同意。取消不会改变传输选择，但之前的基本注册可能已经完成。
 
-从 0.1.11 起，首次普通交互式 `aptly setup` 或 `aptly set default` 会将待审查客户端合并为一次提示，显示各自当前值、来源及默认或覆盖后的主目录。推荐选项 3 `excerpt`。按 Enter 或选择保留会保留已有的显式或 legacy 范围，包括 `none`；未选择的范围变为 `none`。显式 `setup --transmission` 或 `set transmission <scope>` 会将实际选择记为已审查。每个客户端主目录的私有 revision 1 审查标记独立于软件包版本、模式和统计数据，因此普通补丁更新或重启不会重复询问。
-
-以下命令从 0.1.11 起支持，按用户的显式请求每次重新询问；0.1.10 用户请先更新:
+如需重新审核，请运行（0.1.11 起）：
 
 ```sh
 aptly set transmission --review
 ```
 
-取消不会更改范围或审查标记；普通 setup 或 default 可能已经应用传输以外的默认设置。自动 setup、check、migrate、显式指定传输范围的 setup、CI、非 TTY、跳过 setup、npm lifecycle 脚本、MCP、Hook、help、show 和统计读取均不提示。提示输出到 stderr，JSON stdout 保持干净。已有的禁用策略、模式、启动器、密钥、账本、统计和信任设置均予以保留。
-
-0.1.10 更新进程不会立即加载更新后的 CLI 的新问题。更新至 0.1.11 或更高版本后，请在相同账户环境中运行交互式 `aptly setup`、`aptly set default` 或 `aptly set transmission --review`。0.1.11 及更高版本的 `aptly update` 也不会启动新进程，而是提示后续设置命令。
+也可查询当前值或直接选择范围。请仅运行以下更改命令中的一个，通过 `--client codex|claude|all` 选择目标。
 
 ```sh
 aptly set transmission --show
@@ -40,34 +38,31 @@ aptly set transmission description
 aptly set transmission excerpt
 ```
 
-`--show` 结果的顶层 `status` 在查询完成时为 `complete`（退出码 0）；预期配置不完整，或状态损坏、无法读取时为 `partial`（退出码 1）。`none`、`unselected` 和确实未配置的客户端（包括不预期自动策略的手动直接调用专用 MCP）也属于查询完成。部分客户端失败时仍保留成功结果。现有客户端 JSON 字段和值保持不变；严格检查完整对象的使用方须接受新增的 `status`。部分旧版客户端状态混合表示未配置与错误，因此汇总状态还反映已检查的查询健康情况。`complete` 不证明宿主路由、模型或信任已就绪。查询不自动修复、获取同意或调用服务提供方，也不输出原始路径、输入、密钥或堆栈。
+更改后请重启 MCP。现有 v1 策略在更改前保持为旧版 `excerpt`。操作员修改和其他包装器不会被自动接管。进行中的传输无法撤回，更改前的结果、retry 和 fresh 不适用新策略。请勿用新的付费 ID 绕过冲突。
 
-以上修改命令展示不同选项；请只执行所需的一项。可用 `--client codex|claude|all` 选择宿主。`none` 停止自动传输并保留原调用。`description` 仅允许父代理提供的说明。没有说明时，会在调用 API 前请求补充上下文，不自动回退到 native 正文或标签。`defaults` 阻止尚未解决的 spawn；`advisory` 仅提供提示。`excerpt` 允许既有 native 摘录和显式说明。来源、大小及已知秘密模式检查不能证明内容不敏感，也不代表用户同意。
+`--show` 的 `complete` 和退出代码 0 表示查询完成，也包括实际未设置和 `none`。预期设置损坏、缺失或冲突时为 `partial` 和退出代码 1。此命令不确认宿主是否已准备运行或是否同意传输。
 
-既有 v1 策略保持原始字节不变，并显示来源为 `legacy` 的 `excerpt`。只有显式修改才迁移为 v2，并同时更新所有权记录。不会自动接管已修改的策略或自定义启动器，冲突时予以保留。不删除密钥、账本或未知结果记录。修改后请重启 MCP。无法撤回已开始的传输；策略变化会阻止之前的处理中结果、retry 和 fresh 准备被应用。请勿使用新的付费 ID 绕过旧调用的绑定冲突。显式的 `recommend_agent` 和 `aptly recommend` 属于独立请求，不受此自动传输设置禁止。
+`advisory` 是限制应用的模式，并非禁止传输。`description` 的说明不足时，`defaults` 阻止派生，`advisory` 给出提示。`recommend_agent` 和 `aptly recommend` 是单独的明确请求，不受自动传输设置禁止。
 
-手动设置 `enabled: false` 仍可作为紧急停止方式，但可能引发所有权冲突。常规修改请使用以上命令，不要编辑所有权记录以绕过检查。
+<details>
+<summary>直接编辑策略以紧急停止</summary>
+
+在 `APTLY_HOOK_POLICY_PATH` 指向的现有私有策略中，仅将 `enabled` 改为 `false`，即可在自动分类和绑定之前保留原调用。请勿编辑其他字段或所有权记录。由于可能发生所有权冲突，常规更改请使用上述 CLI。清除策略路径可能切换到 strict 路径，因此不能用作停止方法。已开始的传输和明确的直接推荐无法取消。
+
+</details>
 
 <a id="guide-transmission-limits"></a>
 
-## 传输内容与过滤限制
+## 传输内容与限制
 
-在 `excerpt` 范围内，没有预先注册的说明时，自动分类的 `summary` 是由有效任务标签与正文**截取后的首段拼接成的摘录**，并不是重新进行语义摘要或匿名化。其 UTF-8 大小不超过 `min(4000, max_summary_bytes)`；这不是整个 HTTP 请求的大小限制。Codex 的 opaque 消息回退仅使用足够具体的 `task_name`，不会解码或传输该正文。标签也可能包含敏感信息。
+在 `excerpt` 范围内，没有预先注册说明的自动分类，其 `summary` 由允许的任务标签和正文**第一段截取的摘录**组成。它不会重新概括含义或匿名化。UTF-8 大小不超过 `min(4000, max_summary_bytes)`，这不是整个 HTTP 请求的大小限制。Codex 不透明消息的 fallback 不解密或传输正文，仅使用足够具体的 `task_name`。标签也可能包含敏感信息。
 
-有效的 `prepare_spawn_context` 说明会加上固定前缀，替代 native 摘录用于分类；注册本身不调用 API。收到上下文不足的响应后，`retry_spawn_recommendation` 可使用固定前缀与新的补充说明重新推荐一次，不附加先前正文。两条路径均将原始说明限制在 `min(3800, max_summary_bytes - 96)` 字节以内，含前缀的说明限制在 `min(4000, max_summary_bytes)` 字节以内。`prepare_fresh_delegation` 本身复用已完成的推荐，不再调用分类，并将独立指令作为本地下一次调用的参数返回。按返回参数明确指定模型与 effort 的 Codex 调用，目前会由 Hook 以 `explicit_model` 保留，不进行分类。检查后续调用并不意味着再次分类。这些路径均不保证说明不含敏感信息，也不保证自动匿名化。
+通过 `prepare_spawn_context` 注册有效说明后，分类使用固定前缀和该说明，而非原生摘录。注册本身不调用 API。`retry_spawn_recommendation` 在上下文不足的响应后，使用固定前缀和新的补充说明重新推荐一次，不附加先前正文。这两条路径的原始说明均不超过 `min(3800, max_summary_bytes - 96)` 字节，含前缀的说明不超过 `min(4000, max_summary_bytes)` 字节。`prepare_fresh_delegation` 本身复用已完成的推荐，不调用额外分类，并将独立指令作为本地下次调用的参数返回。明确指定返回的模型和 effort 的 Codex 调用，在当前 Hook 中会以 `explicit_model` 保留而不分类。后续调用的路由检查不意味着额外分类。任何路径都不保证说明不含敏感信息或已自动匿名化。
 
-Decisions 会收到 `client`、`task.summary`、`task.operation`、`task.context_sufficient`，以及候选配置 ID、模型与 effort 说明、已配置的模型特性。分类 API 密钥通过 `Authorization` 请求头发送，请求 ID 通过 `X-Client-Request-Id` 发送。自动路径使用哈希 ID，直接推荐的 ID 由调用方提供。请勿在 ID 或候选说明中放入秘密信息。
+发送给 Decisions 的内容包括 `client`、`task.summary`、`task.operation`、`task.context_sufficient`，以及候选配置的 ID、模型和 effort 说明及已设置的模型特性。分类用 API 密钥通过 `Authorization` 头发送，请求 ID 通过 `X-Client-Request-Id` 头发送。自动路径的 ID 是哈希，直接推荐的 ID 由调用方指定。请勿在 ID 或候选说明中放入秘密信息。
 
-如需关闭自动共享，请在 `APTLY_HOOK_POLICY_PATH` 指向的现有私有策略文件中，**仅将 `enabled` 改为 `false`**，保留其他字段和所有权记录。之后的自动 Hook 调用会在分类或创建调用绑定文件之前保留原始调用。这无法撤销已开始的传输，也无法收回服务器已收到的信息。修改生成的策略后，安装、配置或移除命令的所有权检查可能报告冲突；这些命令不会覆盖已关闭的策略。请勿修改所有权记录来绕过检查。
+如需自行选择共享摘要，请关闭自动共享后，仅编写直接推荐所需的信息。Aptly 不会自动读取并附加摘要中 URL 指向的文档或源文件。已知密钥和 Bearer 模式过滤并不能完整检测秘密或保证传输安全。
 
-传输范围允许时，`mode: advisory` 仍会传输分类数据，不是隐私共享的关闭方式。删除 `APTLY_HOOK_POLICY_PATH` 可能启用既有 strict 路径，请勿以此代替关闭共享。`enabled: false` 不会阻止显式发起的 `recommend_agent` 或 `aptly recommend` 请求。
+账本和 Hook 绑定保存请求元数据、哈希和缓存结果，不保存任务摘录。Aptly 的诊断结果也不包含原文。但为了让本地宿主继续执行，Hook 的 `updatedInput` 保留原始任务。Aptly 不控制宿主自身的对话或日志存储。
 
-如需自行控制共享摘要，请先关闭自动共享，再为直接推荐编写必要的信息。Aptly 不会自动获取摘要中 URL 的文档，也不会附加提到的源文件。已知密钥和 Bearer 模式检查不能完整检测所有秘密，也不能保证文本适合对外传输。
-
-账本与 Hook 绑定保存请求元数据、哈希和缓存结果，不保存任务摘录。Aptly 诊断也不包含任务原文。但本地 Hook 的 `updatedInput` 会保留原任务，以便宿主继续执行。宿主自身的会话和日志保留不受 Aptly 控制。
-
-## 相关文档
-
-[自动推荐](routing.md) · [预算限制](budget.md) · [执行统计](statistics.md)
-
-[指南目录](../zh-CN.md)
+[自动推荐](routing.md) · [预算](budget.md) · [指南目录](../zh-CN.md)
