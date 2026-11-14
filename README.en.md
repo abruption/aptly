@@ -28,6 +28,8 @@ Choose the transmission scope in `set default` and enter your API key through th
 
 ## Update
 
+Stop the relevant hosts, MCP servers, and CLI processes before running these commands.
+
 ```sh
 aptly update
 aptly setup --client all

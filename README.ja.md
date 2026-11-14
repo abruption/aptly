@@ -28,6 +28,8 @@ aptly set env OPENAI_API_KEY
 
 ## 更新
 
+実行前に、関連するホスト・MCP サーバー・CLI プロセスを停止してください。
+
 ```sh
 aptly update
 aptly setup --client all
