@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import {systemAliasAllowed} from '../src/files.ts';
 import { auditDocumentation, auditGuideContent, collectDocumentation } from './docs-check.ts';
+import { stableSmokeWrapperSource, formatSmokeRunnerFailure } from './stable-smoke-diagnostics.ts';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, statSync, readdirSync, lstatSync, readlinkSync, copyFileSync, chmodSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -86,6 +87,9 @@ try {
     const preview=JSON.parse(run(oldNode,[stableCli,'setup','--client','codex','--migrate-launcher','--launcher','stable','--dry-run'],prefix));assert.equal(preview.status,'complete');
     assert.ok(!readdirSync(home).includes('.local'),'dry-run must not materialize a runtime');
     const setup=JSON.parse(run(oldNode,[stableCli,'setup','--client','codex','--migrate-launcher','--launcher','stable'],prefix));assert.equal(setup.status,'complete');
+    // Test helpers stay outside the shipped package and the immutable payload.
+    writeFileSync(join(prefix,'stable-smoke-diagnostics.mjs'),readFileSync(join(process.cwd(),'dist/scripts/stable-smoke-diagnostics.js')));
+    writeFileSync(join(prefix,'stable-smoke-wrapper.mjs'),stableSmokeWrapperSource,{mode:0o600});
     writeFileSync(join(prefix,'stable-smoke.mjs'),`
 import assert from 'node:assert/strict';
 import {readFileSync,rmSync} from 'node:fs';
@@ -96,15 +100,27 @@ import {parse} from 'smol-toml';
 import {DatabaseSync} from 'node:sqlite';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+import {StableSmokeDiagnostics} from './stable-smoke-diagnostics.mjs';
 const source=process.argv[2],expectedVersion=process.argv[3],oldNode=process.argv[4];
 const entry=parse(readFileSync(join(homedir(),'.codex/config.toml'),'utf8')).mcp_servers.aptly;
 assert.deepEqual(entry.args,['serve']);assert.ok(!entry.command.startsWith(source));
 rmSync(source,{recursive:true});rmSync(oldNode,{recursive:true});
 const client=new Client({name:'installed-stable-runtime-smoke',version:'1'});
-const transport=new StdioClientTransport({command:entry.command,args:entry.args,env:{...entry.env,PATH:'',ROUTER_PROVIDER:'fixture',NODE_OPTIONS:'--unsupported-injection-fixture'},stderr:'pipe'});
-let stderr='';transport.stderr?.on('data',c=>stderr+=c);
-try{await client.connect(transport);const r=await client.callTool({name:'get_routing_capabilities',arguments:{}});assert.notEqual(r.isError,true);assert.equal(r.structuredContent.runtime_diagnostics.version,expectedVersion);assert.equal(r.structuredContent.provider,'fixture');}finally{await client.close();}
-assert.equal(stderr,'');
+const statusPath=join(process.cwd(),'stable-child-status.json');
+const diagnostics=new StableSmokeDiagnostics(statusPath);
+// The wrapper starts with clean Node options; it restores the unsupported
+// injection fixture only on the actual launcher, which must still remove it.
+const transport=new StdioClientTransport({command:process.execPath,args:['--no-experimental-strip-types',join(process.cwd(),'stable-smoke-wrapper.mjs'),statusPath,entry.command,...entry.args],env:{...entry.env,PATH:'',ROUTER_PROVIDER:'fixture',NODE_OPTIONS:''},stderr:'pipe'});
+transport.stderr?.on('data',chunk=>diagnostics.captureStderr(chunk));
+let failed=false;
+try{
+ diagnostics.phase='connect';await client.connect(transport);
+ diagnostics.phase='capabilities';const r=await client.callTool({name:'get_routing_capabilities',arguments:{}});
+ diagnostics.phase='validation';assert.notEqual(r.isError,true);assert.equal(r.structuredContent.runtime_diagnostics.version,expectedVersion);assert.equal(r.structuredContent.provider,'fixture');
+}catch(error){failed=true;diagnostics.fail(error);}
+finally{try{await client.close();diagnostics.finishCleanup();}catch(error){failed=true;diagnostics.finishCleanup(error);}}
+if(!failed&&diagnostics.report().stderr_class!=='empty'){failed=true;diagnostics.phase='cleanup';diagnostics.fail(new Error('unexpected_fixture_stderr'));}
+if(failed){console.error('APTLY_STABLE_SMOKE_DIAGNOSTIC '+JSON.stringify(diagnostics.report()));process.exit(1);}
 const hooks=JSON.parse(readFileSync(join(homedir(),'.codex/hooks.json'),'utf8')).hooks;
 const command=hooks.SubagentStart[0].hooks[0].command;assert.ok(command.includes(entry.command));assert.ok(!command.includes(source));assert.ok(!command.includes(oldNode));
 const policy=JSON.parse(readFileSync(entry.env.APTLY_HOOK_POLICY_PATH,'utf8')),database=join(policy.state_directory,'stats.sqlite');
@@ -114,7 +130,10 @@ const observe=spawnSync('/bin/sh',['-c',command],{input:JSON.stringify({hook_eve
 assert.equal(observe.status,0);assert.equal(observe.stdout,'');assert.equal(observe.stderr,'');assert.equal(count(),before+1);
 console.log('Stable smoke: a qualified fallback served MCP and the registered shell observer recorded one fixture event; manager-specific selection is not inferred.');
 `);
-    run(process.execPath,['--no-experimental-strip-types',join(prefix,'stable-smoke.mjs'),stablePackage,metadata.version,oldNodeRoot],prefix);
+    const stableSmoke=spawnSync(process.execPath,['--no-experimental-strip-types',join(prefix,'stable-smoke.mjs'),stablePackage,metadata.version,oldNodeRoot],{cwd:prefix,env,encoding:'utf8',timeout:120000,maxBuffer:4*1024*1024});
+    assert.equal(stableSmoke.status,0,formatSmokeRunnerFailure(stableSmoke));
+    assert.ok(stableSmoke.stderr==='',formatSmokeRunnerFailure(stableSmoke));
+    assert.ok(stableSmoke.stdout==='Stable smoke: a qualified fallback served MCP and the registered shell observer recorded one fixture event; manager-specific selection is not inferred.\n',formatSmokeRunnerFailure(stableSmoke));
     console.log('Installed tarball: stable generation MCP/observer survived original Node-copy and global package removal with empty PATH; paid calls: 0.');
   }else console.log('Stable runtime executable smoke skipped: unsupported platform or writable temporary-root ancestry; trust was not relaxed.');
   // Resolve all imports from the installed prefix, not this source tree.
