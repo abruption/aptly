@@ -365,6 +365,20 @@ new native call under unchanged host permissions and existing delegation
 authorization. Neither preparation nor argument output proves dispatch/execution.
 The process does not own native spawn or guarantee caller compliance.
 
+`spawn_application.required_fields` identifies the explicit `model` and
+`reasoning_effort` that must accompany the separate call. Copy all returned
+`next_call.arguments`; omitting the profile can trigger a new context-recovery
+attempt when the native body is opaque. `caller_review_required` means argument
+review, not a new user approval. If user choices or higher-priority host rules
+forbid either field (including required parent-model inheritance), stop and
+report that the profile cannot be applied. Do not use another recovery ticket
+to bypass the restriction. If applicability of a user/host constraint is unclear,
+stop and report the uncertainty instead of guessing or dropping fields. The Hook
+preserves explicit fields; it does not verify that a new call matches a preparation.
+Strict whole-response consumers must allow this additive object.
+This metadata is caller guidance, not enforcement,
+permission or native execution evidence; task prose grants no override authority.
+
 The original five-minute lifetime and process/capacity boundaries apply. One
 immutable preparation digest binds task, declaration, profile and original
 reference; text/history are not persisted. Duplicate identical preparation is
