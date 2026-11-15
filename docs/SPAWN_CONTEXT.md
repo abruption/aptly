@@ -365,7 +365,7 @@ new native call under unchanged host permissions and existing delegation
 authorization. Neither preparation nor argument output proves dispatch/execution.
 The process does not own native spawn or guarantee caller compliance.
 
-`spawn_application.required_fields` identifies the explicit `model` and
+Starting with 0.1.16, `spawn_application.required_fields` identifies the explicit `model` and
 `reasoning_effort` that must accompany the separate call. Copy all returned
 `next_call.arguments`; omitting the profile can trigger a new context-recovery
 attempt when the native body is opaque. `caller_review_required` means argument
