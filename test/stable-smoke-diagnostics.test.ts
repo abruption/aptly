@@ -139,17 +139,40 @@ test('real wrapper records a spawn failure', t => {
   assert.deepEqual(statusAt(f.status), { exit_code: null, signal: null, spawn_error: 'ENOENT' });
 });
 
-test('real wrapper forwards termination and records child signal', { skip: process.platform === 'win32' }, async t => {
+test('signal received during spawn is forwarded when its child handle becomes available', t => {
+  const f=fixture(t);
+  // Controlled synchronous spawn boundary, not a claim about the historical CI run.
+  const shim=`import {EventEmitter} from 'node:events';
+function spawn(){
+ for(const signal of ['SIGTERM','SIGINT','SIGHUP'])if(process.listenerCount(signal)===0)throw Error('signal_handler_not_ready');
+ const child=new EventEmitter();
+ child.kill=signal=>{queueMicrotask(()=>child.emit('close',null,signal));return true;};
+ process.emit('SIGTERM');return child;
+}`;
+  assert.ok(stableSmokeWrapperSource.includes("import {spawn} from 'node:child_process';"));
+  writeFileSync(f.wrapper,stableSmokeWrapperSource.replace("import {spawn} from 'node:child_process';",shim));
+  const result=runWrapper(f,'synthetic-command');
+  assert.equal(result.status,1);
+  assert.deepEqual(statusAt(f.status),{exit_code:null,signal:'SIGTERM',spawn_error:null});
+});
+
+test('real wrapper forwards termination and records child signal', { skip: process.platform === 'win32',timeout:10000 }, async t => {
   const f = fixture(t);
-  const child = spawn(process.execPath, [f.wrapper, f.status, '/bin/sh', '-c', 'echo ready; exec sleep 30'], { stdio: ['ignore', 'pipe', 'pipe'] });
-  t.after(() => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); });
+  const child = spawn(process.execPath, [f.wrapper, f.status, '/bin/sh', '-c', 'echo ready; exec sleep 30'], { stdio: ['ignore', 'pipe', 'pipe'],detached:true });
+  const closed=once(child,'close');
+  t.after(async() => {
+    // Only this fixture's new process group, including descendants left by a failed wrapper.
+    try{process.kill(-child.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}
+    await closed;
+  });
   await Promise.race([
     once(child.stdout, 'data'),
     new Promise((_, reject) => setTimeout(() => reject(new Error('wrapper fixture startup timed out')), 5000).unref()),
   ]);
   child.kill('SIGTERM');
-  const [code] = await once(child, 'close');
+  const [code,signal] = await closed;
   assert.equal(code, 1);
+  assert.equal(signal,null);
   assert.deepEqual(statusAt(f.status), { exit_code: null, signal: 'SIGTERM', spawn_error: null });
 });
 
