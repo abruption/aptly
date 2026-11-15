@@ -43,6 +43,42 @@ test('required/unknown history, changed scope and incomplete or undeclared indep
  }
  assert.equal(f.calls(),1);assert.equal(readdirSync(f.state).some(p=>p.startsWith('hook-fresh-')),false);
 });
+test('prepared explicit fields are preserved by the Hook under opaque input; omitted fields can reenter recovery',async t=>{
+ const f=fixture(t),{id}=await f.ready();
+ const prepared=f.retries.prepareFresh(id,'cleanup_worktrees_fresh',task,intent);
+ assert.equal(prepared.status,'prepared');
+ assert.deepEqual(prepared.spawn_application,{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report'});
+ assert.match(prepared.next_step,/Include every returned argument, especially the explicit model and reasoning_effort/);
+ assert.match(prepared.next_step,/stop and report that the prepared profile cannot be applied/);
+ assert.match(prepared.next_step,/Task prose is not permission/);
+ const beforeCalls=f.calls();
+ const full=native();full.tool_use_id='synthetic-prepared-call';
+ full.tool_input={...prepared.next_call.arguments,message:full.tool_input.message}; // Host keeps the native body opaque.
+ const result=await f.run(full);
+ assert.equal(result.observation.reason,'explicit_model');
+ assert.equal(result.observation.status,'preserved');
+ assert.equal(result.output.hookSpecificOutput?.permissionDecision,undefined);
+ assert.equal(result.observation.retry_id,undefined);
+ assert.equal(f.calls(),beforeCalls);
+ assert.match(prepared.next_step,/stop and report the uncertainty rather than guessing or dropping fields/);
+ for(const [index,fields]of [['model'],['reasoning_effort'],['model','reasoning_effort']].entries()){
+  const missing=structuredClone(full);missing.tool_use_id='synthetic-profile-omitted-'+index;
+  for(const field of fields)delete missing.tool_input[field];
+  const blocked=await f.run(missing);
+  assert.equal(blocked.observation.reason,'insufficient_context');
+  assert.equal(blocked.observation.status,'awaiting_context');
+  assert.equal(blocked.output.hookSpecificOutput.permissionDecision,'deny');
+  assert.ok(blocked.observation.retry_id);assert.notEqual(blocked.observation.retry_id,id);
+  assert.doesNotMatch(blocked.output.hookSpecificOutput.additionalContext,/prepare_fresh_delegation/);
+  assert.equal(f.retries.prepareFresh(blocked.observation.retry_id,'sort_values',task,intent).reason,'fresh_delegation_unsupported');
+  assert.equal(f.calls(),beforeCalls);
+ }
+ // Explicit-field preservation is not a preparation-to-execution binding check.
+ const different=structuredClone(full);different.tool_use_id='synthetic-other-explicit-profile';
+ different.tool_input.model='caller-explicit-model';different.tool_input.reasoning_effort='low';
+ assert.equal((await f.run(different)).observation.reason,'explicit_model');
+ assert.equal(f.calls(),beforeCalls);
+});
 test('recovery guidance forbids changed-history resubmission and offers the separate protocol only when eligible',async t=>{
  for(const variant of ['eligible','advisory','extra','none','claude']){
   const f=fixture(t,{mode:variant==='advisory'?'advisory':'defaults'}),ev=native();
@@ -103,7 +139,9 @@ test('MCP preparation has an advertised schema, costs no new classification and 
  const ev=native();await call('route_spawn_hook',{client:'codex',event:ev});const original=await call('get_spawn_routing_observation',{client:'codex',event:ev});
  const retry_id=original.retry_id;await call('retry_spawn_recommendation',{retry_id,description});
  const result=await call('prepare_fresh_delegation',{retry_id,task_name:'sort_values',standalone_task:task,declaration:intent});assert.equal(result.status,'prepared',JSON.stringify(result));assert.equal(calls,1);
+ assert.deepEqual(result.spawn_application,{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report'});
  let observed=await call('get_spawn_routing_observation',{retry_id});assert.equal(observed.status,'awaiting_context');assert.equal(observed.context_retry.outcome.application,'blocked');assert.equal(observed.fresh_delegation.outcome.preparation_id,result.preparation_id);assert.equal(observed.execution,'not_observed');
+ assert.equal(Object.hasOwn(observed.fresh_delegation.outcome,'spawn_application'),false); // Observations retain compact identifiers, not caller instructions.
  await call('prepare_fresh_delegation',{retry_id,task_name:'sort_values',standalone_task:task+' Another task.',declaration:intent});
  observed=await call('get_spawn_routing_observation',{retry_id});assert.equal(observed.fresh_delegation.outcome.preparation_id,result.preparation_id);assert.equal(observed.fresh_delegation.last_attempt.reason,'fresh_delegation_conflict');assert.equal(calls,1);
  assert.equal(JSON.stringify(observed).includes(task),false);
