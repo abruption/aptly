@@ -81,8 +81,15 @@ import {spawn} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 const [record, command, ...args] = process.argv.slice(2);
 let spawnError = null;
-const child = spawn(command, args, {stdio:'inherit', env:{...process.env,NODE_OPTIONS:'--unsupported-injection-fixture'}});
-for (const signal of ['SIGTERM','SIGINT','SIGHUP']) process.on(signal,()=>{child.kill(signal);});
+let child;
+let pendingSignal = null;
+// A fast child may become ready before spawn() returns in this process.
+// Install OS signal handling first, then forward any signal received in that gap.
+for (const signal of ['SIGTERM','SIGINT','SIGHUP']) process.on(signal,()=>{
+  if (child) child.kill(signal); else pendingSignal ??= signal;
+});
+child = spawn(command, args, {stdio:'inherit', env:{...process.env,NODE_OPTIONS:'--unsupported-injection-fixture'}});
+if (pendingSignal) child.kill(pendingSignal);
 child.once('error',error=>{spawnError=['ENOENT','EACCES'].includes(error.code)?error.code:'other';});
 child.once('close',(code,signal)=>{
   const value={exit_code:Number.isInteger(code)&&code>=0&&code<=255?code:null,signal,spawn_error:spawnError};
