@@ -156,6 +156,9 @@ export function auditGuideContent(files: Record<string,string>): DocumentationEr
   return errors;
 }
 
+/** Shared offline anchor interpretation for repository Markdown publication. */
+export function markdownAnchors(content: string): ReadonlySet<string> { return parse('', content).anchors; }
+
 function main(): void {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const files = collectDocumentation(root);
