@@ -155,7 +155,7 @@ npm trust github aptly --file publish.yml --repo abruption/aptly --env npm --all
 
 ## 버전별 GitHub Release 노트
 
-버전별 노트 원본은 `docs/release-notes/`에 보관하고, GitHub Release 본문에도 같은 내용을 게시합니다. npm 게시와 출처 검증 기록인 `docs/releases/`와 구분하여 사용자에게 필요한 변경 내용을 먼저 보여 줍니다.
+버전별 노트 원본은 `docs/release-notes/`에 보관합니다. 파일용 상대 링크를 그대로 Release에 붙이지 말고 아래 렌더러로 발행용 본문을 만드십시오. npm 게시·출처 기록인 `docs/releases/`와 구분하여 사용자 변경 내용을 먼저 보여 줍니다.
 
 노트에는 다음 항목을 포함합니다.
 
@@ -165,16 +165,25 @@ npm trust github aptly --file publish.yml --repo abruption/aptly --env npm --all
 - **배포·검증:** npm 버전과 실제 Actions 실행·출처 검증 상태를 구분합니다. 과거 초기 게시의 검증 한계도 그대로 남깁니다.
 - **전체 변경:** 이전 태그와의 compare 및 정확한 npm 버전·소스 태그 링크를 제공합니다.
 
-새 버전은 실제 npm 게시와 provenance 검증 후 Release를 게시합니다. 기존 태그를 확인하는 `--verify-tag`를 사용하며 태그를 새로 만들거나 이동하지 않습니다. 예시의 버전은 실제 대상 버전으로 바꿉니다.
+새 버전은 npm 게시와 provenance 검증 후 Release를 게시합니다. 소스 체크아웃에서 필요한 태그·커밋을 먼저 가져오십시오. 안내 파일은 릴리즈 태그로 연결하고, 태그 후 작성한 게시 기록은 그 파일이 있는 **GitHub에 공개된 고정 커밋 SHA**로 연결합니다. 게시 기록을 먼저 커밋·푸시하되 아직 생성하지 않은 GitHub Release의 공개 완료·시각을 사실로 기록하지 마십시오. 예시의 버전·SHA·비공개 출력 경로를 실제 값으로 바꿉니다.
 
 ```sh
 aptly_release_version=X.Y.Z
+aptly_evidence_ref=FULL_COMMIT_SHA
+umask 077
+node scripts/release-notes.ts --tag "v${aptly_release_version}" \
+  --evidence-ref "$aptly_evidence_ref" \
+  > /absolute/private/release-evidence/release-body.md && \
 gh release create "v${aptly_release_version}" --repo abruption/aptly --verify-tag \
   --title "Aptly ${aptly_release_version}" \
-  --notes-file "docs/release-notes/${aptly_release_version}.md" --latest
+  --notes-file /absolute/private/release-evidence/release-body.md --latest
 ```
 
-이미 Release가 있으면 내용을 확인한 후 `gh release edit`로 노트만 갱신합니다. 과거 버전의 사후 기록은 `--latest=false`로 등록하고, npm 최초 게시 시점과 사후 노트 작성임을 구분합니다. 현재 워크플로는 태그 push 또는 명시적 dispatch에서만 npm을 게시하므로, 기존 태그의 GitHub Release 노트 작성은 npm 재게시가 아닙니다.
+렌더러는 로컬 Git 객체의 파일·Markdown 앵커를 확인한 뒤 절대 링크를 stdout으로 출력합니다. 저장소의 단순 인라인 링크·코드 구문을 대상으로 하며 지원하지 않는 상대 링크는 오류로 중단합니다. 코드 블록은 그대로 유지합니다. 네트워크·Release 쓰기는 하지 않으므로 공개 ref 접근성 확인을 대신하지 않습니다. 외부 절대 URL은 변환·검증하지 않습니다.
+
+승인된 게시 후 **렌더된 본문의 링크**를 열어 파일과 앵커까지 확인하십시오. v0.1.16 회귀 사례는 stable 실행기 안내, 설치·업데이트 안내, 게시 기록의 3개입니다. 로컬 fixture 통과와 실제 발행 확인은 구분합니다.
+
+기존 Release 본문 수정은 별도 승인을 받고, 같은 렌더링·공개 링크 확인 절차로 `gh release edit --notes-file`만 수행하십시오. 태그·tarball·attestation은 변경하지 않습니다. 문서·메타데이터 수정에는 npm 재게시가 필요하지 않습니다. 과거 버전의 사후 Release 생성은 `--latest=false`를 쓰고 최초 npm 게시와 구분하십시오.
 
 ## 게시 후 provenance 검증
 
