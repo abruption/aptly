@@ -1,8 +1,10 @@
 # npm OIDC 배포와 공개 준비
 
-## 0.1.17 준비
+## 0.1.17 게시와 검증
 
-[릴리즈 노트](release-notes/0.1.17.md) · #182. 준비 PR 병합과 정확한 main CI 성공 후 승인된 태그·Actions OIDC 게시를 진행합니다. 아직 게시하지 않았습니다.
+[릴리즈 노트](release-notes/0.1.17.md) · [게시·출처 검증 기록](releases/0.1.17.md)
+
+정확한 main CI 7개와 Actions OIDC 게시 3개 job이 성공했습니다. 실행 artifact·registry 파일 일치, 격리 설치 CLI, npm 서명과 GitHub provenance 검증을 확인했습니다.
 
 ## 0.1.16 게시와 검증
 
