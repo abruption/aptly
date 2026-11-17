@@ -173,7 +173,7 @@ requires the parent to review and explicitly supply only unspecified model/effor
 fields to a new compatible native call. Caller review means argument review,
 not a request for new user approval. Existing delegation authorization and host
 permission checks still apply; this advisory result grants neither.
-Application-bearing retry/fresh outputs are checked by a shared Zod contract.
+Starting with 0.1.17, application-bearing retry/fresh outputs are checked by a shared Zod contract.
 For an applicable retry, `required_fields` matches only returned missing fields,
 `next_action` is `apply_returned_defaults`, and `on_unavailable` is
 `stop_and_report`; fresh calls use `submit_prepared_call`. Blocked and

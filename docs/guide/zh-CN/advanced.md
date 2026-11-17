@@ -145,7 +145,7 @@ fixture 无需密钥、网络或执行子代理，即可返回本地模拟结果
 
 `context_retry_allowed: false` 仅表示不再接受上下文补充。对于兼容的推荐，`caller_review_required` 表示父代理检查参数，并非要求用户重新批准。现有委派授权和宿主权限检查仍然有效。
 
-retry 与 fresh 的应用元数据使用共同的 Zod 契约验证。retry 的 `required_fields` 仅含未指定字段，`next_action` 为 `apply_returned_defaults`（fresh 为 `submit_prepared_call`）。若禁止应用或情况不明，请停止；不要将复用现有代理视为已应用推荐。内部不一致时仅返回 `recovery_metadata_invalid`，不暴露原始数据或重复已完成的分类。严格校验响应的调用方应允许新增字段。验证不证明调用方遵守指令或拥有执行权限。
+以下共同响应验证自 0.1.17 起提供。retry 与 fresh 的应用元数据使用共同的 Zod 契约验证。retry 的 `required_fields` 仅含未指定字段，`next_action` 为 `apply_returned_defaults`（fresh 为 `submit_prepared_call`）。若禁止应用或情况不明，请停止；不要将复用现有代理视为已应用推荐。内部不一致时仅返回 `recovery_metadata_invalid`，不暴露原始数据或重复已完成的分类。严格校验响应的调用方应允许新增字段。验证不证明调用方遵守指令或拥有执行权限。
 
 <a id="guide-fresh-delegation"></a>
 
