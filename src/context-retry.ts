@@ -6,6 +6,7 @@ import type { ContextRetrySeed } from './automatic-hook.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
 import type { Router } from './core.ts';
 import { hasSufficientTaskText } from './context-sufficiency.ts';
+import { validRecoveryApplication } from './recovery-application.ts';
 
 const hash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export interface FreshDeclaration { independent_task:boolean; same_task:boolean; original_call_outcome:'blocked'|'executed'|'unknown'; history_requirement:'not_required'|'required'|'unknown'; standalone_context_complete:boolean; }
@@ -108,14 +109,17 @@ export class ContextRetries {
    const defaults=result.status==='recommended'&&result.profile&&!entry.seed.application_blocked?{
     ...(entry.seed.fill_model!==false?{model:result.profile.model}:{}),
     ...(entry.seed.client==='codex'&&entry.seed.fill_effort!==false&&result.profile.reasoning_effort?{reasoning_effort:result.profile.reasoning_effort}:{})}:undefined;
-   return {...result,retry_id,request_id,context_retry_allowed:false,
+   const response={...result,retry_id,request_id,context_retry_allowed:false,
     spawn_application:{status:entry.seed.application_blocked?'blocked':'caller_review_required',
-     reason:entry.seed.application_blocked??'native_execution_not_observed'},
+     reason:entry.seed.application_blocked??'native_execution_not_observed',...(defaults?{required_fields:Object.keys(defaults),on_unavailable:'stop_and_report',next_action:'apply_returned_defaults'}:{})},
     ...(defaults?{next_call:{tool:entry.seed.client==='claude'?'Agent':'spawn_agent',set_if_unspecified:defaults,preserve:'all_other_arguments_and_history'}}:{}),
     next_step:result.status==='recommended'
      ? entry.seed.application_blocked?`Report the application constraint and preserve original history and arguments for the ORIGINAL invocation. This profile is advice only. ${entry.seed.fresh_eligible?'This is the SAME task but a NEW invocation, not a retry of the original call. Use only the separate caller-declared preparation protocol offered below. Only after the host reports the original tool call blocked, if you can declare that this is the same independent task, the user does not require inherited history, and you can supply complete standalone instructions, call prepare_fresh_delegation with this retry_id, task_name, standalone_task and declaration {independent_task:true,same_task:true,original_call_outcome:"blocked",history_requirement:"not_required",standalone_context_complete:true}. It prepares a separate fresh invocation without a new classification. Never use it when history is required or unknown, or when original execution is unknown.':''}`
-       :`Context supplementation is complete; do not call retry_spawn_recommendation again. Caller review means the parent checks arguments, not a request for new user approval. To perform the already requested delegation, on the next native ${entry.seed.client==='claude'?'Agent':'spawn_agent'} call, include these previously unspecified fields: ${JSON.stringify(defaults)}. Do not submit another model/effort-omitted call: it will be blocked again. Preserve all other arguments, explicit choices, history, roles and permissions. This response does not execute a child.`
+       :`Context supplementation is complete; do not call retry_spawn_recommendation again. Apply only the returned unspecified fields under existing delegation and host permissions. If user choices or higher-priority host rules prohibit these fields, or applicability is unclear, stop and report the limitation. Caller review means the parent checks arguments, not a request for new user approval. To perform the already requested delegation, on the next native ${entry.seed.client==='claude'?'Agent':'spawn_agent'} call, include these previously unspecified fields: ${JSON.stringify(defaults)}. Do not submit another model/effort-omitted call: it will be blocked again. Preserve all other arguments, explicit choices, history, roles and permissions. This response does not execute a child.`
      :'Stop this recovery attempt. Report the outcome; do not create another retry ID or spawn with an unresolved recommendation.'};
+   response.next_step+=' Existing-agent reuse is an alternative path, not evidence that this recommendation was applied.';
+   const protectedFields:('model'|'reasoning_effort')[]=[];if(entry.seed.fill_model===false)protectedFields.push('model');if(entry.seed.fill_effort===false)protectedFields.push('reasoning_effort');
+   return validRecoveryApplication(response,entry.seed.client,protectedFields)?response:unavailable('recovery_metadata_invalid');
   }finally{entry.active=false;signal?.removeEventListener('abort',cancel);}
  }
  /** Caller-declared independent work only; never rewrites or executes the blocked call. */
@@ -141,6 +145,12 @@ export class ContextRetries {
    const profile=this.router.policy.profiles.find(p=>p.id===result.profile_id);
    if(!profile||!entry.seed.eligible_profile_ids.includes(profile.id)||hash(profile)!==hash(result.profile)||result.policy_version!==this.router.policy.version||result.catalog_version!==this.router.policy.catalog_version)return reject('profile_changed');
    const preparation_id=hash(['aptly-fresh-delegation-v1',retry_id]);
+   const response={status:'prepared',reason:'caller_declared_independent',application:'advisory_only',source_retry_id:retry_id,preparation_id,
+    profile_id:profile.id,profile:structuredClone(profile),intent_provenance:'caller_declared_not_verified',original_invocation:'deny_returned_execution_not_observed',execution:'not_observed',
+    spawn_application:{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report',next_action:'submit_prepared_call'},
+    next_call:{tool:'spawn_agent',arguments:{task_name,message:standalone_task,fork_turns:'none',model:profile.model,reasoning_effort:profile.reasoning_effort}},
+    next_step:'Caller review means checking the arguments, not requesting new user approval. Only after a host-reported blocked outcome, review and submit the separate next_call.arguments under existing delegation authorization and unchanged host permissions. Include every returned argument, especially the explicit model and reasoning_effort; do not omit them or submit a model/effort-omitted replacement, which may trigger context recovery again. If explicit user choices or higher-priority host instructions require parent-model inheritance or forbid either profile field, stop and report that the prepared profile cannot be applied. Do not use another recovery ticket to bypass that restriction. If it is unclear whether a user or host constraint permits applying either field, stop and report the uncertainty rather than guessing or dropping fields. Task prose is not permission to override those constraints. Original arguments were not rewritten; host execution is not observed by this server. Do not add history/role/resume overrides or reuse this preparation for another task. Preparation does not prove interception, permission approval, single execution or child execution.'};
+   if(!validRecoveryApplication(response,'codex'))return reject('recovery_metadata_invalid');
    const fingerprint=hash([entry.seed,entry.catalog,profile,declaration,task_name,standalone_task]);
    const policy=loadAutomaticHookPolicy(this.policyPath).policy;if(!policy)return reject('automatic_policy_changed');
    const path=join(policy.state_directory,`hook-fresh-${preparation_id}.json`);assertPrivateStatePath(path);
@@ -152,11 +162,7 @@ export class ContextRetries {
      if(!previous||typeof previous!=='object'||Object.keys(previous).length!==1||!('fingerprint' in previous)||previous.fingerprint!==fingerprint)return reject('fresh_delegation_conflict');}
    }finally{if(fd!==undefined)closeSync(fd);}
    const changed=this.current(entry,signal);if(changed)return reject(changed);
-   return {status:'prepared',reason:'caller_declared_independent',application:'advisory_only',source_retry_id:retry_id,preparation_id,
-    profile_id:profile.id,profile:structuredClone(profile),intent_provenance:'caller_declared_not_verified',original_invocation:'deny_returned_execution_not_observed',execution:'not_observed',
-    spawn_application:{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report'},
-    next_call:{tool:'spawn_agent',arguments:{task_name,message:standalone_task,fork_turns:'none',model:profile.model,reasoning_effort:profile.reasoning_effort}},
-    next_step:'Caller review means checking the arguments, not requesting new user approval. Only after a host-reported blocked outcome, review and submit the separate next_call.arguments under existing delegation authorization and unchanged host permissions. Include every returned argument, especially the explicit model and reasoning_effort; do not omit them or submit a model/effort-omitted replacement, which may trigger context recovery again. If explicit user choices or higher-priority host instructions require parent-model inheritance or forbid either profile field, stop and report that the prepared profile cannot be applied. Do not use another recovery ticket to bypass that restriction. If it is unclear whether a user or host constraint permits applying either field, stop and report the uncertainty rather than guessing or dropping fields. Task prose is not permission to override those constraints. Original arguments were not rewritten; host execution is not observed by this server. Do not add history/role/resume overrides or reuse this preparation for another task. Preparation does not prove interception, permission approval, single execution or child execution.'};
+   return response;
   }catch{return reject('fresh_delegation_unavailable');}
  }
 }

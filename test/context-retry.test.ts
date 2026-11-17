@@ -6,6 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { automaticHook, loadAutomaticHookPolicy } from '../src/automatic-hook.ts';
 import { ContextRetries } from '../src/context-retry.ts';
+import { recoveryApplicationSchema } from '../src/recovery-application.ts';
 import { SpawnContexts } from '../src/spawn-context.ts';
 import { Router, defaultPolicy } from '../src/core.ts';
 import { createServer } from '../src/server.ts';
@@ -13,6 +14,15 @@ import { hookInput } from '../src/hook.ts';
 import { createTestTemp } from '../test-support/temp.ts';
 
 const description='Review a synthetic refresh change for conflict markers and incorrect imports. Return findings only; do not edit files.';
+test('invalid output metadata fails safely without repeating or discarding a completed classification',async t=>{
+ const f=fixture(t),first=await f.run(event()),id=first.observation.retry_id;
+ recoveryApplicationSchema.safeParse({}); // Materialize Zod's lazy method before fault injection.
+ t.mock.method(recoveryApplicationSchema,'safeParse',()=>({success:false}));
+ const r=await f.retries.retry(id,description);
+ assert.equal(r.reason,'recovery_metadata_invalid');assert.equal(r.status,'unavailable');assert.equal(r.next_call,undefined);
+ assert.equal(f.router.state.requests[id].state,'complete');
+ assert.equal((await f.retries.retry(id,description)).reason,'recovery_metadata_invalid');assert.equal(f.calls.length,1);
+});
 const event=()=>({hook_event_name:'PreToolUse',session_id:'synthetic-session',tool_use_id:'synthetic-call',tool_name:'spawn_agent',
  tool_input:{task_name:'review_12345_refresh',message:'gAAAAA'+'A'.repeat(96),fork_turns:'none'}});
 function fixture(t,options={}){
@@ -39,6 +49,8 @@ test('opaque short-name Hook denies, accepts one supplement, deduplicates and ne
  assert.equal(result.status,'recommended');assert.equal(result.profile.model,'gpt-6.1-terra');
  assert.equal(result.spawn_application.status,'caller_review_required');assert.equal(result.context_retry_allowed,false);
  assert.deepEqual(result.next_call.set_if_unspecified,{model:'gpt-6.1-terra',reasoning_effort:'high'});
+ assert.deepEqual(result.spawn_application.required_fields,['model','reasoning_effort']);assert.equal(result.spawn_application.next_action,'apply_returned_defaults');assert.equal(result.spawn_application.on_unavailable,'stop_and_report');
+ assert.match(result.next_step,/higher-priority host rules/);assert.match(result.next_step,/Existing-agent reuse is an alternative path/);
  assert.equal(f.calls.length,1);assert.match(f.calls[0].input.task.summary,/Caller-supplied/);
  assert.equal(f.calls[0].input.task.summary.includes(ev.tool_input.message),false);
  assert.equal(JSON.stringify(f.calls).includes('review_12345_refresh'),false);

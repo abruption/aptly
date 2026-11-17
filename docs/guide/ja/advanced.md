@@ -145,6 +145,8 @@ fixture は、キー・ネットワーク・子エージェントの実行なし
 
 `context_retry_allowed: false` は追加の文脈補足を終了する意味です。互換性のある推薦の `caller_review_required` は親が引数を確認する意味であり、新しいユーザー承認の要求ではありません。既存の委任権限とホストの権限確認は引き続き適用されます。
 
+retry・fresh の適用メタデータは共通の Zod スキーマで検証します。retry の `required_fields` は未指定フィールドのみで、`next_action` は `apply_returned_defaults`（fresh は `submit_prepared_call`）です。禁止・不明な場合は停止し、既存エージェントの再利用を推薦適用の証拠にしないでください。内部不整合は原文なしで `recovery_metadata_invalid` を返し、完了した分類は再実行しません。厳密な応答検証では追加フィールドを許容してください。呼び出し元の遵守や権限を証明する検証ではありません。
+
 <a id="guide-fresh-delegation"></a>
 
 ## 別の独立した委任を準備する（0.1.6 以降）
