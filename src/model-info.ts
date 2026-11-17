@@ -19,7 +19,7 @@ export const modelInfoUrls = Object.freeze([
   'https://learn.chatgpt.com/docs/models.md',
 ] as const);
 const aliases = ['haiku','sonnet','opus','fable'] as const;
-const codexModels = ['gpt-6-luna','gpt-6.1-terra','gpt-6.1-sol','gpt-6-astra'] as const;
+const codexModels = ['gpt-6-luna','gpt-6.1-terra','gpt-6.1-sol','gpt-6-astra','gpt-6.2-sol'] as const;
 const maximumBody = 256 * 1024, maximumSnapshot = 32 * 1024, ttl = 7 * 24 * 60 * 60 * 1000;
 const fail = (code:string) => Object.assign(new Error(code),{code});
 const own = (v:object,k:PropertyKey) => Object.hasOwn(v,k);
@@ -34,7 +34,7 @@ function validate(value:unknown): ModelInfoSnapshot {
   if(!exact(value,['schema_version','fetched_at','sources','facts'])||value.schema_version!==1||typeof value.fetched_at!=='string'||
     !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value.fetched_at)||!Number.isFinite(Date.parse(value.fetched_at))||
     new Date(value.fetched_at).toISOString()!==value.fetched_at||!Array.isArray(value.sources)||value.sources.length!==2||
-    !Array.isArray(value.facts)||value.facts.length!==8)throw fail('model_info_invalid');
+    !Array.isArray(value.facts)||![8,9].includes(value.facts.length))throw fail('model_info_invalid');
   const sources=value.sources.map((s:unknown,i:number)=>{
     if(!exact(s,['url','sha256'])||typeof s.url!=='string'||s.url!==modelInfoUrls[i]||typeof s.sha256!=='string'||!/^[a-f0-9]{64}$/.test(s.sha256))throw fail('model_info_invalid');
     return {url:s.url,sha256:s.sha256};
@@ -46,6 +46,8 @@ function validate(value:unknown): ModelInfoSnapshot {
     const key=f.client+':'+f.model;if(seen.has(key))throw fail('model_info_invalid');seen.add(key);
     return {client:f.client as ModelFact['client'],model:f.model,description:f.description};
   });
+  // Eight-fact caches from older versions remain usable; the new model uses its bundled fact.
+  if(facts.length===8&&seen.has('codex:gpt-6.2-sol'))throw fail('model_info_invalid');
   const snapshot:ModelInfoSnapshot={schema_version:1,fetched_at:value.fetched_at,sources,facts};
   if(Buffer.byteLength(JSON.stringify(snapshot))>maximumSnapshot)throw fail('model_info_invalid');
   return snapshot;
@@ -70,7 +72,7 @@ function parseCodex(markdown:string):ModelFact[] {
   if(!section)throw fail('model_info_parse_failed');
   const blocks=section.match(/<ModelDetails\b[\s\S]*?\n\s*\/>/g)??[];
   return codexModels.map(model=>{
-    const entries=blocks.filter(b=>new RegExp('\\bname="'+model.replaceAll('.','\\.')+'"').test(b));
+    const entries=blocks.filter(b=>new RegExp('\\b(?:slug|name)="'+model.replaceAll('.','\\.')+'"').test(b));
     if(entries.length!==1)throw fail('model_info_parse_failed');
     const values=[...entries[0].matchAll(/\bdescription="([^"\r\n]*)"/g)];
     const description=values.length===1?clean(values[0][1]):'';

@@ -12,8 +12,8 @@ const request=(id='catalog-task',client='codex')=>({request_id:id,client,task:{s
 
 test('runtime candidate filters and empty client lists do not call a provider or grant Hook authority',async()=>{
  const {router,disabledClients}=runtime({APTLY_CODEX_MODELS:'["gpt-6.1-sol"]',APTLY_CLAUDE_MODELS:'[]'});
- assert.deepEqual(disabledClients,['claude']);assert.deepEqual(router.capabilities().profiles,[{id:'codex-deep',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'medium'}]);
- let calls=0;router.provider=async()=>{calls++;return {choice:'codex-deep'};};
+ assert.deepEqual(disabledClients,['claude']);assert.deepEqual(router.capabilities().profiles,[{id:'codex-deep-legacy',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'medium'}]);
+ let calls=0;router.provider=async()=>{calls++;return {choice:'codex-deep-legacy'};};
  assert.equal((await router.advise(request('disabled','claude'))).reason,'no_candidates');assert.equal(calls,0);
  assert.equal((await router.advise(request('selected'))).profile.model,'gpt-6.1-sol');assert.equal(calls,1);
  assert.deepEqual(hookOutput({client:'codex',event:{},recommendation:await router.advise(request('selected')),policy:router.policy}),{});

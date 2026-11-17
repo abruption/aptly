@@ -9,7 +9,7 @@ test('draft defaults provide the user-selected three tiers and exact Codex effor
   assert.deepEqual(builtInProfiles(), [
     { id:'codex-simple',client:'codex',model:'gpt-6-luna',reasoning_effort:'max' },
     { id:'codex-routine',client:'codex',model:'gpt-6.1-terra',reasoning_effort:'high' },
-    { id:'codex-deep',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'medium' },
+    { id:'codex-deep',client:'codex',model:'gpt-6.2-sol',reasoning_effort:'medium' },
     { id:'claude-simple',client:'claude',model:'haiku' },
     { id:'claude-routine',client:'claude',model:'sonnet' },
     { id:'claude-deep',client:'claude',model:'opus' },
@@ -111,4 +111,16 @@ test('catalog identity ignores environment and fact record key order but respect
   const b=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6-luna","gpt-6.1-sol"]',APTLY_CLAUDE_MODELS:'["sonnet"]'},facts.toReversed().map(f=>({description:f.description,model:f.model,client:f.client})));
   assert.equal(a.version,b.version);
   const reversed=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.1-sol","gpt-6-luna"]',APTLY_CLAUDE_MODELS:'["sonnet"]'},facts);assert.notEqual(a.version,reversed.version);
+});
+
+test('new and previous Sol candidates coexist with distinct IDs without changing the default six profiles', () => {
+  const catalog=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.2-sol","gpt-6.1-sol"]',APTLY_CLAUDE_MODELS:'[]'});
+  assert.deepEqual(catalog.profiles,[
+    {id:'codex-deep',client:'codex',model:'gpt-6.2-sol',reasoning_effort:'medium'},
+    {id:'codex-deep-legacy',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'medium'},
+  ]);
+  for(const profile of catalog.profiles)assert.ok(isSupportedProfile(profile));
+  assert.equal(builtInProfiles().length,6);
+  assert.equal(builtInProfiles().some(p=>p.id==='codex-deep-legacy'),false);
+  assert.notEqual(resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.1-sol"]'}).version,resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.2-sol"]'}).version);
 });

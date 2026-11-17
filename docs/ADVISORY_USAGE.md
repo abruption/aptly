@@ -83,13 +83,15 @@ node bin/aptly.ts capabilities
 |---|---|---|
 | simple | `claude-simple`: haiku | `codex-simple`: gpt-6-luna / max |
 | routine | `claude-routine`: sonnet | `codex-routine`: gpt-6.1-terra / high |
-| deep | `claude-deep`: opus | `codex-deep`: gpt-6.1-sol / medium |
+| deep | `claude-deep`: opus | `codex-deep`: gpt-6.2-sol / medium |
+
+`gpt-6.1-sol`은 선택 후보 `codex-deep-legacy` / medium으로 유지합니다. 기존 후보 설정은 자동으로 바꾸지 않습니다.
 
 프로세스 환경에서 후보를 좁힐 수 있어요. 모델명 배열이며 profile ID 배열은 아니에요.
 
 ```sh
 export APTLY_CLAUDE_MODELS='["haiku","sonnet","opus"]'
-export APTLY_CODEX_MODELS='["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
+export APTLY_CODEX_MODELS='["gpt-6-luna","gpt-6.1-terra","gpt-6.2-sol"]'
 ```
 
 MCP 설정 JSON의 `env` 값에는 위 배열을 JSON 문자열로 넣어요. 실제 등록 형식은 [Claude 예제](../examples/claude-mcp.json)와 [Codex 예제](../examples/codex-mcp.toml)를 참고해요.

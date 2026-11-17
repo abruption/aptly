@@ -80,7 +80,7 @@ test('historical figures and models must remain in their canonical topics', () =
   const files:Record<string,string>={};
   for(const locale of guideLocales){
     files[`docs/guide/${locale}/benchmarks.md`]='$0.03229 $0.01354 58.05% $0.11254 $0.05363 52.35% $0.0000756';
-    files[`docs/guide/${locale}/configuration.md`]='`gpt-6-luna` `gpt-6.1-terra` `gpt-6.1-sol` `haiku` `sonnet` `opus`';
+    files[`docs/guide/${locale}/configuration.md`]='`gpt-6-luna` `gpt-6.1-terra` `gpt-6.2-sol` `haiku` `sonnet` `opus`';
   }
   assert.deepEqual(auditGuideContent(files),[]);
   files['README.md']=files['docs/guide/en/benchmarks.md'];
