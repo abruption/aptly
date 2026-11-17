@@ -341,7 +341,7 @@ test('set default creates both full registrations, fills public defaults and sta
   for(const entry of servers(options)) {
     assert.equal(entry.env.ROUTER_PROVIDER,'decisions');
     assert.deepEqual(JSON.parse(entry.env.APTLY_CLAUDE_MODELS),['haiku','sonnet','opus']);
-    assert.deepEqual(JSON.parse(entry.env.APTLY_CODEX_MODELS),['gpt-6-luna','gpt-6.1-terra','gpt-6.1-sol']);
+    assert.deepEqual(JSON.parse(entry.env.APTLY_CODEX_MODELS),['gpt-6-luna','gpt-6.1-terra','gpt-6.2-sol']);
   }
   assert.deepEqual(setDefaults(options).clients.map(c=>c.status),['unchanged','unchanged']);
   assert.equal(removeSetup(options).status,'complete');

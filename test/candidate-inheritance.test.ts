@@ -73,7 +73,7 @@ for(const host of ['codex','claude'] as const){
 }
 test('Codex defaults ignore process candidates that are not forwarded',t=>{
  const f=fixture(t,'codex',[],{CODEX_MODELS:'malformed-ambient-value'});
- assert.equal(setDefaults(f.options).status,'complete');assert.equal(f.entry().env.APTLY_CODEX_MODELS,'["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]');
+ assert.equal(setDefaults(f.options).status,'complete');assert.equal(f.entry().env.APTLY_CODEX_MODELS,'["gpt-6-luna","gpt-6.1-terra","gpt-6.2-sol"]');
 });
 test('a bad inherited candidate prevents edits to both selected hosts',t=>{
  const f=fixture(t,'codex',[],{CODEX_MODELS:'malformed-ambient-value'});mkdirSync(join(f.options.home,'.claude'));

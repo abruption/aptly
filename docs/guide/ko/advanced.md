@@ -52,7 +52,7 @@ env_vars = ["OPENAI_API_KEY"]
 [mcp_servers.aptly.env]
 ROUTER_PROVIDER = "decisions"
 APTLY_CLAUDE_MODELS = '["haiku","sonnet","opus"]'
-APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
+APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.2-sol"]'
 ```
 
 <a id="guide-claude-configuration"></a>
@@ -65,7 +65,7 @@ APTLY_CODEX_MODELS = '["gpt-6-luna","gpt-6.1-terra","gpt-6.1-sol"]'
 {
   "ROUTER_PROVIDER": "decisions",
   "APTLY_CLAUDE_MODELS": "[\"haiku\",\"sonnet\",\"opus\"]",
-  "APTLY_CODEX_MODELS": "[\"gpt-6-luna\",\"gpt-6.1-terra\",\"gpt-6.1-sol\"]"
+  "APTLY_CODEX_MODELS": "[\"gpt-6-luna\",\"gpt-6.1-terra\",\"gpt-6.2-sol\"]"
 }
 ```
 

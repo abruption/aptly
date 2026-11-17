@@ -20,9 +20,9 @@ Ignored text and unrelated examples.
 `;
 const codex=`# Models
 ## Recommended models
-${['gpt-6-luna','gpt-6.1-terra','gpt-6.1-sol','gpt-6-astra'].map(model=>`<ModelDetails
+${['gpt-6-luna','gpt-6.1-terra','gpt-6.1-sol','gpt-6-astra','gpt-6.2-sol'].map(model=>`<ModelDetails
   client:load
-  name="${model}"
+  name="${model==='gpt-6.2-sol'?'GPT-6.2 Sol':model}"
   slug="${model}"
   description="Description for ${model}."
   data={{irrelevant: true}}
@@ -39,7 +39,7 @@ test('explicit refresh reads only fixed public Markdown endpoints, keeps only no
   const r=await fetchModelInfo({fetchImpl:async(url,opts)=>{calls.push({url,opts});return responses()(url);},now});
   assert.deepEqual(calls.map(c=>c.url),[...modelInfoUrls]);
   for(const {opts}of calls){assert.equal(opts.method,'GET');assert.equal(opts.redirect,'error');assert.equal(opts.credentials,'omit');assert.equal(Object.keys(opts.headers).includes('Authorization'),false);}
-  assert.equal(r.fetched_at,new Date(now).toISOString());assert.equal(r.facts.length,8);
+  assert.equal(r.fetched_at,new Date(now).toISOString());assert.equal(r.facts.length,9);
   assert.equal(r.facts.find(f=>f.model==='fable').description,'Uses the Fable model for long tasks');
   assert(r.sources.every(s=>/^[a-f0-9]{64}$/.test(s.sha256)));
   assert(!JSON.stringify(r).includes('irrelevant'));assert(!JSON.stringify(r).includes('default'));
@@ -49,7 +49,7 @@ test('missing duplicate or unsafe descriptions refuse refresh rather than manufa
   for(const mutate of [
     (s,url)=>url===modelInfoUrls[0]?s.replace('| **`opus`** | Complex reasoning tasks |',''):s,
     (s,url)=>url===modelInfoUrls[0]?s.replace('### Work with Fable','| **`haiku`** | Duplicate entry |\n### Work with Fable'):s,
-    (s,url)=>url===modelInfoUrls[1]?s.replace('name="gpt-6-luna"','name="unknown-model"'):s,
+    (s,url)=>url===modelInfoUrls[1]?s.replaceAll('gpt-6-luna','unknown-model'):s,
     (s,url)=>url===modelInfoUrls[1]?s.replace('Description for gpt-6-luna.','sk-fixture-sensitive-sentinel'):s,
     (s,url)=>url===modelInfoUrls[0]?s.replace('Fast and efficient for simple tasks','x'.repeat(801)):s,
   ])await assert.rejects(fetchModelInfo({fetchImpl:responses(mutate),now}),code('model_info_parse_failed'));
@@ -131,4 +131,13 @@ test('unsafe directories symlinks permissions and unrelated existing files are n
   const privateFile=join(root,'cache.json');saveModelInfo(privateFile,r);chmodSync(privateFile,0o644);
   assert.equal(loadModelInfo(privateFile,{now}).status,'unavailable');assert.throws(()=>saveModelInfo(privateFile,r),code('model_info_save_failed'));assert.equal(lstatSync(privateFile).mode&0o777,0o644);
   assert.equal(loadModelInfo('relative.json',{now}).status,'invalid');assert.equal(existsSync(join(root,'info.json')),false);
+});
+
+test('previous eight-fact caches remain readable and new facts enrich only the matching Sol version',async t=>{
+  const root=createTestTemp(t,'codex-model-info-'),path=join(root,'model-info.json'),current=await snapshot();
+  const previous={...current,facts:current.facts.filter(f=>f.model!=='gpt-6.2-sol')};
+  saveModelInfo(path,previous);assert.deepEqual(loadModelInfo(path,{now}),{status:'fresh',facts:previous.facts});
+  saveModelInfo(path,current);assert.equal(loadModelInfo(path,{now}).facts.find(f=>f.model==='gpt-6.2-sol').description,'Description for gpt-6.2-sol.');
+  const partial={...current,facts:current.facts.filter(f=>f.model!=='gpt-6.1-sol')};
+  assert.throws(()=>saveModelInfo(path,partial),code('model_info_invalid'));
 });

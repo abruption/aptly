@@ -97,7 +97,9 @@ Tiers are task presets and do not imply equivalent model performance across prov
 |---|---|---|---|
 | simple | `haiku` | `gpt-6-luna` / `max` | Extraction, format conversion, small mechanical edits |
 | routine | `sonnet` | `gpt-6.1-terra` / `high` | Context-aware writing, translation, scoped implementation |
-| deep | `opus` | `gpt-6.1-sol` / `medium` | Complex debugging, design decisions, deep review |
+| deep | `opus` | `gpt-6.2-sol` / `medium` | Complex debugging, design decisions, deep review |
+
+The new default applies when candidate configuration is missing or fresh; existing candidate lists are preserved. `gpt-6.1-sol` remains available as the optional `codex-deep-legacy` / `medium` profile. Both models can be selected with unique IDs.
 
 MCP `env` values are strings, so pass candidate arrays as JSON strings.
 
@@ -105,7 +107,7 @@ MCP `env` values are strings, so pass candidate arrays as JSON strings.
 {
   "env": {
     "APTLY_CLAUDE_MODELS": "[\"haiku\", \"sonnet\", \"opus\"]",
-    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.1-sol\"]"
+    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.2-sol\"]"
   }
 }
 ```

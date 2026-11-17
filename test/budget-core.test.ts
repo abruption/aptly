@@ -23,6 +23,8 @@ const goldenCustom='f6274a8fb7c053a7e44089b52d7ed38b3141580819da7219677b4784856d
 const provider=async()=>({choice:'codex-routine'});
 const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])])):value;
 const digest=value=>createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
+const currentHook=()=>digest({input:request(),policy:legacyPolicy()});
+const currentCustom=()=>digest({input:request(),policy:{...legacyPolicy(),max_total_calls:7}});
 function saveLedger(path,digest,state='complete',result={status:'unavailable',reason:'budget_exhausted',application:'advisory_only',policy_version:defaultPolicy.version,catalog_version:defaultPolicy.catalog_version},calls=0) {
   const today=new Date().toISOString().slice(0,10);
   writeFileSync(path,JSON.stringify({version:1,calls,estimated_usd:calls*.01,days:calls?{[today]:calls}:{},requests:{'legacy-request':{digest,state,...(state==='complete'?{result}:{})}}}),{mode:0o600});
@@ -87,31 +89,31 @@ test('new budget denials are not cached and same ID succeeds after raising a lim
   assert.equal((await router.recommend(request('first'))).cached,true);
 });
 
-test('legacy default hook/advice captures retain exact identity while arbitrary custom policies retain theirs',async()=>{
+test('budget-only projection preserves current catalog identity while catalog changes invalidate old captures',async()=>{
   const req=request();
-  assert.equal(digest({input:req,policy:legacyPolicy()}),goldenHook);
-  assert.equal(digest({kind:'advisory-v1',input:req,policy:legacyPolicy()}),goldenAdvice);
-  const hook=new Router({provider});await hook.recommend(req);assert.equal(hook.state.requests[req.request_id].digest,goldenHook);
+  assert.notEqual(currentHook(),goldenHook);
+  assert.notEqual(digest({kind:'advisory-v1',input:req,policy:legacyPolicy()}),goldenAdvice);
+  const hook=new Router({provider});await hook.recommend(req);assert.equal(hook.state.requests[req.request_id].digest,currentHook());
   const advice=new Router({provider});
   // advise canonicalizes caller-declared constraints; capture its exact normalized input independently.
   const normalized={...req,constraints:{model_pinned:false,effort_pinned:false,role_pinned:false,fork_inherits:false}};
   await advice.advise(req);
   assert.equal(advice.state.requests[req.request_id].digest,digest({kind:'advisory-v1',input:normalized,policy:legacyPolicy()}));
   const custom=new Router({policy:{...legacyPolicy(),max_total_calls:7},provider});await custom.recommend(req);
-  assert.equal(custom.state.requests[req.request_id].digest,goldenCustom);
+  assert.equal(custom.state.requests[req.request_id].digest,currentCustom());
   custom.policy.max_total_calls=8;
   assert.equal((await custom.recommend(req)).reason,'request_conflict');
 });
 
-test('exact legacy budget completion recovers under current defaults without altering counters or unknown records',async t=>{
+test('same-catalog legacy budget completion recovers under current defaults without altering counters or unknown records',async t=>{
   const path=`${createTestTemp(t,'codex-budget-')}/ledger.json`;
-  saveLedger(path,goldenHook);
+  saveLedger(path,currentHook());
   let calls=0;
   const router=new Router({provider:async()=>{calls++;return {choice:'codex-routine'};},ledgerPath:path});
   assert.equal((await router.recommend(request())).status,'recommended');assert.equal(calls,1);
   assert.equal(router.state.calls,1);assert.equal(router.state.estimated_usd,.002);
   assert.equal((await router.recommend(request())).cached,true);assert.equal(calls,1);
-  saveLedger(path,goldenHook,'unknown',undefined,1);
+  saveLedger(path,currentHook(),'unknown',undefined,1);
   assert.equal((await router.recommend(request())).reason,'outcome_unknown');assert.equal(calls,1);
   assert.equal(router.state.estimated_usd,.01);
   saveLedger(path,goldenCustom);
@@ -228,9 +230,9 @@ test('a provider exception named budget_exhausted remains a paid unknown outcome
   assert.equal((await router.recommend(request())).reason,'outcome_unknown');assert.equal(calls,1);
 });
 
-test('two independent processes recover one legacy unpaid denial with at most one dispatch',async t=>{
+test('two independent processes recover one same-catalog unpaid denial with at most one dispatch',async t=>{
   const directory=createTestTemp(t,'codex-budget-process-'),path=`${directory}/ledger.json`;
-  saveLedger(path,goldenHook);
+  saveLedger(path,currentHook());
   const coreUrl=new URL('../src/core.ts',import.meta.url).href;
   const dispatches=[];
   function start(hold=false) {
@@ -299,4 +301,17 @@ test('unlimited monetary ceiling requires literal zero and diagnostic details ne
   assert.deepEqual(budgetErrorDetails({budget_error:secret,invalid_budget_keys:['APTLY_MAX_TOTAL_CALLS']}),{});
   assert.deepEqual(budgetErrorDetails(new Error(secret)),{});
   assert.deepEqual(budgetErrorDetails(null),{});
+});
+
+
+test('captured previous-catalog budget denials and unknowns never dispatch under the new default',async t=>{
+  const path=`${createTestTemp(t,'codex-budget-')}/ledger.json`;let calls=0;
+  for(const [hash,method] of [[goldenHook,'recommend'],[goldenAdvice,'advise'],[goldenCustom,'recommend']]){
+    for(const state of ['complete','unknown']){
+      saveLedger(path,hash,state,undefined,state==='unknown'?1:0);
+      const before=readFileSync(path,'utf8'),router=new Router({ledgerPath:path,provider:async()=>{calls++;return {choice:'codex-routine'};}});
+      assert.equal((await router[method](request())).reason,'request_conflict');
+      assert.equal(readFileSync(path,'utf8'),before);assert.equal(calls,0);
+    }
+  }
 });

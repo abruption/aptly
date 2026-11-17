@@ -43,6 +43,7 @@ const supportedProfile = (p: UnknownRecord | Profile): boolean => isSupportedPro
 // Storage compatibility only. These retired tuples may be read from an old
 // ledger, but do not enter the runtime catalog or grant Hook execution rights.
 const legacyStoredProfiles: readonly Profile[] = [
+  {id:'codex-deep',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'medium'},
   {id:'codex-routine',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'low'},
   {id:'codex-deep',client:'codex',model:'gpt-6-astra',reasoning_effort:'high'},
   {id:'claude-routine',client:'claude',model:'haiku'},

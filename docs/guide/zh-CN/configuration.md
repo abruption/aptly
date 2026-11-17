@@ -97,7 +97,9 @@ aptly setup --client codex --migrate-launcher --launcher stable
 |---|---|---|---|
 | simple | `haiku` | `gpt-6-luna` / `max` | 提取、格式转换、小型机械修改 |
 | routine | `sonnet` | `gpt-6.1-terra` / `high` | 考虑上下文的写作、翻译、范围明确的实现 |
-| deep | `opus` | `gpt-6.1-sol` / `medium` | 复杂调试、设计判断、深入审阅 |
+| deep | `opus` | `gpt-6.2-sol` / `medium` | 复杂调试、设计判断、深入审阅 |
+
+新默认值适用于候选配置缺失或新建的情况；现有候选列表会保留。`gpt-6.1-sol` 仍可作为可选的 `codex-deep-legacy` / `medium` 配置使用。两个模型可使用不同的 ID 同时选择。
 
 MCP 的 `env` 值是字符串，因此候选数组也须作为 JSON 字符串传递。
 
@@ -105,7 +107,7 @@ MCP 的 `env` 值是字符串，因此候选数组也须作为 JSON 字符串传
 {
   "env": {
     "APTLY_CLAUDE_MODELS": "[\"haiku\", \"sonnet\", \"opus\"]",
-    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.1-sol\"]"
+    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.2-sol\"]"
   }
 }
 ```

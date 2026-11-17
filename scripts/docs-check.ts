@@ -147,7 +147,7 @@ export function collectDocumentation(root: string): Record<string, string> {
 export function auditGuideContent(files: Record<string,string>): DocumentationError[] {
   const errors: DocumentationError[] = [];
   const figures = ['$0.03229','$0.01354','58.05%','$0.11254','$0.05363','52.35%','$0.0000756'];
-  const models = ['gpt-6-luna','gpt-6.1-terra','gpt-6.1-sol','haiku','sonnet','opus'];
+  const models = ['gpt-6-luna','gpt-6.1-terra','gpt-6.2-sol','haiku','sonnet','opus'];
   for (const locale of guideLocales) {
     const benchmark = topicPath(locale,'benchmarks'), configuration = topicPath(locale,'configuration');
     if (figures.some(value=>!files[benchmark]?.includes(value))) errors.push({code:'benchmark-content',path:benchmark});

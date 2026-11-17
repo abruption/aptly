@@ -97,7 +97,9 @@ aptly setup --client codex --migrate-launcher --launcher stable
 |---|---|---|---|
 | simple | `haiku` | `gpt-6-luna` / `max` | 추출·형식 변환·작은 기계적 수정 |
 | routine | `sonnet` | `gpt-6.1-terra` / `high` | 문맥을 고려한 작성·번역·범위가 명확한 구현 |
-| deep | `opus` | `gpt-6.1-sol` / `medium` | 복합 디버깅·설계 판단·심층 검토 |
+| deep | `opus` | `gpt-6.2-sol` / `medium` | 복합 디버깅·설계 판단·심층 검토 |
+
+새 기본값은 후보 설정이 없거나 새로 설정할 때 적용되며, 기존 후보 목록은 유지됩니다. `gpt-6.1-sol`은 선택 후보 `codex-deep-legacy` / `medium`으로 사용할 수 있습니다. 두 모델은 서로 다른 ID로 함께 선택할 수 있습니다.
 
 MCP의 `env` 값은 문자열이므로 후보 배열도 JSON 문자열로 전달합니다.
 
@@ -105,7 +107,7 @@ MCP의 `env` 값은 문자열이므로 후보 배열도 JSON 문자열로 전달
 {
   "env": {
     "APTLY_CLAUDE_MODELS": "[\"haiku\", \"sonnet\", \"opus\"]",
-    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.1-sol\"]"
+    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.2-sol\"]"
   }
 }
 ```

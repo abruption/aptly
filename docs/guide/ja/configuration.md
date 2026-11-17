@@ -97,7 +97,9 @@ aptly setup --client codex --migrate-launcher --launcher stable
 |---|---|---|---|
 | simple | `haiku` | `gpt-6-luna` / `max` | 抽出・形式変換・小さな機械的修正 |
 | routine | `sonnet` | `gpt-6.1-terra` / `high` | 文脈を考慮した作成・翻訳・範囲が明確な実装 |
-| deep | `opus` | `gpt-6.1-sol` / `medium` | 複合的なデバッグ・設計判断・詳細レビュー |
+| deep | `opus` | `gpt-6.2-sol` / `medium` | 複合的なデバッグ・設計判断・詳細レビュー |
+
+新しいデフォルトは候補設定がない場合や新規設定に適用され、既存の候補リストは保持されます。`gpt-6.1-sol` は任意の `codex-deep-legacy` / `medium` プロファイルとして引き続き利用できます。両モデルは異なる ID で同時に選択できます。
 
 MCP の `env` 値は文字列のため、候補配列も JSON 文字列で渡します。
 
@@ -105,7 +107,7 @@ MCP の `env` 値は文字列のため、候補配列も JSON 文字列で渡し
 {
   "env": {
     "APTLY_CLAUDE_MODELS": "[\"haiku\", \"sonnet\", \"opus\"]",
-    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.1-sol\"]"
+    "APTLY_CODEX_MODELS": "[\"gpt-6-luna\", \"gpt-6.1-terra\", \"gpt-6.2-sol\"]"
   }
 }
 ```

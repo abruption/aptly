@@ -8,10 +8,11 @@ import { createTestTemp } from '../test-support/temp.ts';
 
 const advice = (id='new-request') => ({request_id:id,client:'codex',task:{summary:'Sort supplied numbers [3,1,2].',operation:'analysis',context_sufficient:true}});
 const filteredPolicy = () => {
-  const catalog=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.1-sol"]'});
+  const catalog=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.2-sol"]'});
   return {...defaultPolicy,profiles:catalog.profiles,profile_descriptions:catalog.descriptions,catalog_version:catalog.version};
 };
 const legacyProfiles = [
+  {id:'codex-deep',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'medium'},
   {id:'codex-routine',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'low'},
   {id:'codex-deep',client:'codex',model:'gpt-6-astra',reasoning_effort:'high'},
   {id:'claude-routine',client:'claude',model:'haiku'},
@@ -38,7 +39,7 @@ test('new requests survive a catalog subset change without altering or reusing p
   assert.equal((await next.advise(advice())).cached,true);assert.equal(calls,2);
 });
 
-test('all four exact preview tuples can remain archival records under the new default catalog', async t => {
+test('preview and previous deep tuples can remain archival records under the new default catalog', async t => {
   const path=join(createTestTemp(t,'codex-catalog-history-'),'ledger.json');const initial=historicalLedger();write(path,initial);let calls=0;
   const next=new Router({ledgerPath:path,provider:async()=>{calls++;return{choice:'codex-simple'};}});
   assert.equal((await next.advise(advice())).status,'recommended');assert.equal(calls,1);
@@ -68,7 +69,7 @@ test('known historical tuples cannot be reused solely because a current profile 
   const path=join(createTestTemp(t,'codex-catalog-history-'),'ledger.json');let calls=0;
   const first=new Router({ledgerPath:path,provider:async()=>{calls++;return{choice:'codex-routine'};}});
   assert.equal((await first.advise(advice())).status,'recommended');
-  const ledger=read(path);ledger.requests['new-request'].result.profile={...legacyProfiles[0]};write(path,ledger);
+  const ledger=read(path);ledger.requests['new-request'].result.profile={...legacyProfiles[1]};write(path,ledger);
   // The digest and declared versions still match, but the old Sol/low tuple is
   // not the current Terra/high tuple and must never become a cached result.
   const next=new Router({ledgerPath:path,provider:async()=>{calls++;return{choice:'codex-routine'};}});
@@ -93,4 +94,15 @@ test('arbitrary or inconsistent archival profiles fail the ledger without enabli
 
 test('archival tuple compatibility does not permit retired profiles in a runtime policy', () => {
   for(const profile of legacyProfiles){assert.throws(()=>new Router({policy:{...defaultPolicy,profiles:[profile]},provider:async()=>({choice:profile.id})}),/invalid_policy/);}
+});
+
+test('a stored previous deep tuple cannot impersonate the new model with a matching current digest',async t=>{
+  const path=join(createTestTemp(t,'codex-catalog-history-'),'ledger.json');let calls=0;
+  const provider=async()=>{calls++;return{choice:'codex-deep'};};
+  const first=new Router({ledgerPath:path,provider});
+  assert.equal((await first.advise(advice())).profile.model,'gpt-6.2-sol');
+  const ledger=read(path);ledger.requests['new-request'].result.profile={...legacyProfiles[0]};write(path,ledger);
+  const next=new Router({ledgerPath:path,provider});
+  assert.equal((await next.advise(advice())).reason,'ledger_error');assert.equal(calls,1);
+  assert.deepEqual(read(path).requests['new-request'].result.profile,legacyProfiles[0]);
 });
