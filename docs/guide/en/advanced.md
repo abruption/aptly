@@ -145,7 +145,7 @@ Cache reuse requires a completed first result. An unknown outcome remains `outco
 
 `context_retry_allowed: false` ends further context supplementation. For a compatible recommendation, `caller_review_required` means the parent reviews arguments; it does not request new user approval. Existing delegation authorization and host permission checks still apply.
 
-Retry/fresh application metadata uses a shared Zod contract. Retry `required_fields` lists only missing fields and `next_action` is `apply_returned_defaults` (fresh: `submit_prepared_call`). Stop if application is forbidden or unclear; existing-agent reuse is not evidence of applying advice. Internal inconsistency returns `recovery_metadata_invalid` without raw data or repeating a completed classification. Strict consumers must allow additive fields. Validation does not establish caller compliance or permission.
+The shared output validation below is available starting with 0.1.17. Retry/fresh application metadata uses a shared Zod contract. Retry `required_fields` lists only missing fields and `next_action` is `apply_returned_defaults` (fresh: `submit_prepared_call`). Stop if application is forbidden or unclear; existing-agent reuse is not evidence of applying advice. Internal inconsistency returns `recovery_metadata_invalid` without raw data or repeating a completed classification. Strict consumers must allow additive fields. Validation does not establish caller compliance or permission.
 
 <a id="guide-fresh-delegation"></a>
 
