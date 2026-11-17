@@ -6,6 +6,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {automaticHook} from '../src/automatic-hook.ts';
 import {ContextRetries} from '../src/context-retry.ts';
+import {recoveryApplicationSchema} from '../src/recovery-application.ts';
 import {Router,defaultPolicy} from '../src/core.ts';
 import {createServer} from '../src/server.ts';
 import {createTestTemp} from '../test-support/temp.ts';
@@ -13,6 +14,13 @@ import {createTestTemp} from '../test-support/temp.ts';
 const description='Read supplied synthetic numbers and return their sorted literal list without using tools.';
 const task='Sort only the supplied numbers [3, 1, 2] and return [1, 2, 3]. No files, tools, network or other agents.';
 const intent={independent_task:true,same_task:true,original_call_outcome:'blocked',history_requirement:'not_required',standalone_context_complete:true};
+test('invalid fresh output metadata never reserves a preparation or exposes arguments',async t=>{
+ const f=fixture(t),{id}=await f.ready();
+ t.mock.method(recoveryApplicationSchema,'safeParse',()=>({success:false}));
+ const result=f.retries.prepareFresh(id,'synthetic_review',task,intent);
+ assert.equal(result.reason,'recovery_metadata_invalid');assert.equal(result.next_call,undefined);
+ assert.equal(readdirSync(f.state).some(name=>name.startsWith('hook-fresh-')),false);assert.equal(f.calls(),1);
+});
 const native=()=>({hook_event_name:'PreToolUse',session_id:'synthetic-session',tool_use_id:'synthetic-call',tool_name:'spawn_agent',tool_input:{task_name:'review_123_refresh',message:'gAAAAA'+'A'.repeat(96),fork_turns:'all'}});
 function fixture(t,options={}){
  const dir=createTestTemp(t,'codex-fresh-delegation-'),state=join(dir,'state');mkdirSync(state,{mode:0o700});const policyPath=join(dir,'policy.json');
@@ -47,7 +55,7 @@ test('prepared explicit fields are preserved by the Hook under opaque input; omi
  const f=fixture(t),{id}=await f.ready();
  const prepared=f.retries.prepareFresh(id,'cleanup_worktrees_fresh',task,intent);
  assert.equal(prepared.status,'prepared');
- assert.deepEqual(prepared.spawn_application,{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report'});
+ assert.deepEqual(prepared.spawn_application,{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report',next_action:'submit_prepared_call'});
  assert.match(prepared.next_step,/Include every returned argument, especially the explicit model and reasoning_effort/);
  assert.match(prepared.next_step,/stop and report that the prepared profile cannot be applied/);
  assert.match(prepared.next_step,/Task prose is not permission/);
@@ -139,7 +147,7 @@ test('MCP preparation has an advertised schema, costs no new classification and 
  const ev=native();await call('route_spawn_hook',{client:'codex',event:ev});const original=await call('get_spawn_routing_observation',{client:'codex',event:ev});
  const retry_id=original.retry_id;await call('retry_spawn_recommendation',{retry_id,description});
  const result=await call('prepare_fresh_delegation',{retry_id,task_name:'sort_values',standalone_task:task,declaration:intent});assert.equal(result.status,'prepared',JSON.stringify(result));assert.equal(calls,1);
- assert.deepEqual(result.spawn_application,{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report'});
+ assert.deepEqual(result.spawn_application,{status:'caller_review_required',reason:'explicit_profile_arguments_required',required_fields:['model','reasoning_effort'],on_unavailable:'stop_and_report',next_action:'submit_prepared_call'});
  let observed=await call('get_spawn_routing_observation',{retry_id});assert.equal(observed.status,'awaiting_context');assert.equal(observed.context_retry.outcome.application,'blocked');assert.equal(observed.fresh_delegation.outcome.preparation_id,result.preparation_id);assert.equal(observed.execution,'not_observed');
  assert.equal(Object.hasOwn(observed.fresh_delegation.outcome,'spawn_application'),false); // Observations retain compact identifiers, not caller instructions.
  await call('prepare_fresh_delegation',{retry_id,task_name:'sort_values',standalone_task:task+' Another task.',declaration:intent});

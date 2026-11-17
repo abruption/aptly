@@ -173,6 +173,16 @@ requires the parent to review and explicitly supply only unspecified model/effor
 fields to a new compatible native call. Caller review means argument review,
 not a request for new user approval. Existing delegation authorization and host
 permission checks still apply; this advisory result grants neither.
+Application-bearing retry/fresh outputs are checked by a shared Zod contract.
+For an applicable retry, `required_fields` matches only returned missing fields,
+`next_action` is `apply_returned_defaults`, and `on_unavailable` is
+`stop_and_report`; fresh calls use `submit_prepared_call`. Blocked and
+non-recommended outputs have no apply arguments. Internal inconsistency returns
+`recovery_metadata_invalid` without validation data or a new provider call;
+completed ledger results remain intact. Strict consumers must allow the additive
+metadata. This validates output coherence, not caller compliance or permission.
+If user/host restrictions prohibit application or are unclear, stop and report.
+Existing-agent reuse is an alternative path, not evidence of applying advice.
 The response supplies concrete fields in
 `next_call.set_if_unspecified`, excluding original explicit choices. Claude
 receives model only, never an effort field. Blocked results omit `next_call`. `blocked` requires reporting the original

@@ -145,6 +145,8 @@ fixture는 키·네트워크·자식 실행 없이 로컬 규칙으로 생성한
 
 `context_retry_allowed: false`는 추가 설명 보충을 더 허용하지 않는다는 뜻입니다. 호환 가능한 추천에서 `caller_review_required`는 부모가 인자를 검토한다는 의미이며 새 사용자 승인을 요구하지 않습니다. 기존 위임 권한과 호스트 권한 검사는 그대로 유지됩니다.
 
+retry·fresh의 적용 메타데이터는 공통 Zod 스키마로 검증합니다. 일반 retry의 `required_fields`는 미지정 필드만 포함하고 `next_action`은 `apply_returned_defaults`입니다(fresh는 `submit_prepared_call`). 금지·불명확 조건이면 중단하며 기존 에이전트 재사용을 추천 적용으로 보고하지 마십시오. 내부 불일치는 원문 없이 `recovery_metadata_invalid`로 반환하고 완료된 분류를 다시 호출하지 않습니다. 엄격한 응답 소비자는 추가 필드를 허용해야 합니다. 이 검증은 호출자 준수나 실행 권한을 증명하지 않습니다.
+
 <a id="guide-fresh-delegation"></a>
 
 ## 상속 추천에서 별도 독립 위임 준비 (0.1.6부터)
