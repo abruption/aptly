@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { automaticHook, loadAutomaticHookPolicy } from '../src/automatic-hook.ts';
 import { SpawnContexts } from '../src/spawn-context.ts';
 import { Router, defaultPolicy } from '../src/core.ts';
+import { decisionsProvider } from '../src/provider.ts';
 import { hookInput } from '../src/hook.ts';
 import { createTestTemp } from '../test-support/temp.ts';
 
@@ -273,7 +274,7 @@ test('partial Codex selections filter tuples and fill only the unspecified field
  for(const pin of ['model','reasoning_effort']){
   const f=fixture(t),ev=event('codex'),profile=defaultPolicy.profiles.find(p=>p.id==='codex-routine');ev.tool_input[pin]=profile[pin];
   const result=await f.run('codex',ev);assert.equal(result.observation.status,'arguments_updated');
-  assert.deepEqual(f.calls[0].profiles.map(p=>p.id),[profile.id]);
+  assert.deepEqual(f.calls[0].profiles.map(p=>p.id),pin==='model'?[profile.id]:[profile.id,'codex-deep-high']);
   assert.equal(result.output.hookSpecificOutput.updatedInput[pin],ev.tool_input[pin]);
   assert.equal(result.output.hookSpecificOutput.updatedInput.model,profile.model);
   assert.equal(result.output.hookSpecificOutput.updatedInput.reasoning_effort,profile.reasoning_effort);
@@ -436,4 +437,65 @@ test('local task screening supports descriptive multilingual text and rejects pa
   const f = fixture(t), ev = event('codex'); ev.tool_input.message = text;
   assert.equal((await f.run('codex', ev)).observation.reason, 'insufficient_context'); assert.equal(f.calls.length, 0);
  }
+});
+
+
+test('Decisions can choose Sol/high in one request and the Codex Hook fills only missing arguments', async t => {
+  const requests=[];
+  const provider=decisionsProvider({
+    key:'fixture-only',descriptions:defaultPolicy.profile_descriptions,
+    fetchImpl:async (_url,options)=>{
+      const body=JSON.parse(options.body);
+      requests.push(body.questions[0].choices);
+      return Response.json({answers:[{name:'profile',type:'choice',choice:'codex-deep-high',confidence:0.4}],
+        usage:{input_tokens:9,output_tokens:0,total_tokens:9}});
+    },
+  });
+  const f=fixture(t,{provider});
+  for (const [index,pin] of [{},{model:'gpt-6.2-sol'},{reasoning_effort:'high'}].entries()) {
+    const ev=event('codex');
+    ev.tool_use_id='deep-effort-'+index;
+    Object.assign(ev.tool_input,pin,{message:'Trace interacting stale leases and transaction retries across three services and derive the invariants for crash recovery.'});
+    const result=await f.run('codex',ev);
+    assert.deepEqual(result.output.hookSpecificOutput.updatedInput,{...ev.tool_input,model:'gpt-6.2-sol',reasoning_effort:'high'});
+    assert.equal(result.observation.profile_id,'codex-deep-high');
+  }
+  const ids=choices=>choices.map(c=>c.value);
+  assert.equal(requests.length,3);
+  assert.deepEqual(ids(requests[0]),['codex-simple','codex-routine','codex-deep','codex-deep-high','keep_current','needs_context']);
+  assert.deepEqual(ids(requests[1]),['codex-deep','codex-deep-high','keep_current','needs_context']);
+  assert.deepEqual(ids(requests[2]),['codex-routine','codex-deep-high','keep_current','needs_context']);
+  assert.match(requests[0].find(c=>c.value==='codex-deep-high').description,/Prefer medium when it is sufficient/);
+});
+
+test('an opaque Codex task label cannot select Sol/high while other high-effort models stay eligible', async t => {
+  const f=fixture(t,{provider:()=>({choice:'codex-deep-high'})});
+  const ev=event('codex');
+  ev.tool_input.message='gAAAAA'+'A'.repeat(96);
+  ev.tool_input.task_name='review_architecture_tradeoffs_across_core_routing_modules';
+  const r=await f.run('codex',ev);
+  assert.equal(r.observation.reason,'invalid_choice');
+  assert.equal(r.output.hookSpecificOutput.updatedInput,undefined);
+  assert.equal(f.calls.length,1);
+  assert.deepEqual(f.calls[0].profiles.map(p=>p.id),['codex-simple','codex-routine','codex-deep']);
+});
+
+
+test('a label-only Codex call preserves a single pin and applies the remaining compatible tuple', async t => {
+  for(const [pin,profileId] of [
+    [{reasoning_effort:'high'},'codex-routine'],
+    [{model:'gpt-6.2-sol'},'codex-deep'],
+  ]){
+    const f=fixture(t),ev=event('codex');
+    Object.assign(ev.tool_input,pin,{
+      message:'gAAAAA'+'A'.repeat(96),
+      task_name:'review_architecture_tradeoffs_across_core_routing_modules',
+    });
+    const result=await f.run('codex',ev);
+    assert.deepEqual(f.calls[0].profiles.map(p=>p.id),[profileId]);
+    const selected=defaultPolicy.profiles.find(p=>p.id===profileId);
+    assert.deepEqual(result.output.hookSpecificOutput.updatedInput,{
+      ...ev.tool_input,model:selected.model,reasoning_effort:selected.reasoning_effort,
+    });
+  }
 });

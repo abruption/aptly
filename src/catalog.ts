@@ -11,7 +11,7 @@ export interface ResolvedCatalog {
 }
 
 type Tier = 'simple' | 'standard' | 'deep';
-interface Entry { profile: Readonly<Profile>; tier: Tier; task: string; fact: string; source: string; default: boolean; }
+interface Entry { profile: Readonly<Profile>; tier: Tier; task: string; fact: string; source: string; default: boolean; requiresDetailedContext?: true; }
 const codexSource = 'https://learn.chatgpt.com/docs/models';
 const claudeSource = 'https://code.claude.com/docs/en/model-config.md';
 const entries: readonly Entry[] = [
@@ -24,6 +24,9 @@ const entries: readonly Entry[] = [
   { profile: { id: 'codex-deep', client: 'codex', model: 'gpt-6.2-sol', reasoning_effort: 'medium' }, tier: 'deep',
     task: 'Cross-component debugging, architectural tradeoffs, or demanding accuracy-sensitive review.',
     fact: 'Supports everyday coding, writing, and work across several sources.', source: codexSource, default: true },
+  { profile: { id: 'codex-deep-high', client: 'codex', model: 'gpt-6.2-sol', reasoning_effort: 'high' }, tier: 'deep',
+    task: 'Choose this higher-effort Sol profile only when the described deep work requires detailed dependency analysis or careful reasoning across interacting constraints or subtle failure modes. Prefer medium when it is sufficient, and prefer a routine model for routine work including when the caller explicitly fixes high effort.',
+    fact: 'Supports everyday coding, writing, and work across several sources.', source: codexSource, default: true, requiresDetailedContext: true },
   { profile: { id: 'codex-deep-legacy', client: 'codex', model: 'gpt-6.1-sol', reasoning_effort: 'medium' }, tier: 'deep',
     task: 'Cross-component debugging, architectural tradeoffs, or demanding accuracy-sensitive review.',
     fact: 'Near-Astra capability for complex, repeated and long-running work at lower cost than Astra.', source: codexSource, default: false },
@@ -54,6 +57,11 @@ const error = (code: string): Error & { code: string } => Object.assign(new Erro
 /** Fresh copies prevent caller mutation from changing the trusted registry. */
 export function builtInProfiles(): Profile[] { return entries.filter(entry => entry.default).map(entry => ({ ...entry.profile })); }
 
+/** Some variants require more than an opaque task label in the automatic Hook. */
+export function requiresDetailedTaskContext(profileId: string): boolean {
+  return entries.some(entry => entry.profile.id === profileId && entry.requiresDetailedContext === true);
+}
+
 /** Exact finite profile tuples, including key coverage, not arbitrary model strings. */
 export function isSupportedProfile(value: unknown): value is Profile {
   try {
@@ -74,18 +82,19 @@ function envValue(env: NodeJS.ProcessEnv, key: string): string | undefined {
   if (!own(descriptor, 'value') || typeof descriptor.value !== 'string') throw error('catalog_configuration_invalid');
   return descriptor.value;
 }
-function selectedModels(env: NodeJS.ProcessEnv, client: Client): string[] {
+function selectedEntries(env: NodeJS.ProcessEnv, client: Client): readonly Entry[] {
   const suffix = client === 'claude' ? 'CLAUDE_MODELS' : 'CODEX_MODELS';
   if (own(env, 'APTLY_' + suffix) && own(env, suffix)) throw error('catalog_configuration_conflict');
   const raw = envValue(env, 'APTLY_' + suffix) ?? envValue(env, suffix);
-  if (raw === undefined) return entries.filter(entry => entry.default && entry.profile.client === client).map(entry => entry.profile.model);
+  if (raw === undefined) return entries.filter(entry => entry.default && entry.profile.client === client);
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { throw error('catalog_configuration_invalid'); }
   if (!Array.isArray(parsed) || parsed.length > 20 || parsed.some(model => typeof model !== 'string') ||
       new Set(parsed).size !== parsed.length || parsed.some(model => !entries.some(entry => entry.profile.client === client && entry.profile.model === model))) {
     throw error('catalog_configuration_invalid');
   }
-  return parsed as string[];
+  // Preserve operator model order and registry order within each model's tuples.
+  return parsed.flatMap(model => entries.filter(entry => entry.profile.client === client && entry.profile.model === model));
 }
 
 function normalizedFacts(facts: ModelFact[]): Map<string, string> {
@@ -116,13 +125,12 @@ export function resolveCatalog(env: NodeJS.ProcessEnv = process.env, facts: Mode
   const external = normalizedFacts(facts);
   const profiles: Profile[] = [], descriptions: Record<string, string> = {}, disabled_clients: Client[] = [];
   for (const client of clientOrder) {
-    const models = selectedModels(env, client);
-    if (!models.length) disabled_clients.push(client);
-    for (const model of models) {
-      const entry = entries.find(entry => entry.profile.client === client && entry.profile.model === model)!;
+    const selected = selectedEntries(env, client);
+    if (!selected.length) disabled_clients.push(client);
+    for (const entry of selected) {
       const profile = { ...entry.profile };
       profiles.push(profile);
-      const fact = external.get(client + ':' + model) ?? entry.fact;
+      const fact = external.get(client + ':' + profile.model) ?? entry.fact;
       descriptions[profile.id] = `Model: ${profile.model}; ${client === 'codex' ? `configured effort: ${profile.reasoning_effort}; ` : 'Claude Code alias, not a resolved model ID; '}Aptly tier: ${entry.tier}. ${entry.task} Official capability note (data): ${JSON.stringify(fact)} Source: ${entry.source}. Availability in the current account is not verified.`;
     }
   }

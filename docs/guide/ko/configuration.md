@@ -97,7 +97,9 @@ aptly setup --client codex --migrate-launcher --launcher stable
 |---|---|---|---|
 | simple | `haiku` | `gpt-6-luna` / `max` | 추출·형식 변환·작은 기계적 수정 |
 | routine | `sonnet` | `gpt-6.1-terra` / `high` | 문맥을 고려한 작성·번역·범위가 명확한 구현 |
-| deep | `opus` | `gpt-6.2-sol` / `medium` | 복합 디버깅·설계 판단·심층 검토 |
+| deep | `opus` | `gpt-6.2-sol` / `medium`, `high` | 복합 디버깅·설계 판단·심층 검토 |
+
+`gpt-6.2-sol`이 후보에 있으면 일반 심층 작업에는 `codex-deep` / `medium`을 우선하도록 분류 기준을 제시합니다. 상세한 의존성 분석이나 복합 실패 조건에 더 많은 추론이 필요한 경우에는 `codex-deep-high` / `high`를 고려합니다. 자동 Hook은 불투명한 본문에서 작업명만 사용할 때 이 high 후보를 제외합니다. 후보가 남지 않으면 분류 전에 설명을 요청하고, 충분한 설명으로 재시도하면 명시한 값과 호환되는 경우 high를 다시 평가할 수 있습니다. 자동 Hook 호출에 effort가 명시돼 있으면 그 값과 일치하는 모델만 후보에 남습니다.
 
 새 기본값은 후보 설정이 없거나 새로 설정할 때 적용되며, 기존 후보 목록은 유지됩니다. `gpt-6.1-sol`은 선택 후보 `codex-deep-legacy` / `medium`으로 사용할 수 있습니다. 두 모델은 서로 다른 ID로 함께 선택할 수 있습니다.
 

@@ -97,7 +97,9 @@ aptly setup --client codex --migrate-launcher --launcher stable
 |---|---|---|---|
 | simple | `haiku` | `gpt-6-luna` / `max` | 提取、格式转换、小型机械修改 |
 | routine | `sonnet` | `gpt-6.1-terra` / `high` | 考虑上下文的写作、翻译、范围明确的实现 |
-| deep | `opus` | `gpt-6.2-sol` / `medium` | 复杂调试、设计判断、深入审阅 |
+| deep | `opus` | `gpt-6.2-sol` / `medium`, `high` | 复杂调试、设计判断、深入审阅 |
+
+启用 `gpt-6.2-sol` 后，分类指引建议常规深度任务优先选择 `codex-deep` / `medium`，在详细分析依赖关系或多个故障条件的相互作用需要更多推理时考虑 `codex-deep-high` / `high`。自动 Hook 只能使用任务名称时会排除 high 候选。如果没有剩余候选，它会先请求补充说明再分类。重试时提供充分说明，且 high 与显式选择相符时，可以重新考虑该候选。自动 Hook 调用中显式指定推理强度后，候选仅包括匹配该强度的模型。
 
 新默认值适用于候选配置缺失或新建的情况；现有候选列表会保留。`gpt-6.1-sol` 仍可作为可选的 `codex-deep-legacy` / `medium` 配置使用。两个模型可使用不同的 ID 同时选择。
 

@@ -97,7 +97,9 @@ Tiers are task presets and do not imply equivalent model performance across prov
 |---|---|---|---|
 | simple | `haiku` | `gpt-6-luna` / `max` | Extraction, format conversion, small mechanical edits |
 | routine | `sonnet` | `gpt-6.1-terra` / `high` | Context-aware writing, translation, scoped implementation |
-| deep | `opus` | `gpt-6.2-sol` / `medium` | Complex debugging, design decisions, deep review |
+| deep | `opus` | `gpt-6.2-sol` / `medium`, `high` | Complex debugging, design decisions, deep review |
+
+With `gpt-6.2-sol` enabled, the selection guidance favors `codex-deep` / `medium` for ordinary deep tasks and considers `codex-deep-high` / `high` when detailed dependency analysis or interacting failure modes warrant more reasoning. The automatic Hook excludes the high option when it only has an opaque task label. If no candidates remain, it asks for context before classification. A sufficient retry description makes high eligible again when it matches explicit choices. An explicit effort in an automatic Hook call limits candidates to models with that effort.
 
 The new default applies when candidate configuration is missing or fresh; existing candidate lists are preserved. `gpt-6.1-sol` remains available as the optional `codex-deep-legacy` / `medium` profile. Both models can be selected with unique IDs.
 

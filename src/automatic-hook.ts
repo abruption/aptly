@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import { closeSync, openSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
+import { requiresDetailedTaskContext } from './catalog.ts';
 import { Router } from './core.ts';
 import { hasSufficientTaskText } from './context-sufficiency.ts';
 import { assertPrivateStatePath, readRegularFile } from './files.ts';
@@ -165,7 +166,7 @@ export function initialHookObservation(client:unknown,event:unknown):AutomaticHo
 function catalogFingerprint(policy: RoutingPolicy): string {
   return hash([policy.version, policy.catalog_version, policy.provider_id ?? null, policy.profiles, policy.profile_descriptions ?? {}]);
 }
-function boundedSummary(call: NativeCall, maxBytes: number): { summary?: string; reason?: string } {
+function boundedSummary(call: NativeCall, maxBytes: number): { summary?: string; reason?: string; labelOnly?: true } {
   const label = call.input[call.client === 'codex' ? 'task_name' : 'description'];
   const body = call.input[call.client === 'codex' ? 'message' : 'prompt'];
   if (typeof body !== 'string' || !body.trim()) return { reason: 'insufficient_context' };
@@ -184,7 +185,7 @@ function boundedSummary(call: NativeCall, maxBytes: number): { summary?: string;
     if (!concreteShortName && (Buffer.byteLength(label) < 24 || words.length < 6 || words.filter(word => /^[a-z]{2,}$/.test(word)).length < 3)) return { reason: 'insufficient_context' };
     const summary = `Task summary from visible task_name only; opaque message not inspected: ${words.join(' ')}`;
     if (Buffer.byteLength(summary) > Math.min(4000, maxBytes)) return { reason: 'insufficient_context' };
-    return { summary };
+    return { summary, labelOnly: true };
   }
   const first = body.trim().split(/\r?\n\s*\r?\n/, 1)[0];
   if (!hasSufficientTaskText(first) || (typeof label === 'string' && first.trim() === label.trim())) return { reason: 'insufficient_context' };
@@ -292,8 +293,14 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     const summary = supplied?.summary ? supplied : effectiveTransmission(loaded.policy)==='description'
       ? {reason:'insufficient_context'} : boundedSummary(call, router.policy.max_summary_bytes);
     if (Buffer.byteLength(summary.summary ?? '') > Math.min(4000,router.policy.max_summary_bytes)) return preserve('insufficient_context');
-    if (!summary.summary) {
-      if(summary.reason!=='insufficient_context'||!onNeedsContext)return preserve(summary.reason??'insufficient_context');
+    // An opaque task name cannot justify Sol/high. Keep the full pin-compatible
+    // set in the retry seed so a sufficient description can unlock that choice.
+    const classifyProfiles = 'labelOnly' in summary && summary.labelOnly
+      ? profiles.filter(profile => !requiresDetailedTaskContext(profile.id))
+      : profiles;
+    if (!summary.summary || !classifyProfiles.length) {
+      const reason = summary.reason ?? 'insufficient_context';
+      if (reason !== 'insufficient_context' || !onNeedsContext) return preserve(reason);
       if(signal?.aborted||(stillCurrent&&await stillCurrent()!==true))return preserve('call_cancelled');
       const currentPolicy=loadAutomaticHookPolicy(policyPath),currentCall=readCall(client,event),currentContext=context?.();
       if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed');
@@ -330,13 +337,13 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     // values constrain the candidate tuples; history is rechecked before application.
     const recommendation = await router.advise({ request_id, client: call.client,
       task: { summary: summary.summary, operation: 'analysis', context_sufficient: true },
-      eligible_profile_ids: profiles.map(profile=>profile.id),
+      eligible_profile_ids: classifyProfiles.map(profile=>profile.id),
       constraints: { model_pinned: false, effort_pinned: false, role_pinned: false, fork_inherits: false },
     });
     if(recommendation.reason==='budget_exhausted'&&['max_daily_calls','max_total_calls','max_estimated_usd'].includes(recommendation.budget_limit??''))budgetLimit=recommendation.budget_limit;
     observation.classification=recommendation.cached?'cache_hit':typeof recommendation.latency_ms==='number'?'provider_requested':'local_outcome';
     const profile=validatedHookProfile(client,recommendation,router.policy);
-    if(profile&&profiles.some(candidate=>candidate.id===profile.id)){observation.recommendation='produced';observation.profile_id=profile.id;observation.application='blocked';}
+    if(profile&&classifyProfiles.some(candidate=>candidate.id===profile.id)){observation.recommendation='produced';observation.profile_id=profile.id;observation.application='blocked';}
     if (signal?.aborted || (stillCurrent && await stillCurrent() !== true)) return preserve('call_cancelled', request_id);
     const currentContext=context?.();
     if (currentContext?.reason || currentContext?.fingerprint!==supplied?.fingerprint) return preserve(currentContext?.reason??'context_changed',request_id);

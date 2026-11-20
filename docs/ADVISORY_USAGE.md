@@ -71,7 +71,7 @@ ROUTER_PROVIDER=fixture "$aptly_install/node_modules/.bin/aptly" recommend < "$a
 
 constraints를 생략하면 **이 독립적인 계획 요청에 보존 조건을 선언하지 않은 것**으로 처리해요. 실제 호스트 설정에 pin이나 역할이 없다고 검사한 결과는 아니에요. 하나라도 true이면 기존 선택을 보존하고 분류를 진행하지 않아요. 잘못된 타입·지원하지 않는 후보는 안전한 결과로 거부해요. legacy `provenance_verified` 입력은 추천 경로의 권한 근거가 아니며 새 요청에서는 사용하지 않아요.
 
-기본 profile ID는 Codex의 `codex-simple`·`codex-routine`·`codex-deep`, Claude의 `claude-simple`·`claude-routine`·`claude-deep`예요. `eligible_profile_ids`에는 환경변수로 활성화한 후보 안의 ID만 지정해요. 환경에서 제외한 모델이나 다른 client의 프로필을 요청해 다시 활성화할 수 없어요. 현재 목록은 capabilities로 조회해요.
+기본 profile ID는 Codex의 `codex-simple`·`codex-routine`·`codex-deep`·`codex-deep-high`, Claude의 `claude-simple`·`claude-routine`·`claude-deep`예요. `eligible_profile_ids`에는 환경변수로 활성화한 후보 안의 ID만 지정해요. 환경에서 제외한 모델이나 다른 client의 프로필을 요청해 다시 활성화할 수 없어요. 현재 목록은 capabilities로 조회해요.
 
 ```sh
 node bin/aptly.ts capabilities
@@ -83,7 +83,9 @@ node bin/aptly.ts capabilities
 |---|---|---|
 | simple | `claude-simple`: haiku | `codex-simple`: gpt-6-luna / max |
 | routine | `claude-routine`: sonnet | `codex-routine`: gpt-6.1-terra / high |
-| deep | `claude-deep`: opus | `codex-deep`: gpt-6.2-sol / medium |
+| deep | `claude-deep`: opus | `codex-deep`: gpt-6.2-sol / medium, `codex-deep-high`: gpt-6.2-sol / high |
+
+`gpt-6.2-sol`을 포함하면 분류 기준은 일반 심층 작업에 `codex-deep` / medium을 우선하고, 상세한 의존성 분석 등 추가 추론이 필요한 작업에는 `codex-deep-high` / high를 고려해요. Hook이 불투명한 본문에서 작업명만 전달할 때는 이 high 후보를 제외해요. 충분한 설명으로 재시도하면 high가 다시 후보에 들어갈 수 있어요. 자동 Hook이 처리하는 Codex 스폰 호출에 effort가 이미 지정돼 있으면 그 값과 일치하는 모델만 후보에 남아요.
 
 `gpt-6.1-sol`은 선택 후보 `codex-deep-legacy` / medium으로 유지합니다. 기존 후보 설정은 자동으로 바꾸지 않습니다.
 
@@ -103,7 +105,7 @@ MCP 설정 JSON의 `env` 값에는 위 배열을 JSON 문자열로 넣어요. �
 
 선택적으로 `gpt-6-astra`를 넣으면 `codex-frontier` / high, `fable`을 넣으면 `claude-frontier`가 후보에 들어가요. 이 둘은 기본 목록에는 없어요. 다른 모델을 문서에서 찾았다는 사실만으로 초안의 유한한 지원 목록이 확장되지는 않아요.
 
-이 설정은 추천 후보만 바꿔요. 기존 모델·effort·역할·fork·resume·조직 권한을 덮어쓰는 설정은 아니에요. Claude effort는 이 프리셋에서 지정하지 않아요. Codex effort는 이번에 정한 프로필 기본값이며 모델 배열에 effort를 함께 적는 형식은 지원하지 않아요. 높은 effort와 저렴한 모델의 조합이 항상 최소 토큰·최저 비용이라는 주장은 하지 않아요.
+이 설정은 추천 후보만 바꿔요. 기존 모델·effort·역할·fork·resume·조직 권한을 덮어쓰는 설정은 아니에요. Claude effort는 이 프리셋에서 지정하지 않아요. Codex effort는 프로필별로 정해져 있으며 모델 배열에는 모델명만 적어요. 높은 effort와 저렴한 모델의 조합이 항상 최소 토큰·최저 비용이라는 주장은 하지 않아요.
 
 ## 공식 모델 정보와 캐시
 
