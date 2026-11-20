@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { builtInProfiles, isSupportedProfile, resolveCatalog } from '../src/catalog.ts';
+import { builtInProfiles, isSupportedProfile, requiresDetailedTaskContext, resolveCatalog } from '../src/catalog.ts';
 
 const safeError = code => error => error instanceof Error && error.message === code && error.code === code;
 const models = catalog => catalog.profiles.map(profile => profile.model);
@@ -10,6 +10,7 @@ test('draft defaults provide the user-selected three tiers and exact Codex effor
     { id:'codex-simple',client:'codex',model:'gpt-6-luna',reasoning_effort:'max' },
     { id:'codex-routine',client:'codex',model:'gpt-6.1-terra',reasoning_effort:'high' },
     { id:'codex-deep',client:'codex',model:'gpt-6.2-sol',reasoning_effort:'medium' },
+    { id:'codex-deep-high',client:'codex',model:'gpt-6.2-sol',reasoning_effort:'high' },
     { id:'claude-simple',client:'claude',model:'haiku' },
     { id:'claude-routine',client:'claude',model:'sonnet' },
     { id:'claude-deep',client:'claude',model:'opus' },
@@ -113,14 +114,18 @@ test('catalog identity ignores environment and fact record key order but respect
   const reversed=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.1-sol","gpt-6-luna"]',APTLY_CLAUDE_MODELS:'["sonnet"]'},facts);assert.notEqual(a.version,reversed.version);
 });
 
-test('new and previous Sol candidates coexist with distinct IDs without changing the default six profiles', () => {
+test('Sol tuples keep distinct IDs and preserve model order with medium before high', () => {
   const catalog=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.2-sol","gpt-6.1-sol"]',APTLY_CLAUDE_MODELS:'[]'});
+  const legacyFirst=resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.1-sol","gpt-6.2-sol"]',APTLY_CLAUDE_MODELS:'[]'});
+  assert.deepEqual(legacyFirst.profiles.map(profile=>profile.id),['codex-deep-legacy','codex-deep','codex-deep-high']);
   assert.deepEqual(catalog.profiles,[
     {id:'codex-deep',client:'codex',model:'gpt-6.2-sol',reasoning_effort:'medium'},
+    {id:'codex-deep-high',client:'codex',model:'gpt-6.2-sol',reasoning_effort:'high'},
     {id:'codex-deep-legacy',client:'codex',model:'gpt-6.1-sol',reasoning_effort:'medium'},
   ]);
   for(const profile of catalog.profiles)assert.ok(isSupportedProfile(profile));
-  assert.equal(builtInProfiles().length,6);
+  assert.deepEqual(builtInProfiles().filter(p=>requiresDetailedTaskContext(p.id)).map(p=>p.id),['codex-deep-high']);
+  assert.equal(builtInProfiles().length,7);
   assert.equal(builtInProfiles().some(p=>p.id==='codex-deep-legacy'),false);
   assert.notEqual(resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.1-sol"]'}).version,resolveCatalog({APTLY_CODEX_MODELS:'["gpt-6.2-sol"]'}).version);
 });

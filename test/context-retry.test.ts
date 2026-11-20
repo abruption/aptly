@@ -240,3 +240,30 @@ test('supplement screening accepts descriptive multilingual text and rejects pad
   assert.equal(f.calls.length,0);
  }
 });
+
+
+test('sufficient context recovers the pin-compatible Sol/high option after a label-only preflight',async t=>{
+ for(const highOnly of [false,true]){
+  const calls=[];
+  const f=fixture(t,{
+   ...(highOnly?{routerPolicy:{profiles:defaultPolicy.profiles.filter(p=>p.model==='gpt-6.2-sol')}}:{}),
+   provider:async({profiles,input})=>{
+    calls.push(profiles.map(p=>p.id));
+    return {choice:input.task.summary.startsWith('Caller-supplied')?'codex-deep-high':'needs_context'};
+   },
+  });
+  const ev=event();
+  ev.tool_input.task_name='review_architecture_tradeoffs_across_core_routing_modules';
+  if(highOnly)Object.assign(ev.tool_input,{reasoning_effort:'high'});
+  else Object.assign(ev.tool_input,{model:'gpt-6.2-sol'});
+  const first=await f.run(ev);
+  assert.equal(first.observation.status,'awaiting_context');
+  assert.deepEqual(calls,highOnly?[]:[['codex-deep']]);
+  const result=await f.retries.retry(first.observation.retry_id,description);
+  assert.equal(result.profile_id,'codex-deep-high');
+  assert.deepEqual(calls.at(-1),highOnly?['codex-deep-high']:['codex-deep','codex-deep-high']);
+  assert.deepEqual(result.next_call.set_if_unspecified,highOnly?{model:'gpt-6.2-sol'}:{reasoning_effort:'high'});
+  assert.equal((await f.retries.retry(first.observation.retry_id,description)).cached,true);
+  assert.equal(calls.length,highOnly?1:2);
+ }
+});

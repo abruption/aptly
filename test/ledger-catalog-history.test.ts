@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Router, defaultPolicy } from '../src/core.ts';
@@ -105,4 +106,27 @@ test('a stored previous deep tuple cannot impersonate the new model with a match
   const next=new Router({ledgerPath:path,provider});
   assert.equal((await next.advise(advice())).reason,'ledger_error');assert.equal(calls,1);
   assert.deepEqual(read(path).requests['new-request'].result.profile,legacyProfiles[0]);
+});
+
+
+test('expanding the deep catalog preserves previous Sol records and never redispatches their IDs',async t=>{
+  const path=join(createTestTemp(t,'codex-catalog-history-'),'ledger.json');
+  const profiles=defaultPolicy.profiles.filter(p=>p.id!=='codex-deep-high');
+  const descriptions=Object.fromEntries(Object.entries(defaultPolicy.profile_descriptions).filter(([id])=>id!=='codex-deep-high'));
+  const oldVersion='catalog-'+createHash('sha256').update(JSON.stringify({profiles,descriptions})).digest('hex').slice(0,32);
+  assert.notEqual(oldVersion,defaultPolicy.catalog_version);
+  let calls=0;
+  const prior=new Router({ledgerPath:path,policy:{...defaultPolicy,profiles,profile_descriptions:descriptions,catalog_version:oldVersion},
+    provider:async({input})=>{calls++;if(input.request_id==='uncertain')throw Object.assign(Error('fixture'),{code:'network'});return{choice:'codex-deep'};}});
+  assert.equal((await prior.advise(advice('completed'))).profile.reasoning_effort,'medium');
+  assert.equal((await prior.advise(advice('uncertain'))).reason,'network');
+  const oldRequests=read(path).requests;
+  const next=new Router({ledgerPath:path,provider:async()=>{calls++;return{choice:'codex-deep-high'};}});
+  for(const id of Object.keys(oldRequests))assert.equal((await next.advise(advice(id))).reason,'request_conflict');
+  assert.equal(calls,2);
+  const chosen=await next.advise(advice());
+  assert.equal(chosen.profile.reasoning_effort,'high');
+  assert.equal((await next.advise(advice())).cached,true);
+  assert.equal(calls,3);
+  for(const [id,record] of Object.entries(oldRequests))assert.deepEqual(read(path).requests[id],record);
 });
