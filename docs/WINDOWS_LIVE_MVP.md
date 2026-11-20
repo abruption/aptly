@@ -19,6 +19,12 @@ node test-support/windows-live-codex.mjs --run $aptlyPackageRoot $codexExe $live
 
 Run `--run` only after preflight passes. Preflight checks Codex login, the native MCP connection, key loading, and the exact trust status. It does not start a model turn. The live run requires one completed Decisions outcome, matching model and effort in the parent-linked child record, and a completed child response. The sanitized JSON reports versions, profile, counts, usage and fixed failure categories. A reservation without a completed outcome is an unknown request. Investigate that result before considering another attempt.
 
-## Current evidence
+## Windows 10 x64 result
 
-The Windows 10 x64 desktop's native Codex fixture connection passed in [PR #202](https://github.com/abruption/aptly/pull/202). Its SSH process was in session 0 while Explorer was in session 2. Codex reported a ChatGPT login, but Aptly's Codex MCP and Hook were absent in the default home. A limited, read-only interactive Scheduler probe returned Windows error `0x80070005` (access denied) and was removed. This does not establish whether the Windows desktop Credential Manager contains an Aptly key. No live Decisions requests or child turns have been made for this MVP.
+Aptly 0.1.19, Node 24.22.1, and Codex CLI 0.171.0 ran on Windows 10 build 19045 in a signed-in desktop session. The user entered the key locally into Credential Manager. Preflight verified the ChatGPT login, Decisions-mode MCP connection, `os_store` key loading, and the enabled, trusted Aptly routing Hook. Preflight made no Decisions reservation and started no child.
+
+The live probe observed one native `spawn_agent` call with `fork_turns: none` and model and effort omitted. The trusted Hook ran, reserved one Decisions attempt, and blocked with `network`. The request record remained `unknown` with no completed response. No child was observed, and the parent turn completed. The harness removed its temporary state. The attempt was not replayed. The record does not establish whether the API received it.
+
+Later unauthenticated GET probes to `api.openai.com/v1/models` returned HTTP 401 both from Windows Node and from a Node MCP subprocess started by the same Codex version. Those probes confirm reachability at their own times. They neither explain the earlier failure nor verify the key against OpenAI.
+
+The earlier fixture connection is documented in [PR #202](https://github.com/abruption/aptly/pull/202). The Windows MVP verifies startup, key loading, Hook dispatch, and the blocked outcome for this attempt. Recommendation application and child execution remain unverified.
