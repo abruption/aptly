@@ -1,6 +1,6 @@
 # Troubleshooting
 
-[한국어](../ko/troubleshooting.md) · [English](../en/troubleshooting.md) · [简体中文](../zh-CN/troubleshooting.md) · [日本語](../ja/troubleshooting.md)
+[한국어](../ko/troubleshooting.md) · **English** · [简体中文](../zh-CN/troubleshooting.md) · [日本語](../ja/troubleshooting.md)
 
 [Guide home](../en.md)
 
@@ -54,7 +54,13 @@ These options require Aptly 0.1.2 or later and are not in npm 0.1.1. To test fro
 
 Key setup diagnoses selected hosts before input or storage. If any host fails, it does not prompt or change any host. `--check` does not access keys or the credential store.
 
-From Aptly 0.1.9, on Linux, `--check` also checks for an executable `secret-tool` and, when a safe explicit session-bus address and `gdbus` are available, reads bus metadata without activating or accessing the credential service. Confirmed failures report `secure_store_unavailable` with `secure_store_secret_tool_missing`, `secure_store_bus_missing`, or `secure_store_service_missing` before input. `secure_store_bus_unverified`, `secure_store_probe_unavailable`, and service-present or activatable unverified codes mean readiness is unknown; a running or activatable service does not prove it is unlocked or writable. Install `secret-tool` and a Secret Service provider, and run from the intended desktop session when needed. The actual store operation can still fail. For SSH or headless sessions, supply `OPENAI_API_KEY` securely to the host MCP process when `APTLY_SECRET_BACKEND` is absent; preserve an existing authentication wrapper or environment. `credential_node_mismatch`, `credential_server_mismatch`, and `credential_runtime_unsupported` identify incompatible Node paths, server paths, and OS-store support respectively.
+From Aptly 0.1.9, on Linux, `--check` also checks for an executable `secret-tool` and, when a safe explicit session-bus address and `gdbus` are available, reads bus metadata without activating or accessing the credential service.
+
+Confirmed failures report `secure_store_unavailable` with `secure_store_secret_tool_missing`, `secure_store_bus_missing`, or `secure_store_service_missing` before input. `secure_store_bus_unverified`, `secure_store_probe_unavailable`, and service-present or activatable unverified codes mean readiness is unknown; a running or activatable service does not prove it is unlocked or writable.
+
+Install `secret-tool` and a Secret Service provider, and run from the intended desktop session when needed. The actual store operation can still fail.
+
+For SSH or headless sessions, supply `OPENAI_API_KEY` securely to the host MCP process when `APTLY_SECRET_BACKEND` is absent; preserve an existing authentication wrapper or environment. `credential_node_mismatch`, `credential_server_mismatch`, and `credential_runtime_unsupported` identify incompatible Node paths, server paths, and OS-store support respectively.
 
 If only Claude failed, diagnose that host and review migration only when `launcher_migration_available` is returned:
 

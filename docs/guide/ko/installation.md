@@ -1,6 +1,6 @@
 # 설치·업데이트
 
-[한국어](../ko/installation.md) · [English](../en/installation.md) · [简体中文](../zh-CN/installation.md) · [日本語](../ja/installation.md)
+**한국어** · [English](../en/installation.md) · [简体中文](../zh-CN/installation.md) · [日本語](../ja/installation.md)
 
 [가이드 목차](../ko.md)
 
@@ -26,9 +26,11 @@ aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`set default`는 호스트를 등록하고 Decisions API에 보낼 정보의 범위를 묻습니다. 키는 숨김 입력으로 OS 자격 저장소에 보관합니다. 호스트를 재시작하고 Codex의 `/hooks`에서 새 Hook을 승인하십시오.
+`set default`는 호스트를 등록하고 Decisions API에 보낼 정보의 범위를 묻습니다. API 키는 입력할 때 화면에 표시되지 않으며, OS 자격 증명 저장소에 저장됩니다. 설정을 마치면 호스트를 재시작하십시오. Codex에서는 `/hooks`에서 새 Hook을 승인하십시오.
 
-설치 스크립트는 기존 호스트 디렉터리에 MCP·Hook을 등록합니다. 디렉터리가 없으면 `aptly setup --client all`로 등록하십시오. `CODEX_HOME`·`CLAUDE_CONFIG_DIR`을 쓰는 계정은 설치·설정에도 같은 환경을 전달해야 합니다. 기존 설정과 실행 래퍼는 보존합니다. [계정 홈·키 설정](configuration.md)을 참고하십시오.
+설치 스크립트는 이미 있는 호스트 디렉터리에 MCP와 Hook을 등록합니다. 디렉터리가 없으면 `aptly setup --client all`로 등록하십시오.
+
+`CODEX_HOME`이나 `CLAUDE_CONFIG_DIR`을 사용한다면 설치와 설정 명령을 실행할 때 같은 값을 지정하십시오. Aptly는 기존 설정과 실행 래퍼를 그대로 둡니다. [계정 홈·키 설정](configuration.md)을 참고하십시오.
 
 <a id="guide-npm-install-scripts"></a>
 

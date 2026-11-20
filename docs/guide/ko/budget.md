@@ -1,6 +1,6 @@
 # 예산 한도
 
-[한국어](../ko/budget.md) · [English](../en/budget.md) · [简体中文](../zh-CN/budget.md) · [日本語](../ja/budget.md)
+**한국어** · [English](../en/budget.md) · [简体中文](../zh-CN/budget.md) · [日本語](../ja/budget.md)
 
 [가이드 목차](../ko.md)
 

@@ -1,6 +1,6 @@
 # 执行统计
 
-[한국어](../ko/statistics.md) · [English](../en/statistics.md) · [简体中文](../zh-CN/statistics.md) · [日本語](../ja/statistics.md)
+[한국어](../ko/statistics.md) · [English](../en/statistics.md) · **简体中文** · [日本語](../ja/statistics.md)
 
 [指南目录](../zh-CN.md)
 
@@ -22,7 +22,9 @@ aptly stats enable --client codex --codex-native-metadata
 aptly stats disable --client codex
 ```
 
-`aptly stats` 查询（包括 `--today`）的顶层 `status` 在查询完成时为 `complete`（退出码 0）；请求不支持的统计，或发生损坏、读取或存储错误时为 `partial`（退出码 1）。关闭收集和确实未配置的客户端也属于查询完成。部分客户端失败时仍保留成功结果。现有客户端 JSON 字段和值保持不变；严格检查完整对象的使用方须接受新增的 `status`。`complete` 不证明宿主路由、模型或信任已就绪。意外统计错误报告为 `statistics_failed`；不输出原始路径、输入、密钥或堆栈。查询不自动修复、获取同意或调用服务提供方。
+`aptly stats` 会在结果的顶层显示 `status`，使用 `--today` 时也是如此。查询完成时返回 `complete`（退出码 0），包括关闭收集或尚未配置的客户端。如果请求不受支持，或数据损坏、读取或存储出错，则返回 `partial`（退出码 1）。一个客户端查询失败时，仍会显示其他客户端的结果。
+
+客户端原有的 JSON 字段和值保持不变。验证整个响应的工具需接受新增的 `status` 字段。`complete` 只表示查询完成，无法据此确认宿主的路由、模型或 Hook 信任状态。意外错误返回 `statistics_failed`，不输出原始路径、输入、密钥或堆栈。查询期间不会修复设置、请求同意或调用服务提供方。
 
 命令形式为 `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]` 和 `aptly stats disable [--client]`。收集默认关闭，postinstall 也不会自动启用。enable 安装 Aptly 所有的命令观察器，并记录在独立的 `stats-ownership.json`；既有 receipt、MCP、launcher、密钥、预算和传输设置保持不变。启用后请重启 MCP 和宿主；Codex 还需在 `/hooks` 审核 native Hook 信任。
 

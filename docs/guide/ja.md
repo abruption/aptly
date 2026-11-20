@@ -68,7 +68,7 @@
 <a id="自動ルーティングの保証範囲と拒否結果015-以降"></a>
 - [自動ルーティングの保証範囲と拒否結果（0.1.5 以降）](ja/routing.md#guide-routing-guarantees)
 <a id="別の独立した委任を準備する016-以降"></a>
-- [別の独立した委任を準備する（0.1.6 以降）](ja/advanced.md#guide-fresh-delegation)
+- [履歴を継承する呼び出しの推薦から、別の独立した委任を準備する（0.1.6 以降）](ja/advanced.md#guide-fresh-delegation)
 <a id="直接推薦"></a>
 - [直接推薦](ja/advanced.md#guide-direct-recommendations)
 <a id="モデルと環境変数"></a>

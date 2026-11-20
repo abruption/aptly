@@ -1,6 +1,6 @@
 # 비용 실측
 
-[한국어](../ko/benchmarks.md) · [English](../en/benchmarks.md) · [简体中文](../zh-CN/benchmarks.md) · [日本語](../ja/benchmarks.md)
+**한국어** · [English](../en/benchmarks.md) · [简体中文](../zh-CN/benchmarks.md) · [日本語](../ja/benchmarks.md)
 
 [가이드 목차](../ko.md)
 

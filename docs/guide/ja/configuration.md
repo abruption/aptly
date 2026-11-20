@@ -1,6 +1,6 @@
 # 初期設定・候補モデル
 
-[한국어](../ko/configuration.md) · [English](../en/configuration.md) · [简体中文](../zh-CN/configuration.md) · [日本語](../ja/configuration.md)
+[한국어](../ko/configuration.md) · [English](../en/configuration.md) · [简体中文](../zh-CN/configuration.md) · **日本語**
 
 [ガイド目次](../ja.md)
 

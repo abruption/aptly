@@ -1,6 +1,6 @@
 # 高度な MCP 連携と開発参考
 
-[한국어](../ko/advanced.md) · [English](../en/advanced.md) · [简体中文](../zh-CN/advanced.md) · [日本語](../ja/advanced.md)
+[한국어](../ko/advanced.md) · [English](../en/advanced.md) · [简体中文](../zh-CN/advanced.md) · **日本語**
 
 [ガイド目次](../ja.md)
 
@@ -127,7 +127,9 @@ fixture は、キー・ネットワーク・子エージェントの実行なし
 
 ## 不透明な呼び出しへの明示的な説明（0.1.4 以降）
 
-実際の予定セッション・呼び出し ID と元のイベントを知る連携は、Hook の前に同じ MCP プロセスで `prepare_spawn_context({client, event, description})` を呼べます。目的・範囲・出力・制約・複雑さを短く記述してください。URL の内容は取得しません。上限付き説明と固定接頭文だけが抜粋を置き換え、履歴・ファイル・不透明な本文は送信しません。`cancel_spawn_context({client, event})` で取り消せます。有効な自動ポリシーが必要で、`enabled: false` は共有を止めます。既知の秘密パターン検査は完全ではありません。
+これから使うセッション ID と呼び出し ID、元のイベントを正確に把握できる場合は、Hook の実行前に同じ MCP プロセスで `prepare_spawn_context({client, event, description})` を呼び出せます。目的、範囲、期待する出力、制約、難しさを簡潔に記述してください。URL を書いても Aptly がその内容を取得することはありません。
+
+タスクの抜粋に代えて送るのは、長さを制限した説明と固定の接頭文だけです。履歴、ファイル、読み取れない本文は送信しません。取り消すには `cancel_spawn_context({client, event})` を使います。この機能には有効な自動ポリシーが必要です。`enabled: false` の場合は共有しません。既知のパターンを調べるだけでは、秘密情報をすべて見つけられるわけではありません。
 
 対応付けは5分間有効で変更不可、プロセスごとに最大128件です。入力変更・期限切れ・取消時は分類を止め、評価済みの呼び出しを説明変更で有料再試行しません。実際の予定イベントを取得できない呼び出し元は利用できません。標準 Hook は説明や呼び出し ID を作成しません。ローカルの `insufficient_context`、プロバイダーの `provider_needs_context`、適用時の `inherited_context_application_unverified` は別の結果です。限定的な native 説明受け渡しの検証は[契約](../../SPAWN_CONTEXT.md)に記録しています。この検証は、説明の自動生成や推薦モデルの実行を証明するものではありません。
 

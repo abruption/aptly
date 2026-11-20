@@ -1,6 +1,6 @@
 # 予算上限
 
-[한국어](../ko/budget.md) · [English](../en/budget.md) · [简体中文](../zh-CN/budget.md) · [日本語](../ja/budget.md)
+[한국어](../ko/budget.md) · [English](../en/budget.md) · [简体中文](../zh-CN/budget.md) · **日本語**
 
 [ガイド目次](../ja.md)
 

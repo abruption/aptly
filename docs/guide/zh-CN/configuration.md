@@ -1,6 +1,6 @@
 # 初始设置与候选模型
 
-[한국어](../ko/configuration.md) · [English](../en/configuration.md) · [简体中文](../zh-CN/configuration.md) · [日本語](../ja/configuration.md)
+[한국어](../ko/configuration.md) · [English](../en/configuration.md) · **简体中文** · [日本語](../ja/configuration.md)
 
 [指南目录](../zh-CN.md)
 
@@ -83,7 +83,7 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 可写祖先路径、外部提升的依赖、原生插件等无法验证的来源会被拒绝。完整性检查会增加 I/O 成本，搜索预算不是全部文件 I/O 的硬超时。这不是沙箱或发布者签名认证。MCP 失败时会报错停止，统计观察器则静默退出。
 
-所有权一致时，可从丢失、损坏或旧格式副本显式迁移至新 CLI 来源。损坏的同代锁或未完成锁不会自动覆盖或删除。旧副本也不会自动删除，因为其他主目录或进程可能引用它。请确认写入进程与引用后检查状态。直接 Node 启动器之间的迁移可能需要单独更新统计（`statistics_observer_migration_required`）。
+所有权一致时，可从丢失、损坏或旧格式副本显式迁移至新 CLI 来源。损坏的同代副本或未完成锁不会自动覆盖或删除。旧副本也不会自动删除，因为其他主目录或进程可能引用它。请确认写入进程与引用后检查状态。直接 Node 启动器之间的迁移可能需要单独更新统计（`statistics_observer_migration_required`）。
 
 </details>
 

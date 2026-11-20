@@ -1,6 +1,6 @@
 # Decisions API 전송 범위
 
-[한국어](../ko/transmission.md) · [English](../en/transmission.md) · [简体中文](../zh-CN/transmission.md) · [日本語](../ja/transmission.md)
+**한국어** · [English](../en/transmission.md) · [简体中文](../zh-CN/transmission.md) · [日本語](../ja/transmission.md)
 
 [가이드 목차](../ko.md)
 

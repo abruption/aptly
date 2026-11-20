@@ -42,4 +42,4 @@ Restart the host. You do not need to re-enter the key. If migrating a stable lau
 - [User guide](docs/guide/en.md): configuration, automatic recommendations, budgets, statistics, and troubleshooting
 - [Model candidates](docs/guide/en/configuration.md#guide-models-and-environment)
 - [Transmission scope](docs/guide/en/transmission.md): information sent to the Decisions API
-- [Measured costs](docs/guide/en/benchmarks.md): approximately 52–58% lower API-equivalent child review and classification costs in a small README review test. This is not a reduction in total task costs or subscription charges.
+- [Measured costs](docs/guide/en/benchmarks.md) — In a small README review test, the API-equivalent cost of subagent review and Decisions classification fell by about 52–58%. The estimate covers only those two costs.

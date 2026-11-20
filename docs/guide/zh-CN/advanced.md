@@ -1,6 +1,6 @@
 # 高级 MCP 集成与开发参考
 
-[한국어](../ko/advanced.md) · [English](../en/advanced.md) · [简体中文](../zh-CN/advanced.md) · [日本語](../ja/advanced.md)
+[한국어](../ko/advanced.md) · [English](../en/advanced.md) · **简体中文** · [日本語](../ja/advanced.md)
 
 [指南目录](../zh-CN.md)
 
@@ -127,7 +127,9 @@ fixture 无需密钥、网络或执行子代理，即可返回本地模拟结果
 
 ## 为不透明调用提供明确说明（0.1.4 起）
 
-知道真实的待执行会话、调用 ID 和原始事件的集成，可在 Hook 前向同一 MCP 进程调用 `prepare_spawn_context({client, event, description})`。简述目的、范围、预期输出、约束和复杂度；不会抓取 URL 内容。只有受限说明和固定前缀替代任务摘录，不会发送历史、文件或不透明正文。使用 `cancel_spawn_context({client, event})` 撤销。必须启用自动策略；`enabled: false` 阻止共享。已知秘密模式检查并非完整保护。
+如果能准确获取即将使用的会话 ID、调用 ID 和原始事件，就可以在 Hook 运行前，在同一 MCP 进程中调用 `prepare_spawn_context({client, event, description})`。请简述目的、范围、预期输出、约束和任务难度。即使说明中有 URL，Aptly 也不会抓取链接内容。
+
+发送给 Decisions 的内容只有长度受限的说明和固定前缀，它们会取代任务摘录。历史记录、文件和无法读取的正文都不会发送。要撤销说明，请调用 `cancel_spawn_context({client, event})`。此功能需要开启自动策略。`enabled: false` 时停止共享。已知模式检查可能漏掉敏感信息。
 
 关联有效期为五分钟，不可修改，每个进程最多128项。输入变化、过期或撤销会阻止分类；不能通过修改说明对已评估调用进行付费重试。无法获取真实待执行事件的调用方不能使用此路径；默认 Hook 不生成说明或调用 ID。本地 `insufficient_context`、提供方 `provider_needs_context` 和应用阶段 `inherited_context_application_unverified` 是不同结果。有限的原生说明交接验证记录于[交接契约](../../SPAWN_CONTEXT.md)。此验证不表示会自动生成说明或执行推荐的模型。
 
