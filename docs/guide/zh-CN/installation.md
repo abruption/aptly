@@ -1,6 +1,6 @@
 # 安装与更新
 
-[한국어](../ko/installation.md) · [English](../en/installation.md) · [简体中文](../zh-CN/installation.md) · [日本語](../ja/installation.md)
+[한국어](../ko/installation.md) · [English](../en/installation.md) · **简体中文** · [日本語](../ja/installation.md)
 
 [指南目录](../zh-CN.md)
 
@@ -26,9 +26,11 @@ aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`set default` 注册宿主并询问发送给 Decisions API 的信息范围。密钥通过隐藏输入保存在操作系统凭据存储中。请重启宿主，并在 Codex 的 `/hooks` 中批准新 Hook。
+运行 `set default` 会注册宿主，并询问要向 Decisions API 发送哪些信息。输入 API 密钥时，屏幕上不会显示密钥。Aptly 会将密钥保存在操作系统的凭据存储中。设置完成后请重启宿主。在 Codex 中，请打开 `/hooks` 并批准新的 Hook。
 
-安装脚本在现有宿主目录中注册 MCP 和 Hook。如果目录不存在，请使用 `aptly setup --client all` 注册。使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR` 的账户在安装和设置时也须传递相同环境。现有设置和启动包装器会保留。请参阅[账户主目录与密钥设置](configuration.md)。
+安装脚本会在已有的宿主目录中注册 MCP 和 Hook。如果目录还不存在，请运行 `aptly setup --client all` 完成注册。
+
+如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请在安装和设置时使用相同的值。Aptly 会保留已有设置和启动脚本。请参阅[账户主目录与密钥设置](configuration.md)。
 
 <a id="guide-npm-install-scripts"></a>
 

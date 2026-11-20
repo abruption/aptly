@@ -1,6 +1,6 @@
 # Automatic recommendations
 
-[한국어](../ko/routing.md) · [English](../en/routing.md) · [简体中文](../zh-CN/routing.md) · [日本語](../ja/routing.md)
+[한국어](../ko/routing.md) · **English** · [简体中文](../zh-CN/routing.md) · [日本語](../ja/routing.md)
 
 [Guide home](../en.md)
 
@@ -24,7 +24,9 @@ For opaque Codex messages, a concrete short task name such as `cleanup_merged_wo
 
 For genuinely independent work, the caller can intentionally choose a fresh child and provide sufficient standalone task context. Aptly never changes `all` to `none`, removes history or rewrites a specified model/effort. [Synthetic inherited and fresh examples](../../../examples/spawn-preflight.codex.json) show the distinct requests; they are not automatic retries. Never retry an uncertain paid call with a new ID.
 
-`defaults` enables compatible argument updates; `advisory` supplies advice only. Inherited calls and partially specified calls may now share the same bounded task excerpt with Decisions even when application is blocked; history is not a privacy opt-out. Disabled policy, insufficient context, budget limits, failure and cancellation preserve execution constraints. Input, policy and catalog bindings, duplicate suppression and unknown-outcome protection remain in place. Fixture recommendations never rewrite native defaults. The strict evidence-based path without an automatic policy remains separate; host-internal patches stay paused.
+`defaults` applies recommendations to compatible arguments. `advisory` returns recommendations only. If the transmission setting allows it, calls that inherit history or specify some arguments can still send a limited task excerpt to Decisions. This includes calls where Aptly cannot apply the recommendation.
+
+Aptly keeps the original execution constraints if the policy is off, context is missing, the budget runs out, or the call fails or is canceled. It checks that the input, policy, and catalog still match and prevents duplicate classification or retries of unknown outcomes under the same request ID. Test fixture recommendations never change native defaults. The strict evidence-based path without an automatic policy is separate. Host-internal patches remain on hold.
 
 | MCP tool | Purpose |
 |---|---|

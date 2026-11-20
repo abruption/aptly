@@ -1,6 +1,6 @@
 # 費用の実測
 
-[한국어](../ko/benchmarks.md) · [English](../en/benchmarks.md) · [简体中文](../zh-CN/benchmarks.md) · [日本語](../ja/benchmarks.md)
+[한국어](../ko/benchmarks.md) · [English](../en/benchmarks.md) · [简体中文](../zh-CN/benchmarks.md) · **日本語**
 
 [ガイド目次](../ja.md)
 

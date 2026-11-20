@@ -1,6 +1,6 @@
 # 초기 설정·모델 후보
 
-[한국어](../ko/configuration.md) · [English](../en/configuration.md) · [简体中文](../zh-CN/configuration.md) · [日本語](../ja/configuration.md)
+**한국어** · [English](../en/configuration.md) · [简体中文](../zh-CN/configuration.md) · [日本語](../ja/configuration.md)
 
 [가이드 목차](../ko.md)
 
@@ -83,7 +83,7 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 쓰기 가능한 조상 경로·외부로 hoist된 의존성·네이티브 애드온 등 검증할 수 없는 소스는 거절합니다. 무결성 확인은 I/O 비용을 추가하며 탐색 예산은 전체 파일 I/O의 hard timeout이 아닙니다. sandbox나 배포자 서명 인증은 아닙니다. MCP는 실패 시 오류로 중단하고 통계 관찰자는 조용히 종료합니다.
 
-소유권이 일치하면 유실·손상·이전 형식 사본에서 새 CLI 소스로 명시 전환할 수 있습니다. 손상된 동일 세대·미완료 lock은 자동으로 덮어쓰거나 삭제하지 않습니다. 다른 홈·프로세스가 참조할 수 있어 이전 사본도 자동 삭제하지 않습니다. 쓰기 프로세스와 참조를 확인한 뒤 상태를 검토하십시오. 직접 Node 실행기끼리의 전환은 별도 통계 갱신(`statistics_observer_migration_required`)이 필요할 수 있습니다.
+소유권이 일치하면 유실·손상·이전 형식 사본에서 새 CLI 소스로 명시 전환할 수 있습니다. 손상된 동일 세대 사본이나 미완료 lock은 자동으로 덮어쓰거나 삭제하지 않습니다. 다른 홈·프로세스가 참조할 수 있어 이전 사본도 자동 삭제하지 않습니다. 쓰기 프로세스와 참조를 확인한 뒤 상태를 검토하십시오. 직접 Node 실행기끼리의 전환은 별도 통계 갱신(`statistics_observer_migration_required`)이 필요할 수 있습니다.
 
 </details>
 

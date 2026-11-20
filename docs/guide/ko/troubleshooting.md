@@ -1,6 +1,6 @@
 # 문제 해결
 
-[한국어](../ko/troubleshooting.md) · [English](../en/troubleshooting.md) · [简体中文](../zh-CN/troubleshooting.md) · [日本語](../ja/troubleshooting.md)
+**한국어** · [English](../en/troubleshooting.md) · [简体中文](../zh-CN/troubleshooting.md) · [日本語](../ja/troubleshooting.md)
 
 [가이드 목차](../ko.md)
 
@@ -54,7 +54,13 @@ CODEX_HOME="$HOME/.codex" aptly stats --client codex
 
 키 설정은 입력·저장 전에 선택한 호스트를 진단합니다. 하나라도 실패하면 입력을 받지 않고 모든 호스트를 그대로 둡니다. `--check`는 키나 자격 저장소에 접근하지 않습니다.
 
-Aptly 0.1.9부터 Linux에서 `--check`는 실행 가능한 `secret-tool`도 확인하고, 안전한 명시적 세션 버스 주소와 `gdbus`가 있으면 자격 증명 서비스를 활성화하거나 접근하지 않고 버스 메타데이터를 읽습니다. 확실한 실패는 입력 전에 `secure_store_unavailable`과 함께 `secure_store_secret_tool_missing`, `secure_store_bus_missing`, `secure_store_service_missing` 중 하나로 알립니다. `secure_store_bus_unverified`, `secure_store_probe_unavailable` 및 서비스 존재·활성화 가능 미확인 코드는 준비 상태를 알 수 없다는 뜻이며, 서비스가 실행 중이거나 활성화 가능해도 잠금 해제 또는 쓰기 가능을 보장하지 않습니다. 필요한 경우 `secret-tool`과 Secret Service 제공자를 설치하고 사용할 데스크톱 세션에서 실행하십시오. 실제 저장은 여전히 실패할 수 있습니다. SSH 또는 헤드리스 세션에서는 `APTLY_SECRET_BACKEND`가 없는 경우 호스트 MCP 프로세스에 `OPENAI_API_KEY`를 안전하게 전달하십시오. 기존 인증 래퍼나 환경은 보존하십시오. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
+Aptly 0.1.9부터 Linux에서 `--check`는 실행 가능한 `secret-tool`도 확인하고, 안전한 명시적 세션 버스 주소와 `gdbus`가 있으면 자격 증명 서비스를 활성화하거나 접근하지 않고 버스 메타데이터를 읽습니다.
+
+확실한 실패는 입력 전에 `secure_store_unavailable`과 함께 `secure_store_secret_tool_missing`, `secure_store_bus_missing`, `secure_store_service_missing` 중 하나로 알립니다. `secure_store_bus_unverified`, `secure_store_probe_unavailable` 및 서비스 존재·활성화 가능 미확인 코드는 준비 상태를 알 수 없다는 뜻이며, 서비스가 실행 중이거나 활성화 가능해도 잠금 해제 또는 쓰기 가능을 보장하지 않습니다.
+
+필요한 경우 `secret-tool`과 Secret Service 제공자를 설치하고 사용할 데스크톱 세션에서 실행하십시오. 실제 저장은 여전히 실패할 수 있습니다.
+
+SSH 또는 헤드리스 세션에서는 `APTLY_SECRET_BACKEND`가 없는 경우 호스트 MCP 프로세스에 `OPENAI_API_KEY`를 안전하게 전달하십시오. 기존 인증 래퍼나 환경은 보존하십시오. `credential_node_mismatch`, `credential_server_mismatch`, `credential_runtime_unsupported`는 각각 Node 경로, 서버 경로, OS 저장소 지원의 불일치입니다.
 
 Claude만 실패했다면 다음 순서로 진단하고, `launcher_migration_available`일 때만 이전을 검토하십시오:
 
@@ -84,7 +90,7 @@ aptly setup --client claude --migrate-launcher --include-existing
 
 ## 중단된 프로세스와 원장 잠금
 
-원장 PREFLIGHT 읽기는 파일의 권한이나 내용을 변경하지 않습니다. POSIX에서는 소유자만 접근할 수 있는 권한(예: `0600`, `0400`)을 허용하며, `0644`나 잘못된 소유자는 기존 실패 경로(예: `ledger_error`)로 거부하고 자동으로 `chmod`하거나 재시도하지 않습니다. 권한을 명시적으로 복구하기 전에 정확한 로컬 파일과 소유자를 확인하고 관련 writer를 중지하십시오. 복구를 위해 원장, `unknown` 기록, 예약, 캐시, 잠금 파일 또는 journal을 삭제하거나 초기화하지 마십시오. 이후 정상적인 쓰기는 기존 writer 잠금 아래에서 이루어지며 권한을 `0600`으로 정규화할 수 있습니다. Windows의 소유권 및 비공개 접근 보호는 그대로이며 POSIX 권한 비트는 Windows ACL을 보장하지 않습니다.
+Aptly가 요청 기록 파일(원장)을 미리 확인할 때는 파일의 권한이나 내용을 바꾸지 않습니다. POSIX에서는 소유자만 접근할 수 있는 권한(예: `0600`, `0400`)을 허용하며, `0644`나 잘못된 소유자는 기존 실패 경로(예: `ledger_error`)로 거부하고 자동으로 `chmod`하거나 재시도하지 않습니다. 권한을 명시적으로 복구하기 전에 정확한 로컬 파일과 소유자를 확인하고 관련 writer를 중지하십시오. 복구를 위해 원장, `unknown` 기록, 예약, 캐시, 잠금 파일 또는 journal을 삭제하거나 초기화하지 마십시오. 이후 정상적인 쓰기는 기존 writer 잠금 아래에서 이루어지며 권한을 `0600`으로 정규화할 수 있습니다. Windows의 소유권 및 비공개 접근 보호는 그대로이며 POSIX 권한 비트는 Windows ACL을 보장하지 않습니다.
 
 이 잠금 방식은 Aptly `0.1.2`부터 지원하며 npm `0.1.1`에는 없습니다. JSON 원장의 요청 ID·`unknown`·완료 캐시·호출 수·비용 예약 형식은 유지합니다. 영속 원장에만 Node.js 24 내장 SQLite를 사용하며, 원장 옆의 `ledger.json.lock`은 정상 종료 후에도 남는 잠금 파일입니다. 파일이 있다는 사실만으로 활성 잠금을 뜻하지 않습니다. 새 방식에서는 프로세스 종료 시 OS 잠금이 해제되므로 후속 요청이 같은 원장을 다시 사용할 수 있습니다. 결과가 불명확했던 기존 ID를 재호출하거나 예약 비용을 되돌리지는 않습니다.
 

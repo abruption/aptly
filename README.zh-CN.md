@@ -42,4 +42,4 @@ aptly setup --client all
 - [使用指南](docs/guide/zh-CN.md)：设置、自动推荐、预算、统计与问题排查
 - [候选模型设置](docs/guide/zh-CN/configuration.md#guide-models-and-environment)
 - [传输范围](docs/guide/zh-CN/transmission.md)：发送给 Decisions API 的信息
-- [成本实测](docs/guide/zh-CN/benchmarks.md)：在小规模 README 审阅测试中，子代理审阅与分类费用的 API 折算额降低约 52%～58%；这不是整体任务成本或订阅实际账单的降幅。
+- [成本实测](docs/guide/zh-CN/benchmarks.md)：在一次小规模 README 审阅测试中，子代理审阅和 Decisions 分类的 API 折算费用合计下降了约 52%～58%。统计范围仅包括这两项费用。

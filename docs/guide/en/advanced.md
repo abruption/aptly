@@ -1,6 +1,6 @@
 # Advanced MCP integration and development
 
-[한국어](../ko/advanced.md) · [English](../en/advanced.md) · [简体中文](../zh-CN/advanced.md) · [日本語](../ja/advanced.md)
+[한국어](../ko/advanced.md) · **English** · [简体中文](../zh-CN/advanced.md) · [日本語](../ja/advanced.md)
 
 [Guide home](../en.md)
 
@@ -28,7 +28,7 @@ Run `setup`, then merge the examples below into the existing `aptly` registratio
 
 ### Passing the API key
 
-For a direct launch, enter the key in **Bash** without displaying or saving its value, then start the host from that shell. In zsh, run `bash` first:
+For a direct launch, enter the key in **Bash** without displaying the value or saving it in shell history, then start the host from that shell. In zsh, run `bash` first:
 
 ```sh
 read -rsp 'OpenAI API key: ' OPENAI_API_KEY
@@ -127,7 +127,9 @@ The direct recommendation's `application: advisory_only` does not verify host se
 
 ## Explicit description for opaque spawns (0.1.4+)
 
-An integration that knows the real upcoming session/call IDs and exact original event can call `prepare_spawn_context({client, event, description})` on the same MCP process before the Hook. Describe purpose, scope, expected output, constraints and complexity; URLs alone do not fetch content. Only the bounded description and fixed prefix replace the task excerpt, not history, files or the opaque body. `cancel_spawn_context({client, event})` revokes it. Registration needs enabled automatic policy; `enabled: false` prevents sharing. Known-secret filters are incomplete.
+If your integration knows the exact upcoming session ID, call ID, and original event, call `prepare_spawn_context({client, event, description})` in the same MCP process before the Hook runs. Briefly state the purpose, scope, expected output, constraints, and difficulty. Aptly does not fetch the contents of URLs you include.
+
+Aptly sends only the bounded description and its fixed prefix in place of the excerpt. It sends no history, files, or opaque body. To withdraw the description, call `cancel_spawn_context({client, event})`. The automatic policy must be active. `enabled: false` stops sharing. Checks for known secret patterns can miss sensitive information.
 
 Associations last five minutes, are immutable, and are limited to 128 per process. Changed, expired or cancelled associations block routing; an already evaluated call cannot acquire a richer-summary retry or new paid identity. A caller unable to obtain the actual upcoming event cannot use this handoff; shipped Hooks do not create descriptions or call IDs. Local `insufficient_context`, provider `provider_needs_context`, and native `inherited_context_application_unverified` are distinct. The [handoff contract](../../SPAWN_CONTEXT.md) records a bounded native description-handoff check. It does not establish automatic description production or execution of the recommended model.
 
@@ -145,7 +147,7 @@ Cache reuse requires a completed first result. An unknown outcome remains `outco
 
 `context_retry_allowed: false` ends further context supplementation. For a compatible recommendation, `caller_review_required` means the parent reviews arguments; it does not request new user approval. Existing delegation authorization and host permission checks still apply.
 
-The shared output validation below is available starting with 0.1.17. Retry/fresh application metadata uses a shared Zod contract. Retry `required_fields` lists only missing fields and `next_action` is `apply_returned_defaults` (fresh: `submit_prepared_call`). Stop if application is forbidden or unclear; existing-agent reuse is not evidence of applying advice. Internal inconsistency returns `recovery_metadata_invalid` without raw data or repeating a completed classification. Strict consumers must allow additive fields. Validation does not establish caller compliance or permission.
+The shared output validation below is available starting with 0.1.17. Retry/fresh application metadata uses a shared Zod contract. Retry `required_fields` lists only unspecified fields and `next_action` is `apply_returned_defaults` (fresh: `submit_prepared_call`). Stop if application is forbidden or unclear; existing-agent reuse is not evidence of applying advice. Internal inconsistency returns `recovery_metadata_invalid` without raw data or repeating a completed classification. Strict consumers must allow additive fields. Validation does not establish caller compliance or permission.
 
 <a id="guide-fresh-delegation"></a>
 
@@ -179,7 +181,7 @@ Refresh only reads the fixed [Claude model documentation](https://code.claude.co
 
 When Codex passes a subagent `message` to the Hook as ciphertext, Aptly does not read or decrypt its body. It uses only a sufficiently descriptive plaintext `task_name` as a summary. Describe the task and its scope, for example `sort_supplied_numbers_3_1_2_ascending_without_tools`. Unsupported or ambiguous task names preserve the original model. Claude Code calls and calls that expose a plaintext body use a summary of the provided body.
 
-Use `get_spawn_routing_observation` with the same `client` and exact original Hook `event` to query one invocation. It returns a redacted correlation ID, preflight, classification/cache outcome, recommendation, argument-update or blocked application, and `execution: not_observed`. `arguments_updated` only describes emitted Hook arguments, never an observed child model. Records are limited to 128 calls and 10 minutes in this MCP process; `not_observed` can also mean another process, restart, expiry, eviction or mismatched input. It does not prove global Hook bypass. The process-wide `automatic_hook.last_result` is removed. No raw task, path, session ID or credential is returned.
+Use `get_spawn_routing_observation` with the same `client` and exact original Hook `event` to query one invocation. It returns a hashed correlation ID, preflight, classification/cache outcome, recommendation, argument-update or blocked application, and `execution: not_observed`. `arguments_updated` only describes emitted Hook arguments, never an observed child model. Records are limited to 128 calls and 10 minutes in this MCP process; `not_observed` can also mean another process, restart, expiry, eviction or mismatched input. It does not prove global Hook bypass. The process-wide `automatic_hook.last_result` is removed. No raw task, path, session ID or credential is returned.
 
 For direct recommendations, you can include repository and file URLs alongside a summary of the scope, size, and constraints derived from reading the documents. Sending a URL string differs from providing document contents. Aptly's classification request code does not fetch repository URLs or retrieve their contents. The caller performs any required retrieval and summarization.
 

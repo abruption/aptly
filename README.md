@@ -42,4 +42,4 @@ aptly setup --client all
 - [사용 가이드](docs/guide/ko.md): 설정·자동 추천·예산·통계·문제 해결
 - [모델 후보 설정](docs/guide/ko/configuration.md#guide-models-and-environment)
 - [전송 범위](docs/guide/ko/transmission.md): Decisions API에 보내는 정보
-- [비용 실측](docs/guide/ko/benchmarks.md): 소규모 README 검토 시험에서 자식 검토·분류비의 API 환산액 약 52~58% 감소. 전체 작업 비용이나 구독 실청구 절감률은 아닙니다.
+- [비용 실측](docs/guide/ko/benchmarks.md) — 소규모 README 검토 시험에서 서브에이전트의 검토 비용과 Decisions 분류 비용을 합산한 API 환산액이 약 52~58% 줄었습니다. 측정 범위는 이 두 비용입니다.

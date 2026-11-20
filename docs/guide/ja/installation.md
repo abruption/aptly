@@ -1,6 +1,6 @@
 # インストール・更新
 
-[한국어](../ko/installation.md) · [English](../en/installation.md) · [简体中文](../zh-CN/installation.md) · [日本語](../ja/installation.md)
+[한국어](../ko/installation.md) · [English](../en/installation.md) · [简体中文](../zh-CN/installation.md) · **日本語**
 
 [ガイド目次](../ja.md)
 
@@ -26,9 +26,11 @@ aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`set default` はホストを登録し、Decisions API に送る情報の範囲を尋ねます。キーは非表示入力で OS の資格情報ストアに保存します。ホストを再起動し、Codex の `/hooks` で新しい Hook を承認してください。
+`set default` を実行するとホストが登録され、Decisions API に送る情報の範囲を選べます。API キーは入力中に表示されず、OS の資格情報ストアに保存されます。設定後にホストを再起動してください。Codex では `/hooks` を開き、新しい Hook を承認してください。
 
-インストールスクリプトは既存のホストディレクトリに MCP・Hook を登録します。ディレクトリがない場合は `aptly setup --client all` で登録してください。`CODEX_HOME`・`CLAUDE_CONFIG_DIR` を使うアカウントでは、インストール・設定にも同じ環境を渡す必要があります。既存の設定と実行ラッパーは保持します。[アカウントホーム・キー設定](configuration.md)を参照してください。
+インストールスクリプトは、すでにあるホストディレクトリに MCP と Hook を登録します。ディレクトリがない場合は、`aptly setup --client all` で登録してください。
+
+`CODEX_HOME` や `CLAUDE_CONFIG_DIR` を使う場合は、インストールと設定の両方で同じ値を指定してください。Aptly は既存の設定と実行ラッパーを維持します。詳しくは[アカウントホーム・キー設定](configuration.md)を参照してください。
 
 <a id="guide-npm-install-scripts"></a>
 

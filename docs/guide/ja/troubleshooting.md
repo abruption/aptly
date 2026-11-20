@@ -1,6 +1,6 @@
 # トラブルシューティング
 
-[한국어](../ko/troubleshooting.md) · [English](../en/troubleshooting.md) · [简体中文](../zh-CN/troubleshooting.md) · [日本語](../ja/troubleshooting.md)
+[한국어](../ko/troubleshooting.md) · [English](../en/troubleshooting.md) · [简体中文](../zh-CN/troubleshooting.md) · **日本語**
 
 [ガイド目次](../ja.md)
 
@@ -54,7 +54,13 @@ CODEX_HOME="$HOME/.codex" aptly stats --client codex
 
 キー設定は入力・保存前に対象ホストを診断します。いずれかが失敗すると入力を求めず、全ホストを変更しません。`--check` はキーや資格情報ストアにアクセスしません。
 
-Aptly 0.1.9 以降、Linux の `--check` は実行可能な `secret-tool` も確認し、安全な明示的セッションバスアドレスと `gdbus` がある場合、資格情報サービスを起動・アクセスせずにバスメタデータを読み取ります。確実な失敗は入力前に `secure_store_unavailable` と `secure_store_secret_tool_missing`、`secure_store_bus_missing`、`secure_store_service_missing` のいずれかで通知します。`secure_store_bus_unverified`、`secure_store_probe_unavailable`、サービスの存在・起動可能を示す未確認コードは準備状態が不明であることを意味します。サービスの存在や起動可能性はロック解除や書き込み可能を保証しません。必要に応じて `secret-tool` と Secret Service プロバイダーをインストールし、使用するデスクトップセッションで実行してください。実際の保存は失敗する場合があります。SSH やヘッドレスセッションでは、`APTLY_SECRET_BACKEND` がない場合に `OPENAI_API_KEY` をホスト MCP プロセスへ安全に渡してください。既存の認証ラッパーや環境は保持してください。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
+Aptly 0.1.9 以降、Linux の `--check` は実行可能な `secret-tool` も確認し、安全な明示的セッションバスアドレスと `gdbus` がある場合、資格情報サービスを起動・アクセスせずにバスメタデータを読み取ります。
+
+確実な失敗は入力前に `secure_store_unavailable` と `secure_store_secret_tool_missing`、`secure_store_bus_missing`、`secure_store_service_missing` のいずれかで通知します。`secure_store_bus_unverified`、`secure_store_probe_unavailable`、サービスの存在・起動可能を示す未確認コードは準備状態が不明であることを意味します。サービスの存在や起動可能性はロック解除や書き込み可能を保証しません。
+
+必要に応じて `secret-tool` と Secret Service プロバイダーをインストールし、使用するデスクトップセッションで実行してください。実際の保存は失敗する場合があります。
+
+SSH やヘッドレスセッションでは、`APTLY_SECRET_BACKEND` がない場合に `OPENAI_API_KEY` をホスト MCP プロセスへ安全に渡してください。既存の認証ラッパーや環境は保持してください。`credential_node_mismatch`、`credential_server_mismatch`、`credential_runtime_unsupported` はそれぞれ Node パス、サーバーパス、OS ストア対応の不一致を示します。
 
 Claude だけが失敗した場合は次の順序で診断し、`launcher_migration_available` の場合にのみ移行を検討してください。
 
@@ -84,7 +90,7 @@ aptly setup --client claude --migrate-launcher --include-existing
 
 ## プロセス中断と台帳ロック
 
-台帳の PREFLIGHT 読み取りは、ファイルの権限や内容を変更しません。POSIX では所有者のみがアクセスできる権限（例: `0600`、`0400`）を受け入れ、`0644` や不正な所有者は既存の失敗経路（例: `ledger_error`）で拒否します。自動で `chmod` や再試行はしません。権限を明示的に修復する前に、対象の正確なローカルファイルと所有者を確認し、関連する書き込みプロセスを停止してください。修復のために台帳、`unknown` 記録、予約、キャッシュ、ロック、journal を削除または初期化しないでください。その後の正当な書き込みは引き続き既存の書き込みロックの下で行われ、権限が `0600` に正規化される場合があります。Windows の所有権と非公開アクセスの保護は変わらず、POSIX 権限ビットは Windows ACL を保証しません。
+Aptly はリクエストの記録ファイル（台帳）を事前に確認する際、権限や内容を変更しません。POSIX では所有者のみがアクセスできる権限（例: `0600`、`0400`）を受け入れ、`0644` や不正な所有者は既存の失敗経路（例: `ledger_error`）で拒否します。自動で `chmod` や再試行はしません。権限を明示的に修復する前に、対象の正確なローカルファイルと所有者を確認し、関連する書き込みプロセスを停止してください。修復のために台帳、`unknown` 記録、予約、キャッシュ、ロック、journal を削除または初期化しないでください。その後の正当な書き込みは引き続き既存の書き込みロックの下で行われ、権限が `0600` に正規化される場合があります。Windows の所有権と非公開アクセスの保護は変わらず、POSIX 権限ビットは Windows ACL を保証しません。
 
 このロック方式は Aptly `0.1.2` 以降で利用でき、npm `0.1.1` には含まれません。JSON 台帳のリクエスト ID・`unknown`・完了済みキャッシュ・呼び出し数・予約費用の形式は維持します。永続台帳だけが Node.js 24 内蔵の SQLite を使用します。隣接する `ledger.json.lock` は正常終了後も残るため、ファイルの存在だけではロックが使用中かどうかを判断できません。新方式ではプロセス終了時に OS のロックが解放され、後続のリクエストが同じ台帳を使用できます。結果が不明な既存 ID の再試行や予約費用の返却は行いません。
 

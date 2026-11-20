@@ -1,6 +1,6 @@
 # 実行統計
 
-[한국어](../ko/statistics.md) · [English](../en/statistics.md) · [简体中文](../zh-CN/statistics.md) · [日本語](../ja/statistics.md)
+[한국어](../ko/statistics.md) · [English](../en/statistics.md) · [简体中文](../zh-CN/statistics.md) · **日本語**
 
 [ガイド目次](../ja.md)
 
@@ -22,7 +22,9 @@ aptly stats enable --client codex --codex-native-metadata
 aptly stats disable --client codex
 ```
 
-`aptly stats` の読み取り（`--today` を含む）のトップレベル `status` は、照会が完了すると `complete`（終了コード 0）、未対応の統計要求や破損・読み取り・ストアのエラーがあると `partial`（終了コード 1）です。収集が無効な場合や実際に未設定のクライアントも照会完了です。一部のクライアントが失敗しても成功した結果は保持します。既存のクライアント JSON フィールドと値は維持するため、オブジェクト全体を厳密に検査する利用側は追加された `status` を受け入れてください。`complete` はホストのルーティング・モデル・信頼の準備を保証しません。予期しない統計エラーは `statistics_failed` で報告し、生のパス・入力・キー・スタックは出力しません。読み取りは自動修復・同意取得・プロバイダー呼び出しを行いません。
+`aptly stats` は `--today` を使う場合も、結果の最上位に `status` を表示します。照会が完了すると `complete`（終了コード 0）を返します。収集が無効なクライアントや未設定のクライアントも、この状態になります。未対応の要求、データ破損、読み取りやストアのエラーがあれば `partial`（終了コード 1）です。一部のクライアントで失敗しても、ほかの結果は表示します。
+
+クライアントごとの既存の JSON フィールドと値は変わりません。レスポンス全体を検証するツールでは、新しい `status` フィールドを許可してください。`complete` は照会の結果です。ホストのルーティング、モデル、Hook の信頼状態まで確認したわけではありません。予期しないエラーは `statistics_failed` として報告し、元のパス、入力、キー、スタックトレースは出力しません。照会中に設定を修復したり、同意を求めたり、プロバイダーを呼び出したりすることはありません。
 
 形式は `aptly stats [--today] [--client codex|claude|all]`、`aptly stats enable [--client] [--codex-native-metadata]`、`aptly stats disable [--client]` です。収集は既定で無効で、postinstall でも自動有効化しません。enable は Aptly 所有のコマンド観測器を設置し、別の `stats-ownership.json` に記録します。既存の receipt・MCP・launcher・キー・予算・送信設定は保持します。有効化後は MCP とホストを再起動し、Codex では `/hooks` で native Hook の信頼を確認してください。
 

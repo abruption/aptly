@@ -1,6 +1,6 @@
 # Execution statistics
 
-[한국어](../ko/statistics.md) · [English](../en/statistics.md) · [简体中文](../zh-CN/statistics.md) · [日本語](../ja/statistics.md)
+[한국어](../ko/statistics.md) · **English** · [简体中文](../zh-CN/statistics.md) · [日本語](../ja/statistics.md)
 
 [Guide home](../en.md)
 
@@ -22,7 +22,9 @@ aptly stats enable --client codex --codex-native-metadata
 aptly stats disable --client codex
 ```
 
-The top-level `status` in `aptly stats` reads, including `--today`, is `complete` (exit 0) when the query completes and `partial` (exit 1) for unsupported statistics requests or corrupt, read, or store errors. Disabled collection and genuinely unconfigured clients are completed queries. Successful client results remain available when another client fails. Existing client JSON fields and values are retained; strict full-object consumers must accept the additive `status`. `complete` does not certify host routing, model, or trust readiness. Unexpected statistics failures report `statistics_failed`; raw paths, input, keys, and stacks are not printed. Reads do not repair setup, obtain consent, or call a provider.
+`aptly stats` reports a top-level `status`, including when you use `--today`. A completed query returns `complete` (exit 0). That includes clients with collection turned off or not set up. An unsupported request or a corruption, read, or storage error returns `partial` (exit 1). Results for other clients remain available if one fails.
+
+The existing client JSON fields and values stay the same. If your tool validates the entire response, allow the new `status` field. `complete` describes the query result and does not verify host routing, model access, or Hook trust. Unexpected errors return `statistics_failed` without raw paths, input, keys, or stack traces. The query does not repair settings, request consent, or call the provider.
 
 The command forms are `aptly stats [--today] [--client codex|claude|all]`, `aptly stats enable [--client] [--codex-native-metadata]` and `aptly stats disable [--client]`. Collection is off by default and postinstall does not enable it. Enable installs Aptly-owned command observers recorded separately in `stats-ownership.json`; it leaves the legacy receipt, MCP, launchers, keys, budget and transmission settings intact. Restart MCP and the host after enabling; for Codex, review native Hook trust in `/hooks`.
 

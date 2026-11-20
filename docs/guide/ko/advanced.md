@@ -1,6 +1,6 @@
 # 고급 MCP 연동·개발 참고
 
-[한국어](../ko/advanced.md) · [English](../en/advanced.md) · [简体中文](../zh-CN/advanced.md) · [日本語](../ja/advanced.md)
+**한국어** · [English](../en/advanced.md) · [简体中文](../zh-CN/advanced.md) · [日本語](../ja/advanced.md)
 
 [가이드 목차](../ko.md)
 
@@ -127,7 +127,9 @@ fixture는 키·네트워크·자식 실행 없이 로컬 규칙으로 생성한
 
 ## 불투명 호출에 명시적 설명 전달 (0.1.4부터)
 
-실제 예정된 세션·호출 ID와 원래 이벤트를 아는 연동은 Hook 전에 같은 MCP 프로세스에 `prepare_spawn_context({client, event, description})`를 호출할 수 있습니다. 목적·범위·결과물·제약·복잡도를 짧게 적으세요. URL의 내용은 가져오지 않습니다. 제한된 설명과 고정 접두문만 작업 발췌문을 대체하며, 이력·파일·불투명 본문은 보내지 않습니다. `cancel_spawn_context({client, event})`로 취소합니다. 자동 정책이 활성화되어야 하며 `enabled: false`는 공유를 차단합니다. 알려진 비밀 패턴 검사만으로 완전한 보호를 보장하지 않습니다.
+호출할 세션과 호출 ID, 원래 이벤트를 정확히 알고 있다면 Hook 실행 전에 같은 MCP 프로세스에서 `prepare_spawn_context({client, event, description})`를 호출하십시오. 목적과 범위, 원하는 결과물, 제약, 작업 난도를 짧게 적으십시오. URL을 적어도 Aptly가 내용을 가져오지는 않습니다.
+
+Decisions에는 작업 발췌문 대신 길이를 제한한 설명과 고정 접두문만 전달합니다. 대화 이력, 파일, 읽을 수 없는 본문은 보내지 않습니다. 취소하려면 `cancel_spawn_context({client, event})`를 호출하십시오. 이 기능은 자동 정책이 활성화돼 있어야 동작합니다. `enabled: false`이면 정보를 보내지 않습니다. 알려진 패턴 검사로 모든 비밀을 찾을 수는 없습니다.
 
 연결은 5분간 유효하고 변경할 수 없으며 프로세스당 최대 128개입니다. 입력 변경·만료·취소 시 분류를 중단하고, 이미 평가한 호출에 설명을 바꿔 유료 재시도하지 않습니다. 실제 예정 이벤트를 알 수 없는 호출자는 사용할 수 없습니다. 기본 Hook은 설명이나 호출 ID를 만들지 않습니다. 로컬 `insufficient_context`, 공급자 `provider_needs_context`, 실제 적용의 `inherited_context_application_unverified`는 서로 다릅니다. 제한된 native 설명 전달 검증은 [전달 계약](../../SPAWN_CONTEXT.md)에 기록했습니다. 이 검증은 기본 설명의 자동 생성이나 추천 모델의 실행을 증명하지 않습니다.
 

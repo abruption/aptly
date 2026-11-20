@@ -26,9 +26,11 @@ aptly set env OPENAI_API_KEY
 aptly --version
 ```
 
-`set default` registers hosts and asks what information to send to the Decisions API. Enter the key through the hidden prompt; it is stored in the OS credential store. Restart the host and approve the new Hook in Codex `/hooks`.
+`set default` registers your hosts and asks what information to send to the Decisions API. The API key stays hidden as you type, and Aptly saves it in the OS credential store. Restart the host after setup. In Codex, approve the new Hook in `/hooks`.
 
-The install script registers MCP and Hooks in existing host directories. If a directory does not exist, register with `aptly setup --client all`. Accounts using `CODEX_HOME` or `CLAUDE_CONFIG_DIR` must pass the same environment during installation and setup. Existing settings and launcher wrappers are preserved. See [account homes and keys](configuration.md).
+The install script registers MCP and Hooks in host directories that already exist. If a directory is missing, run `aptly setup --client all` to register it.
+
+If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, set the same value for installation and setup. Aptly keeps your existing settings and launcher wrappers. See [account homes and keys](configuration.md).
 
 <a id="guide-npm-install-scripts"></a>
 

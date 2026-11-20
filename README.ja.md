@@ -42,4 +42,4 @@ aptly setup --client all
 - [使用ガイド](docs/guide/ja.md): 設定・自動推薦・予算・統計・トラブルシューティング
 - [候補モデルの設定](docs/guide/ja/configuration.md#guide-models-and-environment)
 - [送信範囲](docs/guide/ja/transmission.md): Decisions API に送る情報
-- [費用実測](docs/guide/ja/benchmarks.md): 小規模な README レビュー試験で子レビュー・分類費の API 換算額が約 52～58% 減少。タスク全体の費用やサブスクリプションの実請求額の削減率ではありません。
+- [費用実測](docs/guide/ja/benchmarks.md) — 小規模な README レビュー試験では、サブエージェントのレビューと Decisions の分類にかかる API 換算費用が、合計で約 52～58% 減りました。集計の対象はこの二つの費用です。

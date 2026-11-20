@@ -68,7 +68,7 @@ Korean is the canonical documentation. For your first setup, read Installation â
 <a id="automatic-routing-guarantees-and-blocked-outcomes-015"></a>
 - [Automatic routing guarantees and blocked outcomes (0.1.5+)](en/routing.md#guide-routing-guarantees)
 <a id="prepare-a-separate-independent-delegation-016"></a>
-- [Prepare a separate independent delegation (0.1.6+)](en/advanced.md#guide-fresh-delegation)
+- [Prepare a separate delegation from an inherited recommendation (0.1.6+)](en/advanced.md#guide-fresh-delegation)
 <a id="direct-recommendations"></a>
 - [Direct recommendations](en/advanced.md#guide-direct-recommendations)
 <a id="models-and-environment-variables"></a>

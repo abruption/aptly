@@ -68,7 +68,7 @@
 <a id="自动路由的保证范围与阻止结果015-起"></a>
 - [自动路由的保证范围与阻止结果（0.1.5 起）](zh-CN/routing.md#guide-routing-guarantees)
 <a id="准备单独的独立委派016-起"></a>
-- [准备单独的独立委派（0.1.6 起）](zh-CN/advanced.md#guide-fresh-delegation)
+- [根据继承调用的推荐准备独立委派（0.1.6 起）](zh-CN/advanced.md#guide-fresh-delegation)
 <a id="直接推荐"></a>
 - [直接推荐](zh-CN/advanced.md#guide-direct-recommendations)
 <a id="模型与环境变量"></a>
