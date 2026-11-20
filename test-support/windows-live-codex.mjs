@@ -1,6 +1,6 @@
 // Windows-only, human-approved validation. The preflight never starts a model turn.
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -136,7 +136,8 @@ function readRollout(file, parent) {
   return {linked,completed,markerReturned,tokens,contexts,natives};
 }
 try {
-  check(/logged in using ChatGPT/i.test(execFileSync(codex,['login','status'],{encoding:'utf8',timeout:15000,stdio:['ignore','pipe','pipe']})),'interactive_codex_login_missing');
+  const login = spawnSync(codex,['login','status'],{encoding:'utf8',timeout:15000,stdio:['ignore','pipe','pipe']});
+  check(login.status===0 && /logged in using ChatGPT/i.test((login.stdout??'')+'\n'+(login.stderr??'')),'interactive_codex_login_missing');
   report.codex=execFileSync(codex,['--version'],{encoding:'utf8',timeout:15000,stdio:['ignore','pipe','pipe']}).trim();
   report.checked.push('codex_chatgpt_login_available');
   protectNewWindowsPrivateDirectory(tmp,{timeoutMs:30000});
