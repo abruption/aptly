@@ -4,7 +4,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { release } from 'node:os';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -59,16 +59,16 @@ function invoke(args, input, expectedPartial = false) {
 }
 function readRegistration(client) {
   const file = client === 'codex' ? join(codexHome, 'config.toml') : join(home, '.claude.json');
+  if (!existsSync(file)) return { file, text: '', data: undefined };
   const text = readFileSync(file, 'utf8');
   return { file, text, data: client === 'codex' ? parse(text).mcp_servers?.aptly : JSON.parse(text).mcpServers?.aptly };
 }
-function executable(scope, name) {
-  const paths = readdirSync(join(installed, scope), { recursive: true });
-  const match = paths.filter(p => basename(p) === name).map(p => join(installed, scope, p));
-  if (match.length) return match[0];
-  const nested = readdirSync(join(installed, scope), { recursive: true, withFileTypes: true }).find(p=>p.name===name && p.isFile());
-  assert(nested, 'native_client_binary_missing');
-  return join(nested.parentPath, nested.name);
+function executable(scope, packageName, name) {
+  const top = join(installed, scope);
+  const bin = readdirSync(top, { recursive: true, withFileTypes: true }).find(entry =>
+    entry.name === name && entry.isFile() && entry.parentPath.split(/[\\/]/).includes(packageName));
+  assert(bin, 'native_client_binary_missing');
+  return join(bin.parentPath, bin.name);
 }
 async function sdkProbe(entry, host) {
   const transport = new StdioClientTransport({ command: entry.command, args: entry.args,
@@ -170,12 +170,15 @@ try {
   assert(invoke(['stats','--client','codex'],undefined,true).clients.some(c=>c.status==='statistics_platform_unsupported'||c.codes?.includes('statistics_platform_unsupported')));
   assert(invoke(['setup','--client','codex','--migrate-launcher','--launcher','stable','--dry-run'],undefined,true).clients.some(c=>c.codes?.includes('stable_launcher_platform_unsupported')));
   record('unsupported_features_reported');
-  const codex = executable('@openai','codex.exe');
-  const claude = executable('@anthropic-ai','claude.exe');
-  report.codex_version=run(codex,['--version']);
-  report.claude_version=run(claude,['--version']);
-  for (const [host,binary] of [['codex',codex],['claude',claude]]) {
+  // Claude's top-level launcher is a placeholder until its postinstall runs.
+  // Resolve the official platform package directly so lifecycle scripts stay disabled.
+  for (const [host,scope,platformPackage,name] of [
+    ['codex','@openai','codex-win32-x64','codex.exe'],
+    ['claude','@anthropic-ai','claude-code-win32-x64','claude.exe'],
+  ]) {
     try {
+      const binary = executable(scope,platformPackage,name);
+      report[host+'_version']=run(binary,['--version']);
       if (host==='codex') {
         const cfg=JSON.parse(run(binary,['mcp','get','aptly','--json']));
         assert.equal(cfg.name,'aptly');
