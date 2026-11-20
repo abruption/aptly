@@ -91,16 +91,30 @@ async function sdkProbe(entry, host) {
     await mcp.close();
   }
 }
-async function codexProbe(binary) {
-  const host = spawn(binary, ['app-server'], { ...options, stdio: ['pipe','pipe','pipe'] });
-  host.stderr.resume();
+function classifyDiagnostic(value) {
+  const text = String(value ?? '');
+  return [
+    [/timed out|timeout/i,'timeout'], [/stdio|process exit|connection closed/i,'stdio_or_exit'],
+    [/file not found|os error 2|0x80070002/i,'not_found'],
+    [/access is denied|permission denied|os error 5/i,'access_denied'],
+    [/unsafe_(?:ledger|directory|path)|private_file_permissions/i,'private_path'],
+    [/power(shell| shell)|credential/i,'powershell_or_credential'],
+    [/sandbox/i,'sandbox'], [/handshake|initialize/i,'handshake'],
+  ].flatMap(([pattern,label])=>pattern.test(text)?[label]:[]);
+}
+async function codexProbe(binary, seconds) {
+  const extra = seconds ? ['-c','mcp_servers.aptly.startup_timeout_sec='+seconds] : [];
+  const host = spawn(binary, ['app-server',...extra], { ...options, stdio: ['pipe','pipe','pipe'] });
+  const diagnostics = new Set();
+  const started = Date.now();
+  host.stderr.on('data',chunk=>classifyDiagnostic(chunk.toString()).forEach(tag=>diagnostics.add(tag)));
   let seq = 0;
   const requests = new Map();
   function send(v) { host.stdin.write(JSON.stringify(v) + '\n'); }
   function rpc(method, params) {
     return new Promise((resolve,reject) => {
       const id = ++seq;
-      const timer = setTimeout(() => {requests.delete(id);reject(Error('codex_rpc_timeout_'+method.replaceAll('/','_')));}, 25000);
+      const timer = setTimeout(() => {requests.delete(id);reject(Error('codex_rpc_timeout_'+method.replaceAll('/','_')));}, (seconds ?? 15)*1000+15000);
       requests.set(id,{resolve,reject,timer});
       send({id,method,params});
     });
@@ -114,6 +128,9 @@ async function codexProbe(binary) {
     if (v.id !== undefined && v.method) {
       send({id:v.id,error:{code:-32601,message:'No interactive approvals in this PoC'}});
       return;
+    }
+    if(v.method==='mcpServer/startupStatus/updated'&&v.params?.name==='aptly'){
+      classifyDiagnostic(v.params.error).forEach(tag=>diagnostics.add(tag));
     }
     const pending=requests.get(v.id);
     if (!pending) return;
@@ -130,13 +147,14 @@ async function codexProbe(binary) {
     const server = data.find(item=>item.name==='aptly');
     assert(server,'codex_native_mcp_missing');
     if (server.runtimeStatus !== 'connected') {
-      console.log(JSON.stringify({phase:'codex_native_mcp',status:server.runtimeStatus??'unknown',tools:Object.keys(server.tools??{})}));
+      classifyDiagnostic(server.toolsError).forEach(tag=>diagnostics.add(tag));
     }
     assert.equal(server.runtimeStatus,'connected','codex_native_mcp_not_connected');
     assert(Object.hasOwn(server.tools,'route_spawn_hook'));
     assert(Object.hasOwn(server.tools,'get_routing_capabilities'));
-    record('codex_native_host_connected');
+    record(seconds?'codex_native_host_connected_with_extended_timeout':'codex_native_host_connected');
   } finally {
+    console.log(JSON.stringify({phase:'codex_native_mcp_diagnostics',timeout_override_sec:seconds??null,elapsed_ms:Date.now()-started,categories:[...diagnostics]}));
     for (const p of requests.values()) clearTimeout(p.timer);
     lines.close();
     host.stdin.end();
@@ -183,7 +201,13 @@ try {
         const cfg=JSON.parse(run(binary,['mcp','get','aptly','--json']));
         assert.equal(cfg.name,'aptly');
         record('codex_registration_visible_to_cli');
-        await codexProbe(binary);
+        try { await codexProbe(binary); }
+        catch {
+          report.codex_default_connection='failed';
+          // Separate startup only. No authentication, model turn or request retry.
+          await codexProbe(binary,45);
+          report.codex_extended_connection='connected';
+        }
       } else {
         const list=run(binary,['mcp','list']);
         assert(/(?:^|\n)aptly:.*connected/im.test(list),'claude_native_mcp_not_connected');
