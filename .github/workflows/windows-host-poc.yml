@@ -1,0 +1,42 @@
+name: Windows native MCP PoC
+
+on:
+  push:
+    branches: [poc/201-windows-host-mcp]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-host-poc:
+    name: Native MCP / Windows / Node ${{ matrix.node }}
+    runs-on: windows-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [24, 26]
+    env:
+      APTLY_SKIP_SETUP: '1'
+      OPENAI_API_KEY: ''
+      ANTHROPIC_API_KEY: ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Install exact published packages into a disposable prefix
+        shell: pwsh
+        run: |
+          $prefix = Join-Path $env:RUNNER_TEMP 'Aptly Windows PoC'
+          & npm.cmd install --global --prefix "$prefix" --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org aptly@0.1.19 @openai/codex@0.171.0 @anthropic-ai/claude-code@2.1.329
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = & (Join-Path $prefix 'aptly.cmd') --version
+          if ($LASTEXITCODE -ne 0 -or $version -ne '0.1.19') { throw 'aptly_cmd_version_failed' }
+          Write-Output "aptly.cmd $version"
+          "APTLY_WINDOWS_POC_PREFIX=$prefix" >> $env:GITHUB_ENV
+      - name: Exercise registered stdio MCP and native client discovery
+        run: node test-support/windows-host-poc.mjs
