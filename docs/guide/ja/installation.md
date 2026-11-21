@@ -7,6 +7,7 @@
 ## この文書の目次
 
 - [インストール](#guide-installation)
+- [Windows PowerShell](#guide-windows-powershell)
 - [npm インストールスクリプトの許可](#guide-npm-install-scripts)
 - [パッケージの更新](#guide-package-updates)
 - [新しいバージョンの通知](#guide-version-notifications)
@@ -31,6 +32,25 @@ aptly --version
 インストールスクリプトは、すでにあるホストディレクトリに MCP と Hook を登録します。ディレクトリがない場合は、`aptly setup --client all` で登録してください。
 
 `CODEX_HOME` や `CLAUDE_CONFIG_DIR` を使う場合は、インストールと設定の両方で同じ値を指定してください。Aptly は既存の設定と実行ラッパーを維持します。詳しくは[アカウントホーム・キー設定](configuration.md)を参照してください。
+
+<a id="guide-windows-powershell"></a>
+
+## Windows PowerShell
+
+サインイン済みの Windows デスクトップで PowerShell を開き、次のコマンドを実行してください。この例では `npm.cmd` と `aptly.cmd` を直接実行します。`--ignore-scripts` でインストール中の自動登録を省くため、`set default` で登録してください。
+
+```powershell
+npm.cmd install -g aptly@latest --ignore-scripts
+aptly.cmd --version
+aptly.cmd set default --client codex
+aptly.cmd set env OPENAI_API_KEY --client codex
+```
+
+Claude Code を設定する場合は、二つの設定コマンドの `codex` を `claude` に置き換えてください。ホストを再起動してください。Codex では `/hooks` を開き、新しい Aptly Hook を承認してください。
+
+`--prefix` でインストール先を指定した場合は、更新時も同じ場所を指定してください。PowerShell で `aptly.cmd` が見つからない場合は、その場所にある `aptly.cmd` をフルパスで実行してください。
+
+API キーは Windows の資格情報マネージャーに保存されます。SSH で資格情報ストアを利用できない場合は、サインイン済みのデスクトップでキーを登録してください。ホストに MCP が表示されても、キーを読み込めたことや Decisions API が応答したことを意味するわけではありません。キーの登録に失敗した場合は[資格情報のトラブルシューティング](troubleshooting.md#guide-launcher-recovery)を参照してください。
 
 <a id="guide-npm-install-scripts"></a>
 

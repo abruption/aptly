@@ -7,6 +7,7 @@
 ## 本文目录
 
 - [安装](#guide-installation)
+- [Windows PowerShell](#guide-windows-powershell)
 - [npm 安装脚本许可](#guide-npm-install-scripts)
 - [软件包更新](#guide-package-updates)
 - [新版本通知](#guide-version-notifications)
@@ -31,6 +32,25 @@ aptly --version
 安装脚本会在已有的宿主目录中注册 MCP 和 Hook。如果目录还不存在，请运行 `aptly setup --client all` 完成注册。
 
 如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请在安装和设置时使用相同的值。Aptly 会保留已有设置和启动脚本。请参阅[账户主目录与密钥设置](configuration.md)。
+
+<a id="guide-windows-powershell"></a>
+
+## Windows PowerShell
+
+在已登录的 Windows 桌面上打开 PowerShell 并运行以下命令。示例直接运行 `npm.cmd` 和 `aptly.cmd`。`--ignore-scripts` 会跳过安装时的自动注册，因此请运行 `set default` 注册 Aptly。
+
+```powershell
+npm.cmd install -g aptly@latest --ignore-scripts
+aptly.cmd --version
+aptly.cmd set default --client codex
+aptly.cmd set env OPENAI_API_KEY --client codex
+```
+
+如果要设置 Claude Code，请将两条设置命令中的 `codex` 改为 `claude`。请重启宿主。如果使用 Codex，请打开 `/hooks` 并批准新的 Aptly Hook。
+
+如果安装时用 `--prefix` 指定了位置，更新时也请使用同一位置。如果 PowerShell 找不到 `aptly.cmd`，请使用该目录下 `aptly.cmd` 的完整路径运行。
+
+API 密钥保存在 Windows 凭据管理器中。如果 SSH 中出现无法使用凭据存储的错误，请在已登录的桌面上注册密钥。宿主显示 MCP 并不表示已经读取密钥或收到 Decisions API 的响应。如果密钥注册失败，请参阅[凭据问题排查](troubleshooting.md#guide-launcher-recovery)。
 
 <a id="guide-npm-install-scripts"></a>
 
