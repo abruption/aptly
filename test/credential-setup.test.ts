@@ -68,3 +68,56 @@ test('initial credential read failure never writes or deletes', t => {
  const r=setApiKey(value,{home,env:{},clients:['codex']},{loadSecret(){throw Error('secure_store_denied');},storeSecret(){assert.fail('write');},deleteSecret(){assert.fail('delete');}});
  assert.deepEqual(r.clients[0].codes,['secure_store_denied']);assert.deepEqual(readdirSync(home),[]);
 });
+
+const managedEnd = '# aptly managed MCP end v1';
+const trustTables = '\r\n[features]\r\nhooks = true\r\n\r\n[hooks.state.synthetic]\r\ntrusted_hash = "sha256:preserve-existing-state"\r\n';
+function reformattedCodex(t) {
+  const home = createTestTemp(t, 'codex-reformatted-setup-');
+  const options = { home, env: {}, clients: ['codex' as const] };
+  assert.equal(setDefaults(options).status, 'complete');
+  const config = join(home, '.codex', 'config.toml');
+  const original = readFileSync(config, 'utf8');
+  assert.ok(original.includes(managedEnd));
+  const text = original.replace('env_vars =', 'env_vars=').replaceAll('\n', '\r\n')
+    .replace(managedEnd, () => trustTables + managedEnd);
+  writeFileSync(config, text);
+  return { home, options, config, text };
+}
+
+test('Codex credential setup preserves host tables written before the managed end marker', t => {
+  const { home, options, config, text } = reformattedCodex(t);
+  const hooks = join(home, '.codex', 'hooks.json');
+  const hookBefore = readFileSync(hooks, 'utf8');
+  const b = backend();
+  const r = setApiKey(value, options, b);
+  assert.equal(r.status, 'complete', JSON.stringify(r));
+  assert.equal(b.data.get('codex:OPENAI_API_KEY'), value);
+  const updated = readFileSync(config, 'utf8');
+  assert.ok(updated.includes(trustTables));
+  assert.ok(updated.indexOf(managedEnd) < updated.indexOf('[features]'));
+  assert.ok(updated.includes('APTLY_SECRET_BACKEND = "os"'));
+  assert.equal(readFileSync(hooks, 'utf8'), hookBefore);
+  assert.ok(!updated.includes(value));
+  assert.ok(!text.includes('APTLY_SECRET_BACKEND'));
+});
+
+test('reformatted Codex ownership never permits changed settings or comments to be taken over', t => {
+  const mutations = [
+    text => text.replace('ROUTER_PROVIDER = "decisions"', 'ROUTER_PROVIDER = "fixture"'),
+    text => text.replace('ROUTER_PROVIDER = "decisions"', 'ROUTER_PROVIDER = "decisions" # keep this comment'),
+    text => text.replace(managedEnd, managedEnd + '\r\n' + managedEnd),
+  ];
+  for (const mutate of mutations) {
+    const { options, config, text } = reformattedCodex(t);
+    const changed = mutate(text);
+    assert.notEqual(changed, text);
+    writeFileSync(config, changed);
+    const result = setApiKey(value, options, {
+      loadSecret() { assert.fail('credential store opened'); },
+      storeSecret() { assert.fail('credential store written'); },
+      deleteSecret() { assert.fail('credential store changed'); },
+    });
+    assert.ok(result.clients[0].codes.includes('managed_mcp_changed'));
+    assert.equal(readFileSync(config, 'utf8'), changed);
+  }
+});

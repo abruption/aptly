@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, release, tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
+import { lookupEvidence } from './windows-live-codex-evidence.mjs';
 
 const [mode, packageRoot, codex, reportFile] = process.argv.slice(2);
 const mvp = mode === '--run';
@@ -112,6 +113,7 @@ function openHost(settings) {
   };
 }
 function readRollout(file, parent) {
+  check(statSync(file).size<=2_000_000,'unexpected_rollout_size');
   const text=readFileSync(file,'utf8');
   check(Buffer.byteLength(text)<=2_000_000,'unexpected_rollout_size');
   const contexts=[],natives=[];
@@ -195,7 +197,7 @@ try {
   check(existsSync(stateDatabase),'codex_state_database_missing');
   const stateCheck = new DatabaseSync(stateDatabase,{readOnly:true});
   try {
-    stateCheck.prepare('SELECT id, rollout_path, cwd, created_at FROM threads LIMIT 0').all();
+    stateCheck.prepare('SELECT id, rollout_path, created_at FROM threads LIMIT 0').all();
   } finally {
     stateCheck.close();
   }
@@ -213,18 +215,10 @@ try {
       report.parent_turn=await Promise.race([result,new Promise(done=>{timer=setTimeout(()=>done('timeout'),150000);})]);
       check(report.parent_turn==='completed','parent_turn_incomplete');
     }finally{if(timer)clearTimeout(timer);}
-    const db=new DatabaseSync(stateDatabase,{readOnly:true});
-    try{
-      const p=db.prepare('SELECT rollout_path FROM threads WHERE id=?').get(thread.id);
-      check(p?.rollout_path,'parent_rollout_unavailable');
-      report.original_spawns=readRollout(p.rollout_path,thread.id).natives;
-      const rows=db.prepare('SELECT id, rollout_path FROM threads WHERE cwd=? AND created_at>=?').all(tmp,Math.floor(startLookup/1000)-5);
-      for(const item of rows){
-        if(item.id===thread.id||!item.rollout_path)continue;
-        const c=readRollout(item.rollout_path,thread.id);
-        if(c.linked)report.children.push({contexts:c.contexts,completed:c.completed,marker_returned:c.markerReturned,output_tokens:c.tokens});
-      }
-    }finally{db.close();}
+    const evidence=await lookupEvidence({ database:stateDatabase, sessionsRoot:join(home,'sessions'), parent:thread.id,
+      startMs:startLookup, endMs:Date.now(), readRollout });
+    report.original_spawns=evidence.natives;
+    report.children=evidence.children;
   }
 } catch(e) {
   failure=e instanceof Error&&/^[a-z_]+$/.test(e.message)?e.message:'windows_live_validation_failed';
