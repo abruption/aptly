@@ -17,7 +17,7 @@ node test-support/windows-live-codex.mjs --preflight $aptlyPackageRoot $codexExe
 node test-support/windows-live-codex.mjs --run $aptlyPackageRoot $codexExe $liveReport
 ```
 
-Run `--run` only after preflight passes. Preflight checks Codex login, the native MCP connection, key loading, and the exact trust status. It does not start a model turn. The live run requires one completed Decisions outcome, matching model and effort in the parent-linked child record, and a completed child response. The sanitized JSON reports versions, profile, counts, usage and fixed failure categories. A reservation without a completed outcome is an unknown request. Investigate that result before considering another attempt.
+Run `--run` only after preflight passes. Preflight checks Codex login, the native MCP connection, key loading, the exact trust status, and whether the default Codex state database can be read. Profiles that relocate SQLite with `sqlite_home` or `CODEX_SQLITE_HOME` stop before a live turn. It does not start a model turn. The live run requires one completed Decisions outcome, matching model and effort in the parent-linked child record, and a completed child response. The sanitized JSON reports versions, profile, counts, usage and fixed failure categories. A reservation without a completed outcome is an unknown request. Investigate that result before considering another attempt.
 
 ## Windows 10 x64 result
 

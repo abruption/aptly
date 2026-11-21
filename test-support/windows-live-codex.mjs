@@ -35,6 +35,7 @@ const policy = join(tmp,'policy.json'), ledger = join(tmp,'ledger.json');
 let proc, failure, startLookup;
 const home = resolve(process.env.CODEX_HOME || join(homedir(),'.codex'));
 const { parse } = createRequire(join(packageRoot,'package.json'))('smol-toml');
+const stateDatabase = join(home,'state_5.sqlite');
 const marker = 'APTLY_WINDOWS_MVP_' + randomUUID().replaceAll('-','');
 const task = 'sort_supplied_numbers_in_ascending_order_only';
 const model = 'gpt-6-luna', effort = 'max';
@@ -144,7 +145,11 @@ try {
   safeWrite(policy,{schema_version:2,kind:'aptly-auto-hook',mode:'defaults',issuer:'operator_installation',
     enabled:true,state_directory:tmp,transmission:'excerpt'},'wx');
   const hostConfig = join(home,'config.toml');
-  const mcp = existsSync(hostConfig) ? parse(readFileSync(hostConfig,'utf8')).mcp_servers ?? {} : {};
+  const parsedHostConfig = existsSync(hostConfig) ? parse(readFileSync(hostConfig,'utf8')) : {};
+  const configuredProfiles = Object.values(parsedHostConfig.profiles ?? {});
+  check(!process.env.CODEX_SQLITE_HOME && parsedHostConfig.sqlite_home == null &&
+    configuredProfiles.every(profile=>profile?.sqlite_home == null),'relocated_codex_state_unsupported');
+  const mcp = parsedHostConfig.mcp_servers ?? {};
   check(mcp.aptly,'aptly_registration_missing');
   const config={
     'mcp_servers.aptly.command':process.execPath,
@@ -168,6 +173,8 @@ try {
   const {rpc,send,bindParent,waitTurn}=openHost(config);
   await rpc('initialize',{clientInfo:{name:'aptly-windows-live-mvp',version:'1'},capabilities:{experimentalApi:true}});
   send({method:'initialized'});
+  const effective = await rpc('config/read',{cwd:tmp,includeLayers:false});
+  check(effective?.config && effective.config.sqlite_home == null,'relocated_codex_state_unsupported');
   const {thread}=await rpc('thread/start',{cwd:tmp,model:'gpt-6.2-sol',approvalPolicy:'never',sandbox:'read-only'});
   bindParent(thread.id);
   const {data}=await rpc('mcpServerStatus/list',{threadId:thread.id,serverName:'aptly',detail:'toolsAndAuthOnly'});
@@ -184,6 +191,15 @@ try {
   report.hooks=listed.data.flatMap(s=>s.hooks??[]).filter(h=>h.server==='aptly'&&h.tool==='route_spawn_hook'&&h.eventName==='preToolUse').map(h=>({enabled:h.enabled,trust:h.trustStatus}));
   check(report.hooks.some(h=>h.enabled&&h.trust==='trusted'),'aptly_hook_review_required');
   report.checked.push('aptly_hook_enabled_and_trusted');
+  // Check the same read-only evidence path before the only potentially billed call.
+  check(existsSync(stateDatabase),'codex_state_database_missing');
+  const stateCheck = new DatabaseSync(stateDatabase,{readOnly:true});
+  try {
+    stateCheck.prepare('SELECT id, rollout_path, cwd, created_at FROM threads LIMIT 0').all();
+  } finally {
+    stateCheck.close();
+  }
+  report.checked.push('codex_state_database_readable');
   if(mvp){
     startLookup=Date.now();
     const result=waitTurn();
@@ -197,7 +213,7 @@ try {
       report.parent_turn=await Promise.race([result,new Promise(done=>{timer=setTimeout(()=>done('timeout'),150000);})]);
       check(report.parent_turn==='completed','parent_turn_incomplete');
     }finally{if(timer)clearTimeout(timer);}
-    const db=new DatabaseSync(join(home,'state_5.sqlite'),{readOnly:true});
+    const db=new DatabaseSync(stateDatabase,{readOnly:true});
     try{
       const p=db.prepare('SELECT rollout_path FROM threads WHERE id=?').get(thread.id);
       check(p?.rollout_path,'parent_rollout_unavailable');
