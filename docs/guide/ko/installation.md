@@ -7,6 +7,7 @@
 ## 이 문서의 목차
 
 - [설치](#guide-installation)
+- [Windows PowerShell](#guide-windows-powershell)
 - [npm 설치 스크립트 허용](#guide-npm-install-scripts)
 - [패키지 업데이트](#guide-package-updates)
 - [새 버전 알림](#guide-version-notifications)
@@ -31,6 +32,25 @@ aptly --version
 설치 스크립트는 이미 있는 호스트 디렉터리에 MCP와 Hook을 등록합니다. 디렉터리가 없으면 `aptly setup --client all`로 등록하십시오.
 
 `CODEX_HOME`이나 `CLAUDE_CONFIG_DIR`을 사용한다면 설치와 설정 명령을 실행할 때 같은 값을 지정하십시오. Aptly는 기존 설정과 실행 래퍼를 그대로 둡니다. [계정 홈·키 설정](configuration.md)을 참고하십시오.
+
+<a id="guide-windows-powershell"></a>
+
+## Windows PowerShell
+
+로그인한 Windows 데스크톱에서 PowerShell을 열고 다음 명령을 실행하십시오. 예제에서는 `npm.cmd`와 `aptly.cmd`를 직접 실행합니다. `--ignore-scripts`를 쓰면 설치 중 자동 등록을 건너뛰므로 `set default`로 등록하십시오.
+
+```powershell
+npm.cmd install -g aptly@latest --ignore-scripts
+aptly.cmd --version
+aptly.cmd set default --client codex
+aptly.cmd set env OPENAI_API_KEY --client codex
+```
+
+Claude Code를 설정하려면 두 설정 명령의 `codex`를 `claude`로 바꾸십시오. 호스트를 재시작한 뒤 Codex에서는 `/hooks`를 열어 새 Aptly Hook을 승인하십시오.
+
+`--prefix`로 설치 위치를 지정했다면 업데이트할 때도 같은 위치를 지정하십시오. PowerShell에서 `aptly.cmd`를 찾지 못하면 그 위치에 있는 `aptly.cmd`의 전체 경로로 실행하십시오.
+
+API 키는 Windows 자격 증명 관리자에 저장됩니다. SSH에서 저장소를 사용할 수 없다는 오류가 나오면 로그인한 데스크톱에서 키를 등록하십시오. 호스트에 MCP가 표시돼도 키를 읽었거나 Decisions API가 응답했다는 뜻은 아닙니다. 키 등록에 실패하면 [자격 증명 오류 안내](troubleshooting.md#guide-launcher-recovery)를 참고하십시오.
 
 <a id="guide-npm-install-scripts"></a>
 

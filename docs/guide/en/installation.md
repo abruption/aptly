@@ -7,6 +7,7 @@
 ## Contents
 
 - [Installation](#guide-installation)
+- [Windows PowerShell](#guide-windows-powershell)
 - [Allow npm install scripts](#guide-npm-install-scripts)
 - [Package updates](#guide-package-updates)
 - [New-version notifications](#guide-version-notifications)
@@ -31,6 +32,25 @@ aptly --version
 The install script registers MCP and Hooks in host directories that already exist. If a directory is missing, run `aptly setup --client all` to register it.
 
 If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, set the same value for installation and setup. Aptly keeps your existing settings and launcher wrappers. See [account homes and keys](configuration.md).
+
+<a id="guide-windows-powershell"></a>
+
+## Windows PowerShell
+
+Open PowerShell on your signed-in Windows desktop and run the following commands. This example uses `npm.cmd` and `aptly.cmd` directly. `--ignore-scripts` skips automatic registration during installation, so run `set default` to register Aptly.
+
+```powershell
+npm.cmd install -g aptly@latest --ignore-scripts
+aptly.cmd --version
+aptly.cmd set default --client codex
+aptly.cmd set env OPENAI_API_KEY --client codex
+```
+
+For Claude Code, replace `codex` with `claude` in both setup commands. Restart the host. In Codex, open `/hooks` and approve the new Aptly Hook.
+
+If you chose an install location with `--prefix`, use the same location when updating. If PowerShell cannot find `aptly.cmd`, run it using its full path at that location.
+
+Aptly stores the API key in Windows Credential Manager. If the store is unavailable over SSH, register the key from your signed-in desktop. Seeing Aptly in the host’s MCP list confirms registration. Key loading and Decisions API responses need separate checks. See [credential troubleshooting](troubleshooting.md#guide-launcher-recovery) if key registration fails.
 
 <a id="guide-npm-install-scripts"></a>
 
