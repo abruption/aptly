@@ -525,3 +525,16 @@ test('Windows replacements preserve existing DACL before staging any content and
     assert.equal(readdirSync(join(options.home,'.codex')).some(name=>name.startsWith('.aptly-stage-')),false);
   } finally {childProcess.execFileSync=originalExec;Object.defineProperty(process,'platform',platform);syncBuiltinESMExports();}
 });
+
+test('removing a reformatted Codex block keeps intervening host tables intact', t => {
+  const options = { ...fixture(t), clients: ['codex' as const] };
+  assert.equal(setDefaults(options).status, 'complete');
+  const file = join(options.home, '.codex', 'config.toml');
+  const unrelated = '\n[features]\nhooks = true\n# Keep this host comment.\n\n[hooks.state.synthetic]\ntrusted_hash = "preserve"\n';
+  const source = readFileSync(file, 'utf8');
+  save(file, source.replace('# aptly managed MCP end v1', () => unrelated + '# aptly managed MCP end v1'));
+  assert.equal(removeSetup(options).status, 'complete');
+  const result = readFileSync(file, 'utf8');
+  assert.ok(result.includes(unrelated));
+  assert.equal(parse(result).mcp_servers?.aptly, undefined);
+});

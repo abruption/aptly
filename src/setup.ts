@@ -86,6 +86,37 @@ function newTomlBlock(entry: ObjectValue) {
   for (const [key, value] of Object.entries(entry.env)) lines.push(`${key} = ${q(value as string)}`);
   return lines.concat(blockEnd, '').join('\n');
 }
+/** Codex may put new tables before the trailing comment of its last table. */
+function rewriteOwnedCodexBlock(text: string, receiptBlock: string | undefined, previous: ObjectValue, replacement: string): string {
+  if (!receiptBlock) return fail('managed_mcp_changed');
+  if (text.includes(receiptBlock)) return text.replace(receiptBlock, () => replacement);
+
+  const expected = { mcp_servers: { aptly: previous } };
+  const matches = (block: string): boolean => {
+    try { return isDeepStrictEqual(toml(block), expected); } catch { return false; }
+  };
+  if (!matches(receiptBlock)) return fail('managed_mcp_changed');
+  const lines = text.split(/(?<=\n)/);
+  const trimmed = lines.map(line => line.trim());
+  const markers = (marker: string) => trimmed.flatMap((line, index) => line === marker ? [index] : []);
+  const starts = markers(blockStart), ends = markers(blockEnd);
+  if (starts.length !== 1 || ends.length !== 1 || starts[0] >= ends[0]) return fail('managed_mcp_changed');
+  const [start] = starts, [end] = ends;
+  const headers = trimmed.flatMap((line, index) => index > start && index < end && line.startsWith('[') ? [index] : []);
+  if (headers.length < 2 || trimmed[headers[0]] !== '[mcp_servers.aptly]' ||
+      trimmed[headers[1]] !== '[mcp_servers.aptly.env]') return fail('managed_mcp_changed');
+
+  const nextTable = headers[2] ?? end;
+  let blockEndAt = nextTable;
+  while (blockEndAt > start && !trimmed[blockEndAt - 1]) blockEndAt--;
+  // Refuse to remove operator comments or accept additional settings in the two owned tables.
+  const owned = lines.slice(start + 1, blockEndAt);
+  const containsComment = owned.some(line => line.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '').includes('#'));
+  if (containsComment || !matches(owned.join(''))) return fail('managed_mcp_changed');
+
+  // Move the end marker back to its own block. Keep intervening tables and all text around them.
+  return lines.slice(0, start).join('') + replacement + lines.slice(blockEndAt, end).join('') + lines.slice(end + 1).join('');
+}
 /** Append only the owned env table/keys; validation rejects inline/ambiguous layouts. */
 function addTomlEnv(text: string, additions: Record<string, string>): string {
   if (!Object.keys(additions).length) return text;
@@ -292,8 +323,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     if (owned.mcp_created) {
       if (!isDeepStrictEqual(servers.aptly, owned.mcp)) fail('managed_mcp_changed');
       if (client === 'codex') {
-        if (!owned.toml_block || !(mcp.before ?? '').includes(owned.toml_block)) fail('managed_mcp_changed');
-        mcp.after = (mcp.before ?? '').replace(owned.toml_block!, '');
+        mcp.after = rewriteOwnedCodexBlock(mcp.before ?? '', owned.toml_block, owned.mcp!, '');
         const expected = structuredClone(config); delete expected.mcp_servers.aptly;
         // An empty mcp_servers parent is semantically harmless after removing our section.
         const actual = toml(mcp.after); if (!Object.keys(expected.mcp_servers).length && !actual.mcp_servers) delete expected.mcp_servers;
@@ -368,7 +398,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     if (created) {
       if (client === 'codex') { tomlBlock = newTomlBlock(servers.aptly); mcp.after = (mcp.before ?? '') + ((mcp.before ?? '').endsWith('\n') || !mcp.before ? '\n' : '\n\n') + tomlBlock; }
       else mcp.after = stringify(config);
-    } else if (edit) {
+    } else if (edit && !(client === 'codex' && oldOwner?.mcp_created)) {
       mcp.after = client === 'codex' ? updateTomlEnv(mcp.after!,updates) : stringify(config);
       if (client === 'codex' && 'migrate' in edit && !oldOwner?.mcp_created) mcp.after = updateTomlLauncher(mcp.after!,servers.aptly);
     }
@@ -406,15 +436,13 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     const owner: Ownership = oldOwner ?? { schema_version: 1, kind: 'aptly-setup-ownership', client, hook: hookValue, policy: policyValue, policy_created: policy.before === null, mcp_created: created, ...(created ? { mcp: servers.aptly } : {}), env_added: envAdded, ...(tomlBlock ? { toml_block: tomlBlock } : {}) };
     if (edit && oldOwner) {
       if (oldOwner.mcp_created) {
-        owner.mcp = structuredClone(servers.aptly);
         if (client === 'codex') {
-          const oldBlock = oldOwner.toml_block;
-          if (!oldBlock || !(mcp.before ?? '').includes(oldBlock)) fail('managed_mcp_changed');
           const nextBlock = newTomlBlock(servers.aptly);
-          const rendered = (mcp.before ?? '').replace(oldBlock!,nextBlock);
+          const rendered = rewriteOwnedCodexBlock(mcp.before ?? '', oldOwner.toml_block, oldOwner.mcp!, nextBlock);
           if (!isDeepStrictEqual(toml(rendered),config)) fail('managed_mcp_changed');
           mcp.after = rendered; owner.toml_block = nextBlock;
         }
+        owner.mcp = structuredClone(servers.aptly);
       } else {
         const prior = client === 'codex' ? toml(mcp.before ?? '') : json(mcp.before);
         const priorEnv = prior[client === 'codex' ? 'mcp_servers' : 'mcpServers']?.aptly?.env ?? {};
@@ -653,12 +681,13 @@ export function setPolicySource(options:SetupOptions, dryRun=false):SetupResult 
       const priorVars=owner.mcp!.env_vars??[];
       if(!isDeepStrictEqual(vars,priorVars) && !isDeepStrictEqual(vars,[...priorVars,'CODEX_HOME']))fail('managed_mcp_changed');
       if(!isDeepStrictEqual(expected,entry))fail('managed_mcp_changed');
-      const previousBlock=newTomlBlock(entry);
-      if(!mcp.before!.includes(owner.toml_block!) && !mcp.before!.includes(previousBlock))fail('managed_mcp_changed');
+      const previous = structuredClone(entry);
+      const previousBlock = newTomlBlock(previous);
+      const oldBlock = mcp.before!.includes(owner.toml_block!) ? owner.toml_block! : previousBlock;
       entry.env.APTLY_HOOK_POLICY_PATH=CODEX_HOME_POLICY_SOURCE;
       if(!vars.includes('CODEX_HOME'))entry.env_vars=[...vars,'CODEX_HOME'];
-      const nextBlock=newTomlBlock(entry), oldBlock=mcp.before!.includes(owner.toml_block!)?owner.toml_block!:previousBlock;
-      mcp.after=mcp.before!.replace(oldBlock,nextBlock);
+      const nextBlock = newTomlBlock(entry);
+      mcp.after = rewriteOwnedCodexBlock(mcp.before!, oldBlock, previous, nextBlock);
       if(!isDeepStrictEqual(toml(mcp.after),config))fail('managed_mcp_changed');
       owner.mcp=structuredClone(entry);owner.toml_block=nextBlock;
     } else {
