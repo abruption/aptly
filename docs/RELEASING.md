@@ -1,5 +1,9 @@
 # npm OIDC 배포와 공개 준비
 
+## 0.1.20 준비
+
+[릴리즈 노트](release-notes/0.1.20.md) · [준비 이슈 #205](https://github.com/abruption/aptly/issues/205)
+
 ## 0.1.19 게시와 검증
 
 [릴리즈 노트](release-notes/0.1.19.md) · [게시·출처 검증 기록](releases/0.1.19.md)
