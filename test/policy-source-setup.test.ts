@@ -36,6 +36,20 @@ test('selector rejects changed ownership and literal CODEX_HOME without writes',
  const literal=content(path);assert.equal(setPolicySource(o).status,'partial');assert.equal(content(path),literal);
 });
 
+test('selector preserves tables Codex inserted before the Aptly end marker',t=>{
+ const home=createTestTemp(t,'codex-policy-source-reformatted-');
+ const options={home,env:{},packageRoot:resolve('.'),clients:['codex'] as ['codex']};
+ assert.equal(setupHosts(options).status,'complete');
+ const path=join(home,'.codex','config.toml');
+ const hostTable='\n[features]\nhooks = true # Codex setting\n';
+ const endMarker='# aptly managed MCP end v1';
+ writeFileSync(path,content(path).replace('command =','command=').replace(endMarker,hostTable+endMarker));
+ assert.ok(content(path).includes(hostTable));
+ assert.equal(setPolicySource(options).status,'complete');
+ assert.ok(content(path).includes(hostTable));
+ assert.equal(parse(content(path)).mcp_servers.aptly.env.APTLY_HOOK_POLICY_PATH,'@codex-home');
+});
+
 test('existing standard registration retains unowned fields and removes only owned additions',async t=>{
  const {mkdirSync}=await import('node:fs');
  const {removeSetup}=await import('../src/setup.ts');
