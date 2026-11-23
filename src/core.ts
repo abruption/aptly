@@ -188,12 +188,12 @@ export class Router {
     }
   }
   /** Strict native-routing path: preserves existing host-evidence and digest semantics. */
-  async recommend(input: unknown): Promise<RoutingResult> {
-    return this.route(input, 'hook');
+  async recommend(input: unknown, signal?: AbortSignal): Promise<RoutingResult> {
+    return this.route(input, 'hook', signal);
   }
   /** Independent task advice. Omitted constraints mean no caller-declared pins,
    * not verified host settings. A legacy provenance flag grants no authority. */
-  async advise(input: unknown): Promise<RoutingResult> {
+  async advise(input: unknown, signal?: AbortSignal): Promise<RoutingResult> {
     const invalid = (): RoutingResult => this.result('unavailable', 'invalid_input');
     if (!keysOnly(input, ['request_id', 'client', 'task', 'eligible_profile_ids', 'constraints']) || !isClient(input.client)) return invalid();
     const constraints = own(input, 'constraints') ? input.constraints : {};
@@ -202,9 +202,11 @@ export class Router {
     return this.route({ ...input,
       eligible_profile_ids: own(input, 'eligible_profile_ids') ? input.eligible_profile_ids : this.policy.profiles.filter(profile => profile.client === input.client).map(profile => profile.id),
       constraints: declared,
-    }, 'advisory');
+    }, 'advisory', signal);
   }
-  private async route(input: unknown, kind: 'hook'|'advisory'): Promise<RoutingResult> {
+  private async route(input: unknown, kind: 'hook'|'advisory', signal?: AbortSignal): Promise<RoutingResult> {
+    const cancelled = (): RoutingResult => this.result('unavailable', 'call_cancelled');
+    if (signal?.aborted) return cancelled();
     const invalid = (): RoutingResult => this.result('unavailable', 'invalid_input');
     if (!keysOnly(input, ['request_id', 'client', 'task', 'eligible_profile_ids', 'constraints']) ||
       typeof input.request_id !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(input.request_id) || !isClient(input.client) ||
@@ -247,6 +249,7 @@ export class Router {
         // Only this known completion can proceed again under the same ID.
       }
       const complete = (result: RoutingResult): RoutingResult => {
+        if (signal?.aborted) return this.result('unavailable', 'call_cancelled', { latency_ms: result.latency_ms });
         this.state.requests[req.request_id] = { digest: hash, state: 'complete', result };
         this.save(); return clone(result);
       };
@@ -256,7 +259,11 @@ export class Router {
       // configuration must allow the same ID to be tried without ledger edits.
       // Never infer this from a transport exception (including HTTP 401/403).
       try { this.provider.preflight?.(); }
-      catch (e) { return this.result('unavailable', errorCode(e) === 'unauthorized' ? 'unauthorized' : 'provider_error'); }
+      catch (e) {
+        if (signal?.aborted) return cancelled();
+        return this.result('unavailable', errorCode(e) === 'unauthorized' ? 'unauthorized' : 'provider_error');
+      }
+      if (signal?.aborted) return cancelled();
       const day = new Date().toISOString().slice(0, 10);
       const exhausted=this.budgetSnapshot(day).exhausted_by;
       if (exhausted.length) return this.result('unavailable', 'budget_exhausted', {budget_limit:exhausted[0]});
@@ -264,13 +271,31 @@ export class Router {
       this.state.estimated_usd += this.policy.estimated_call_usd;
       this.state.requests[req.request_id] = { digest: hash, state: 'unknown' };
       this.save();
-      const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined; const started = performance.now();
+      const controller = new AbortController();
+      const { promise: interrupted, reject } = Promise.withResolvers<never>();
+      let stopped: 'call_cancelled' | 'timeout' | undefined;
+      const stop = (code: 'call_cancelled' | 'timeout') => {
+        if (stopped) return;
+        stopped = code;
+        const error = Object.assign(new Error(code), { code });
+        reject(error);
+        controller.abort(error);
+      };
+      const onAbort = () => stop('call_cancelled');
+      signal?.addEventListener('abort', onAbort, { once: true });
+      if (signal?.aborted) onAbort();
+      const timer = setTimeout(() => stop('timeout'), this.policy.timeout_ms);
+      const started = performance.now();
       const latency = (): number => Math.round((performance.now() - started) * 1000) / 1000;
       try {
         const response: unknown = await Promise.race([
-          Promise.resolve().then(() => this.provider({ input: clone(req), profiles: clone(profiles), signal: controller.signal })),
-          new Promise<never>((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(Object.assign(new Error('timeout'), { code: 'timeout' })); }, this.policy.timeout_ms); }),
+          interrupted,
+          Promise.resolve().then(() => {
+            controller.signal.throwIfAborted();
+            return this.provider({ input: clone(req), profiles: clone(profiles), signal: controller.signal });
+          }),
         ]);
+        controller.signal.throwIfAborted();
         if (!isRecord(response) || typeof response.choice !== 'string' || (own(response, 'confidence') && (typeof response.confidence !== 'number' || !Number.isFinite(response.confidence) || response.confidence < 0 || response.confidence > 1))) return complete(this.result('keep_current', 'invalid_response', { latency_ms: latency() }));
         const metadata: Metadata = { latency_ms: latency() };
         if (typeof response.confidence === 'number') metadata.confidence = response.confidence;
@@ -284,11 +309,15 @@ export class Router {
         if (!profile) return complete(this.result('keep_current', 'invalid_choice', metadata));
         return complete(this.result('recommended', 'allowed_profile', { profile_id: profile.id, profile: clone(profile), ...metadata }));
       } catch (e) {
-        // A failed transport can have consumed a paid call. Preserve its unknown marker.
+        // The slot and gate protect local work. A remote request may outlive cancellation.
+        if (stopped) return this.result('unavailable', stopped, { latency_ms: latency() });
         const allowed = ['timeout', 'refused', 'truncated', 'invalid_json', 'unauthorized', 'rate_limited', 'network', 'ledger_error'];
         const code = errorCode(e);
         return this.result('unavailable', code !== undefined && allowed.includes(code) ? code : 'provider_error', { latency_ms: latency() });
-      } finally { clearTimeout(timer); }
+      } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+      }
     } catch { return this.result('unavailable', 'ledger_error'); }
     finally {
       this.active--;

@@ -16,3 +16,21 @@ test('HTTP/raw errors and malformed answers are never returned',async()=>{
  const p=decisionsProvider({key:'test',fetchImpl:async()=>resp});await assert.rejects(()=>p(args),e=>e.code===code&&!String(e).includes('private'));
  }
 });
+
+test('raw response limit and UTF-8 decoding are invariant across chunk boundaries', async () => {
+ const prefix = '{"note":"한😀';
+ const suffix = '","answers":[{"name":"profile","type":"choice","choice":"keep_current","confidence":1}]}';
+ const padding = 'x'.repeat(65_536 - Buffer.byteLength(prefix + suffix));
+ const splits = [Buffer.byteLength('{"note":"') + 1, Buffer.byteLength('{"note":"한') + 2];
+ for (const extra of ['', 'x']) {
+  const body = Buffer.from(prefix + padding + extra + suffix);
+  assert.equal(body.byteLength, 65_536 + extra.length);
+  for (const split of [body.length, ...splits]) {
+   const provider = decisionsProvider({key:'synthetic-only',fetchImpl:async()=>new Response(new ReadableStream({
+    start(stream) { stream.enqueue(body.subarray(0, split)); stream.enqueue(body.subarray(split)); stream.close(); },
+   }))});
+   if (extra) await assert.rejects(provider(args), {code:'truncated'});
+   else assert.deepEqual(await provider(args), {choice:'keep_current',confidence:1,usage:{}});
+  }
+ }
+});

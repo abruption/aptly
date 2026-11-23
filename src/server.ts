@@ -95,7 +95,11 @@ export function createServer({env:inputEnv=process.env}:{env?:NodeJS.ProcessEnv}
  server.registerTool('recommend_agent',{
   description:'Recommend an allowlisted profile for a supplied task only; never inspects host settings, spawns, or authorizes an agent. Optional constraints describe caller-declared choices to preserve; omitted flags are not claims about current host settings. Decisions mode may incur a bounded classification request.',annotations,
   inputSchema:{request_id:z.string().min(1).max(96),client:z.enum(['codex','claude']),task:taskSchema,eligible_profile_ids:z.array(z.string()).min(1).max(20).optional(),constraints:constraintsSchema.optional()}
- },async input=>{const result=await router.advise(input);await trackStatistics(input.client,{requestId:input.request_id,recommendation:result as unknown as Record<string,unknown>});return content({...result,provider:mode});});
+ },async (input,extra)=>{
+  const result=await router.advise(input,extra.signal);
+  if(!extra.signal.aborted)await trackStatistics(input.client,{requestId:input.request_id,recommendation:result as unknown as Record<string,unknown>});
+  return content({...result,provider:mode});
+ });
  server.registerTool('retry_spawn_recommendation',{
   description:'Supply one bounded task description after an Aptly Hook returns needs_context and a retry_id. Use the same MCP process within five minutes; no native call IDs are needed. May make one paid classification; duplicate input reuses its request identity, changed input conflicts. Never spawns or changes history. If still needs_context/unavailable, stop; do not create another ID. A blocked spawn_application remains advisory. When next_call is supplied, required_fields and next_action describe only missing profile arguments. Apply them only under existing user/host permissions; if forbidden or unclear, stop and report. Existing-agent reuse is an alternative, not proof of applying this recommendation.',
   annotations,inputSchema:{retry_id:z.string().regex(/^[a-f0-9]{64}$/),description:z.string().max(4000)}
@@ -141,7 +145,16 @@ export function createServer({env:inputEnv=process.env}:{env?:NodeJS.ProcessEnv}
   const before=evidence(client,event);
   input.constraints=before.precedence.constraints;
   if(task)input.task=task;
-  const recommendation=await router.recommend(input);
+  const recommendation=await router.recommend(input,extra.signal);
+  if(extra.signal.aborted){
+   // Keep any already committed recommendation distinct from native application.
+   const produced=recommendation.status==='recommended';
+   observations.record({...initialHookObservation(client,event),status:'preserved',reason:'call_cancelled',request_id:input.request_id,
+    classification:recommendation.cached?'cache_hit':typeof recommendation.latency_ms==='number'?'provider_requested':'local_outcome',
+    recommendation:produced?'produced':'not_produced',application:produced?'blocked':'not_attempted',
+    ...(recommendation.profile_id?{profile_id:recommendation.profile_id}:{})});
+   return {content:[{type:'text',text:'{}'}]};
+  }
   // Revalidate binding, expiry, source fingerprints and operator configuration
   // after an asynchronous provider call. A changed source cannot enable apply.
   const after=evidence(client,event);

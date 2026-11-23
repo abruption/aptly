@@ -36,14 +36,18 @@ export function decisionsProvider({ key, fetchImpl = fetch, descriptions = {} }:
       throw fail(response.status === 401 || response.status === 403 ? 'unauthorized' : response.status === 429 ? 'rate_limited' : 'provider_error');
     }
     // Bounded response, never expose raw provider text or headers in diagnostics.
-    let body='';
+    const chunks: Uint8Array[] = [];
+    let bytes = 0;
     try {
       if (!response.body) throw fail('network');
       for await (const chunk of response.body) {
-        body+=Buffer.from(chunk).toString('utf8');
-        if (Buffer.byteLength(body)>65536) throw fail('truncated');
+        if (!(chunk instanceof Uint8Array)) throw fail('network');
+        bytes += chunk.byteLength;
+        if (bytes > 65_536) throw fail('truncated');
+        if (chunk.byteLength) chunks.push(chunk);
       }
     } catch(e) { throw fail(errorCode(e)==='truncated'?'truncated':signal?.aborted?'timeout':'network'); }
+    const body = Buffer.concat(chunks, bytes).toString('utf8');
     let data: unknown; try { data=JSON.parse(body); } catch { throw fail('invalid_json'); }
     if (!isRecord(data)) throw fail('invalid_json');
     const answers=data.answers;

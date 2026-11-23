@@ -68,6 +68,70 @@ test('timeout aborts and late response cannot complete original or another reque
   assert.equal((await r.recommend(request('r2'))).profile_id, 'codex-routine');
 });
 
+test('caller cancellation before reservation leaves the ID available without charging', async t => {
+ const ledgerPath = createTestTemp(t, 'codex-routing-cancel-') + '/ledger.json';
+ let dispatches = 0;
+ const provider = async () => { dispatches++; return {choice:'codex-routine'}; };
+ const r = router(provider, {ledgerPath});
+ const earlier = new AbortController();
+ earlier.abort('synthetic private reason');
+ assert.equal((await r.recommend(request(), earlier.signal)).reason, 'call_cancelled');
+ assert.equal(existsSync(ledgerPath), false);
+
+ const preflight = new AbortController();
+ provider.preflight = () => preflight.abort('synthetic private reason');
+ const cancelled = await r.advise(request(), preflight.signal);
+ assert.equal(cancelled.reason, 'call_cancelled');
+ assert.equal(JSON.stringify(cancelled).includes('private reason'), false);
+ assert.equal(existsSync(ledgerPath), false);
+ assert.equal(r.state.calls, 0);
+ assert.equal(dispatches, 0);
+ delete provider.preflight;
+ assert.equal((await r.advise(request())).status, 'recommended');
+ assert.equal(dispatches, 1);
+});
+
+test('caller cancellation releases a persistent gate and preserves unknown despite a late reply', { timeout: 4000 }, async t => {
+ const ledgerPath = createTestTemp(t, 'codex-routing-cancel-') + '/ledger.json';
+ const started = Promise.withResolvers();
+ const late = Promise.withResolvers();
+ let providerSignal;
+ const r = router(({signal}) => { providerSignal = signal; started.resolve(); return late.promise; }, {ledgerPath});
+ const controller = new AbortController();
+ const pending = r.recommend(request('cancel-after-dispatch'), controller.signal);
+ await started.promise;
+ controller.abort('synthetic private reason');
+ const cancelled = await pending;
+ assert.equal(cancelled.reason, 'call_cancelled');
+ assert.equal(JSON.stringify(cancelled).includes('private reason'), false);
+ assert.equal(providerSignal.aborted, true);
+
+ let dispatches = 0;
+ const second = router(async () => { dispatches++; return {choice:'codex-routine'}; }, {ledgerPath});
+ assert.equal((await second.recommend(request('cancel-after-dispatch'))).reason, 'outcome_unknown');
+ assert.equal((await second.recommend(request('new-after-cancellation'))).status, 'recommended');
+ late.resolve({choice:'codex-deep'});
+ await new Promise(resolve => setImmediate(resolve));
+ const final = JSON.parse(readFileSync(ledgerPath,'utf8'));
+ assert.equal(final.requests['cancel-after-dispatch'].state, 'unknown');
+ assert.equal(final.requests['new-after-cancellation'].state, 'complete');
+ assert.equal(final.calls, 2);
+ assert.equal(dispatches, 1);
+});
+
+test('cancellation after provider settlement but before commit leaves no completed outcome', async () => {
+ const controller = new AbortController();
+ const started = Promise.withResolvers();
+ const response = Promise.withResolvers();
+ const r = router(() => { started.resolve(); return response.promise; });
+ const pending = r.recommend(request(), controller.signal);
+ await started.promise;
+ response.resolve({choice:'codex-routine'});
+ controller.abort();
+ assert.equal((await pending).reason, 'call_cancelled');
+ assert.equal(r.state.requests.r1.state, 'unknown');
+});
+
 test('concurrency and call/cost budgets reserve before provider invocation', async () => {
   let resolve;
   const r = router(() => new Promise(done => { resolve = done; }));

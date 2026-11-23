@@ -7,6 +7,7 @@
 ## この文書の目次
 
 - [インストール](#guide-installation)
+- [設定の確認](#guide-verify-setup)
 - [Windows PowerShell](#guide-windows-powershell)
 - [npm インストールスクリプトの許可](#guide-npm-install-scripts)
 - [パッケージの更新](#guide-package-updates)
@@ -32,6 +33,21 @@ aptly --version
 インストールスクリプトは、すでにあるホストディレクトリに MCP と Hook を登録します。ディレクトリがない場合は、`aptly setup --client all` で登録してください。
 
 `CODEX_HOME` や `CLAUDE_CONFIG_DIR` を使う場合は、インストールと設定の両方で同じ値を指定してください。Aptly は既存の設定と実行ラッパーを維持します。詳しくは[アカウントホーム・キー設定](configuration.md)を参照してください。
+
+<a id="guide-verify-setup"></a>
+
+## 設定の確認
+
+次のコマンドで、選択したホストの設定計画とキー登録の準備状態を確認してください。Claude Code の場合は `codex` を `claude` に変更してください。Windows PowerShell では `aptly.cmd` を使用してください。
+
+```sh
+aptly setup --check --client codex
+aptly set env OPENAI_API_KEY --client codex --check
+```
+
+どちらのコマンドもファイルを変更しません。`setup --check` は通常の設定計画をその時点で確認するもので、実行中のホストは検証しません。キーの `--check` は登録と Linux の保存先の準備状態を確認しますが、キーの読み取り・保存や API 認証の検証は行いません。終了コード `0` は確認でエラーがなかったことを示し、`1` は部分的な失敗またはコマンドエラーを示します。JSON 出力のホストごとの `status` と `codes` を確認してください。
+
+設定後はホストと MCP を再起動し、Codex では `/hooks` で Hook を確認・信頼してください。[推薦と Hook の引数変更](routing.md#guide-automatic-routing)は別の観測であり、どちらも子エージェントの実行や完了を証明しません。実行と完了はホストで別途確認してください。[トラブルシューティング](troubleshooting.md)も参照してください。
 
 <a id="guide-windows-powershell"></a>
 

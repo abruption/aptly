@@ -7,6 +7,7 @@
 ## 이 문서의 목차
 
 - [설치](#guide-installation)
+- [설정 확인](#guide-verify-setup)
 - [Windows PowerShell](#guide-windows-powershell)
 - [npm 설치 스크립트 허용](#guide-npm-install-scripts)
 - [패키지 업데이트](#guide-package-updates)
@@ -32,6 +33,21 @@ aptly --version
 설치 스크립트는 이미 있는 호스트 디렉터리에 MCP와 Hook을 등록합니다. 디렉터리가 없으면 `aptly setup --client all`로 등록하십시오.
 
 `CODEX_HOME`이나 `CLAUDE_CONFIG_DIR`을 사용한다면 설치와 설정 명령을 실행할 때 같은 값을 지정하십시오. Aptly는 기존 설정과 실행 래퍼를 그대로 둡니다. [계정 홈·키 설정](configuration.md)을 참고하십시오.
+
+<a id="guide-verify-setup"></a>
+
+## 설정 확인
+
+다음 명령으로 선택한 호스트의 설정 계획과 키 등록 준비 상태를 점검하십시오. Claude Code는 `codex`를 `claude`로 바꾸십시오. Windows PowerShell에서는 `aptly.cmd`를 사용하십시오.
+
+```sh
+aptly setup --check --client codex
+aptly set env OPENAI_API_KEY --client codex --check
+```
+
+두 명령은 파일을 변경하지 않습니다. `setup --check`는 일반 설정 계획을 실행 시점에 점검하는 명령이며 실행 중인 호스트를 확인하지 않습니다. 키의 `--check`는 등록과 Linux 저장소 준비 상태를 점검하지만 키를 읽거나 저장하지 않고 API 인증도 검증하지 않습니다. 종료 코드 `0`은 점검에 오류가 없다는 뜻이고 `1`은 부분 실패 또는 명령 오류입니다. JSON 출력에서 호스트별 `status`와 `codes`를 확인하십시오.
+
+설정 후 호스트와 MCP를 재시작하고 Codex에서는 `/hooks`에서 Hook을 검토·신뢰하십시오. [추천과 Hook 인자 변경 관찰](routing.md#guide-automatic-routing)은 구분되며, 어느 쪽도 자식 실행이나 완료를 증명하지 않습니다. 실제 실행과 완료는 호스트에서 별도로 확인하십시오. [문제 해결](troubleshooting.md)을 참고하십시오.
 
 <a id="guide-windows-powershell"></a>
 

@@ -7,6 +7,7 @@
 ## Contents
 
 - [Installation](#guide-installation)
+- [Verify setup](#guide-verify-setup)
 - [Windows PowerShell](#guide-windows-powershell)
 - [Allow npm install scripts](#guide-npm-install-scripts)
 - [Package updates](#guide-package-updates)
@@ -32,6 +33,21 @@ aptly --version
 The install script registers MCP and Hooks in host directories that already exist. If a directory is missing, run `aptly setup --client all` to register it.
 
 If you use `CODEX_HOME` or `CLAUDE_CONFIG_DIR`, set the same value for installation and setup. Aptly keeps your existing settings and launcher wrappers. See [account homes and keys](configuration.md).
+
+<a id="guide-verify-setup"></a>
+
+## Verify setup
+
+Check the setup plan and key registration readiness for the selected host. Replace `codex` with `claude` for Claude Code. On Windows PowerShell, use `aptly.cmd`.
+
+```sh
+aptly setup --check --client codex
+aptly set env OPENAI_API_KEY --client codex --check
+```
+
+Both commands leave files unchanged. `setup --check` checks the setup plan at the time you run it. The key check reports registration and Linux store readiness without reading or storing a key or testing API authentication. Use the running host to verify its behavior separately. Exit code `0` means the check found no error. Exit code `1` indicates a partial failure or command error. Inspect each host’s `status` and `codes` in the JSON output.
+
+After setup, restart the host and MCP; in Codex, review and trust the Hook in `/hooks`. [Recommendation and Hook argument updates](routing.md#guide-automatic-routing) are distinct observations; neither proves that a child ran or completed. Check execution and completion separately in the host. See [troubleshooting](troubleshooting.md).
 
 <a id="guide-windows-powershell"></a>
 

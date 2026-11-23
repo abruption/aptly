@@ -24,7 +24,7 @@ aptly set default
 aptly set env OPENAI_API_KEY
 ```
 
-请在 `set default` 中选择传输范围，并通过隐藏输入注册 API 密钥。重启宿主后，**请在 Codex 的 `/hooks` 中审核并批准新 Hook**。有关 npm 兼容选项和各账户设置，请参阅[安装与密钥设置](docs/guide/zh-CN/installation.md)。
+请在 `set default` 中选择传输范围，并通过隐藏输入注册 API 密钥。重启宿主后，**请在 Codex 的 `/hooks` 中审核并批准新 Hook**。如需检查注册状态，请参阅[安装与设置验证](docs/guide/zh-CN/installation.md#guide-verify-setup)。
 
 ## 更新
 
@@ -42,4 +42,4 @@ aptly setup --client all
 - [使用指南](docs/guide/zh-CN.md)：设置、自动推荐、预算、统计与问题排查
 - [候选模型设置](docs/guide/zh-CN/configuration.md#guide-models-and-environment)
 - [传输范围](docs/guide/zh-CN/transmission.md)：发送给 Decisions API 的信息
-- [成本实测](docs/guide/zh-CN/benchmarks.md)：在一次小规模 README 审阅测试中，子代理审阅和 Decisions 分类的 API 折算费用合计下降了约 52%～58%。统计范围仅包括这两项费用。
+- [成本实测](docs/guide/zh-CN/benchmarks.md)：对同一个 README 审阅任务，每种条件各运行 3 次。使用显式 MCP 推荐时，按 Standard API 单价折算的子代理审阅和 Decisions 分类费用低了约 52%～58%。
