@@ -7,6 +7,7 @@
 ## 本文目录
 
 - [安装](#guide-installation)
+- [验证设置](#guide-verify-setup)
 - [Windows PowerShell](#guide-windows-powershell)
 - [npm 安装脚本许可](#guide-npm-install-scripts)
 - [软件包更新](#guide-package-updates)
@@ -32,6 +33,21 @@ aptly --version
 安装脚本会在已有的宿主目录中注册 MCP 和 Hook。如果目录还不存在，请运行 `aptly setup --client all` 完成注册。
 
 如果使用 `CODEX_HOME` 或 `CLAUDE_CONFIG_DIR`，请在安装和设置时使用相同的值。Aptly 会保留已有设置和启动脚本。请参阅[账户主目录与密钥设置](configuration.md)。
+
+<a id="guide-verify-setup"></a>
+
+## 验证设置
+
+请使用以下命令检查所选宿主的设置计划和密钥注册准备状态。使用 Claude Code 时，请将 `codex` 改为 `claude`。Windows PowerShell 中请使用 `aptly.cmd`。
+
+```sh
+aptly setup --check --client codex
+aptly set env OPENAI_API_KEY --client codex --check
+```
+
+这两条命令都不会修改文件。`setup --check` 是对常规设置计划在当前时点的检查，不验证正在运行的宿主。密钥的 `--check` 检查注册和 Linux 存储准备状态，不读取或保存密钥，也不验证 API 认证。退出码 `0` 表示检查未发现错误，`1` 表示部分失败或命令错误。请检查 JSON 输出中各宿主的 `status` 和 `codes`。
+
+设置后请重启宿主和 MCP；在 Codex 中，请通过 `/hooks` 审核并信任 Hook。[推荐和 Hook 参数更新](routing.md#guide-automatic-routing)是不同的观测结果，两者都不能证明子代理已执行或完成。请在宿主中另行确认执行和完成情况。另请参阅[问题排查](troubleshooting.md)。
 
 <a id="guide-windows-powershell"></a>
 

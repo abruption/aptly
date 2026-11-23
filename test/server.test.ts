@@ -4,9 +4,11 @@ import { statSync, writeFileSync, readFileSync } from 'node:fs';
 import { createTestTemp } from '../test-support/temp.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defaultPolicy } from '../src/core.ts';
+import { defaultPolicy, Router } from '../src/core.ts';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { createServer } from '../src/server.ts';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fakeKey = 'sk-fixture-only-not-a-real-secret';
@@ -52,6 +54,71 @@ const call = async (client, name, args = {}) => {
   return response.structuredContent ?? JSON.parse(response.content[0].text);
 };
 const route = (client, ev = event()) => call(client, 'route_spawn_hook', { client: 'codex', event: ev });
+
+async function connectInMemory(t, env) {
+  const server = createServer({env});
+  const client = new Client({name:'synthetic-cancellation',version:'1'});
+  const [local, remote] = InMemoryTransport.createLinkedPair();
+  await server.connect(remote);
+  await client.connect(local);
+  t.after(async () => { await client.close(); await server.close(); });
+  return client;
+}
+
+test('MCP advisory cancellation reaches HTTP and keeps the same ID uncertain', {timeout:3000}, async t => {
+  const ledgerPath = resolve(temporary(t), 'ledger.json');
+  const dispatched = Promise.withResolvers();
+  const aborted = Promise.withResolvers();
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (_url, {signal}) => {
+    calls++;
+    signal.addEventListener('abort', aborted.resolve, {once:true});
+    dispatched.resolve();
+    return new Promise(() => {});
+  });
+  const client = await connectInMemory(t,{ROUTER_PROVIDER:'decisions',OPENAI_API_KEY:fakeKey,ROUTER_LEDGER_PATH:ledgerPath});
+  const args = request('synthetic-cancelled-mcp-advice');
+  const controller = new AbortController();
+  const cancelled = assert.rejects(client.callTool({name:'recommend_agent',arguments:args},undefined,{signal:controller.signal}));
+  await dispatched.promise;
+  controller.abort();
+  await cancelled;
+  await aborted.promise;
+  assert.equal((await call(client,'recommend_agent',args)).reason,'outcome_unknown');
+  const saved = JSON.parse(readFileSync(ledgerPath,'utf8'));
+  assert.equal(saved.requests[args.request_id].state,'unknown');
+  assert.equal(saved.calls,1);
+  assert.equal(calls,1);
+});
+
+test('legacy MCP Hook preserves the invocation and distinguishes completed advice on cancellation', {timeout:3000}, async t => {
+  const client = await connectInMemory(t,{ROUTER_PROVIDER:'fixture'});
+  for (const completed of [false, true]) {
+    const started = Promise.withResolvers();
+    const cancelledByHost = Promise.withResolvers();
+    const mock = t.mock.method(Router.prototype, 'recommend', async (_input, signal) => {
+      started.resolve();
+      signal.addEventListener('abort',cancelledByHost.resolve,{once:true});
+      await cancelledByHost.promise;
+      return completed
+        ? {status:'recommended',reason:'allowed_profile',profile_id:'codex-routine',latency_ms:1}
+        : {status:'unavailable',reason:'call_cancelled',latency_ms:1};
+    });
+    const args = {client:'codex',event:event(`legacy-cancelled-${completed}`)};
+    const controller = new AbortController();
+    const cancelled = assert.rejects(client.callTool({name:'route_spawn_hook',arguments:args},undefined,{signal:controller.signal}));
+    await started.promise;
+    controller.abort();
+    await cancelled;
+    await cancelledByHost.promise;
+    const observed = await call(client,'get_spawn_routing_observation',args);
+    assert.equal(observed.status,'preserved');
+    assert.equal(observed.reason,'call_cancelled');
+    assert.equal(observed.application,completed?'blocked':'not_attempted');
+    assert.equal(observed.recommendation,completed?'produced':'not_produced');
+    mock.mock.restore();
+  }
+});
 
 test('actual stdio MCP: default fixture catalog, recommendation, cache and conservative Hook', { timeout: 15000 }, async () => {
   await withServer({}, async client => {

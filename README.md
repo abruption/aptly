@@ -24,7 +24,7 @@ aptly set default
 aptly set env OPENAI_API_KEY
 ```
 
-`set default`에서 전송 범위를 선택하고 API 키는 숨김 입력으로 등록합니다. 호스트를 재시작한 뒤 **Codex는 `/hooks`에서 새 Hook을 검토·승인**하십시오. [설치·키 설정](docs/guide/ko/installation.md)에서 npm 호환 옵션과 계정별 설정을 확인할 수 있습니다.
+`set default`에서 전송 범위를 선택하고 API 키는 숨김 입력으로 등록합니다. 호스트를 재시작한 뒤 **Codex는 `/hooks`에서 새 Hook을 검토·승인**하십시오. [설치·설정 확인](docs/guide/ko/installation.md#guide-verify-setup)에서 등록 상태를 점검할 수 있습니다.
 
 ## 업데이트
 
@@ -42,4 +42,4 @@ aptly setup --client all
 - [사용 가이드](docs/guide/ko.md): 설정·자동 추천·예산·통계·문제 해결
 - [모델 후보 설정](docs/guide/ko/configuration.md#guide-models-and-environment)
 - [전송 범위](docs/guide/ko/transmission.md): Decisions API에 보내는 정보
-- [비용 실측](docs/guide/ko/benchmarks.md) — 소규모 README 검토 시험에서 서브에이전트의 검토 비용과 Decisions 분류 비용을 합산한 API 환산액이 약 52~58% 줄었습니다. 측정 범위는 이 두 비용입니다.
+- [비용 실측](docs/guide/ko/benchmarks.md) — README 검토 과제 하나를 조건별로 3회씩 실행했습니다. 명시적 MCP 추천을 사용했을 때 서브에이전트 검토와 Decisions 분류의 Standard API 환산 비용이 약 52~58% 낮았습니다.

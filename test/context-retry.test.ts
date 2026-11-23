@@ -183,8 +183,12 @@ test('expiry and cancellation while retry is in flight suppress advice without r
  for(const variant of ['expiry','cancel']){
   let release;const f=fixture(t,{provider:()=>new Promise(resolve=>{release=()=>resolve({choice:'codex-routine'});})}),first=await f.run(),controller=new AbortController();
   const pending=f.retries.retry(first.observation.retry_id,description,controller.signal);await new Promise(resolve=>setImmediate(resolve));
-  if(variant==='expiry')f.setNow(300000);else controller.abort();release();
+  if(variant==='expiry'){f.setNow(300000);release();}else controller.abort();
   assert.equal((await pending).reason,variant==='expiry'?'context_retry_expired':'context_retry_cancelled');
+  if(variant==='cancel'){
+   release();
+   assert.equal(f.router.state.requests[first.observation.retry_id].state,'unknown');
+  }
   f.router.load();assert.equal(f.router.state.calls,1);
   assert.equal((await f.retries.retry(first.observation.retry_id,description)).reason,variant==='expiry'?'context_retry_expired':'context_retry_cancelled');
  }

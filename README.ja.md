@@ -24,7 +24,7 @@ aptly set default
 aptly set env OPENAI_API_KEY
 ```
 
-`set default` で送信範囲を選び、API キーは非表示入力で登録します。ホストを再起動した後、**Codex では `/hooks` で新しい Hook を確認・承認**してください。[インストール・キー設定](docs/guide/ja/installation.md)で npm の互換オプションとアカウント別の設定を確認できます。
+`set default` で送信範囲を選び、API キーは非表示入力で登録します。ホストを再起動した後、**Codex では `/hooks` で新しい Hook を確認・承認**してください。登録状況の確認方法は[インストールと設定の確認](docs/guide/ja/installation.md#guide-verify-setup)を参照してください。
 
 ## 更新
 
@@ -42,4 +42,4 @@ aptly setup --client all
 - [使用ガイド](docs/guide/ja.md): 設定・自動推薦・予算・統計・トラブルシューティング
 - [候補モデルの設定](docs/guide/ja/configuration.md#guide-models-and-environment)
 - [送信範囲](docs/guide/ja/transmission.md): Decisions API に送る情報
-- [費用実測](docs/guide/ja/benchmarks.md) — 小規模な README レビュー試験では、サブエージェントのレビューと Decisions の分類にかかる API 換算費用が、合計で約 52～58% 減りました。集計の対象はこの二つの費用です。
+- [費用実測](docs/guide/ja/benchmarks.md) — 1 つの README レビュー課題を各条件で 3 回ずつ実行しました。明示的な MCP 推薦を使った場合、サブエージェントのレビューと Decisions の分類にかかる費用は、Standard API の単価で換算すると約 52～58% 低くなりました。

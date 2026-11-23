@@ -24,7 +24,7 @@ aptly set default
 aptly set env OPENAI_API_KEY
 ```
 
-Choose the transmission scope in `set default` and enter your API key through the hidden prompt. Restart the host, then **review and approve the new Hook in `/hooks` for Codex**. See [installation and key setup](docs/guide/en/installation.md) for npm compatibility and account-specific configuration.
+Choose the transmission scope in `set default` and enter your API key through the hidden prompt. Restart the host, then **review and approve the new Hook in `/hooks` for Codex**. See [installation and setup verification](docs/guide/en/installation.md#guide-verify-setup) to check the registration.
 
 ## Update
 
@@ -42,4 +42,4 @@ Restart the host. You do not need to re-enter the key. If migrating a stable lau
 - [User guide](docs/guide/en.md): configuration, automatic recommendations, budgets, statistics, and troubleshooting
 - [Model candidates](docs/guide/en/configuration.md#guide-models-and-environment)
 - [Transmission scope](docs/guide/en/transmission.md): information sent to the Decisions API
-- [Measured costs](docs/guide/en/benchmarks.md) — In a small README review test, the API-equivalent cost of subagent review and Decisions classification fell by about 52–58%. The estimate covers only those two costs.
+- [Measured costs](docs/guide/en/benchmarks.md) — For one README review task with three runs per condition, subagent review and Decisions classification costs at Standard API rates were about 52–58% lower with explicit MCP recommendations.

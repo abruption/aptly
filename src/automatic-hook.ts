@@ -301,7 +301,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
     if (!summary.summary || !classifyProfiles.length) {
       const reason = summary.reason ?? 'insufficient_context';
       if (reason !== 'insufficient_context' || !onNeedsContext) return preserve(reason);
-      if(signal?.aborted||(stillCurrent&&await stillCurrent()!==true))return preserve('call_cancelled');
+      if(signal?.aborted||(stillCurrent&&(await stillCurrent()!==true||signal?.aborted)))return preserve('call_cancelled');
       const currentPolicy=loadAutomaticHookPolicy(policyPath),currentCall=readCall(client,event),currentContext=context?.();
       if(!currentPolicy.policy?.enabled||currentPolicy.fingerprint!==loaded.fingerprint)return preserve('automatic_policy_changed');
       if(!currentCall||currentCall.callKey!==call.callKey||currentCall.payloadDigest!==call.payloadDigest)return preserve('call_changed');
@@ -313,7 +313,7 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       const bound=bindCall(call,loaded.policy,loaded.fingerprint,catalogFingerprint(router.policy),supplied?.fingerprint);
       return bound.request_id?needsContext('insufficient_context',bound.request_id):preserve(bound.reason??'automatic_state_unavailable');
     }
-    if (signal?.aborted || (stillCurrent && await stillCurrent() !== true)) return preserve('call_cancelled');
+    if (signal?.aborted || (stillCurrent && (await stillCurrent() !== true || signal?.aborted))) return preserve('call_cancelled');
     // Installing an operator policy must not bypass a historical strict-path
     // unknown/complete record for this same native call with a new paid ID.
     const beforePaid = readCall(client, event), policyBeforePaid = loadAutomaticHookPolicy(policyPath);
@@ -339,12 +339,12 @@ export async function automaticHook({ client, event, router, policyPath, signal,
       task: { summary: summary.summary, operation: 'analysis', context_sufficient: true },
       eligible_profile_ids: classifyProfiles.map(profile=>profile.id),
       constraints: { model_pinned: false, effort_pinned: false, role_pinned: false, fork_inherits: false },
-    });
+    }, signal);
     if(recommendation.reason==='budget_exhausted'&&['max_daily_calls','max_total_calls','max_estimated_usd'].includes(recommendation.budget_limit??''))budgetLimit=recommendation.budget_limit;
     observation.classification=recommendation.cached?'cache_hit':typeof recommendation.latency_ms==='number'?'provider_requested':'local_outcome';
     const profile=validatedHookProfile(client,recommendation,router.policy);
     if(profile&&classifyProfiles.some(candidate=>candidate.id===profile.id)){observation.recommendation='produced';observation.profile_id=profile.id;observation.application='blocked';}
-    if (signal?.aborted || (stillCurrent && await stillCurrent() !== true)) return preserve('call_cancelled', request_id);
+    if (signal?.aborted || (stillCurrent && (await stillCurrent() !== true || signal?.aborted))) return preserve('call_cancelled', request_id);
     const currentContext=context?.();
     if (currentContext?.reason || currentContext?.fingerprint!==supplied?.fingerprint) return preserve(currentContext?.reason??'context_changed',request_id);
     const current = readCall(client, event), policyNow = loadAutomaticHookPolicy(policyPath);

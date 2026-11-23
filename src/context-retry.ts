@@ -104,7 +104,7 @@ export class ContextRetries {
   try {
    const result=await this.router.advise({request_id,client:entry.seed.client,
     task:{summary,operation:'analysis',context_sufficient:true},eligible_profile_ids:entry.seed.eligible_profile_ids,
-    constraints:{model_pinned:false,effort_pinned:false,role_pinned:false,fork_inherits:false}});
+    constraints:{model_pinned:false,effort_pinned:false,role_pinned:false,fork_inherits:false}}, signal);
    const after=check();if(after)return unavailable(after);
    const defaults=result.status==='recommended'&&result.profile&&!entry.seed.application_blocked?{
     ...(entry.seed.fill_model!==false?{model:result.profile.model}:{}),
