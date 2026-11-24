@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync,renameSync} from 'node:fs';
 import fs from 'node:fs';
-import {dirname,join} from 'node:path';
+import {join} from 'node:path';
 import {syncBuiltinESMExports} from 'node:module';
 import {parse,stringify} from 'smol-toml';
 import {createTestTemp} from '../test-support/temp.ts';
+import {copyNpxTestNode} from '../test-support/npx-runtime.ts';
 import {setupHosts,migrateLauncher,checkSetup,setCredentialReference,setDefaults,setPolicySource,setStatisticsCollection,removeSetup,showStatistics,showTransmission} from '../src/setup.ts';
 import {collectDoctor} from '../src/doctor.ts';
 import {validateStableRegistration} from '../src/stable-runtime.ts';
@@ -30,6 +31,15 @@ function fixture(t){
  return {dir,home,root,options,config,entry,policy};
 }
 const complete=r=>assert.equal(r.status,'complete',JSON.stringify(r));
+function useClonedNpxNode(t){
+ const node=copyNpxTestNode(t);
+ if(!node)return false;
+ // Setup plans use the invoking Node path. No Node subprocess is run in this unit file.
+ const previous=Object.getOwnPropertyDescriptor(process,'execPath')!;
+ t.after(()=>Object.defineProperty(process,'execPath',previous));
+ Object.defineProperty(process,'execPath',{...previous,value:node});
+ return true;
+}
 test('explicit new stable setup creates shared immutable launcher; check/credentials/defaults/policy/doctor remain compatible',posix,t=>{
  const f=fixture(t);complete(setupHosts({...f.options,launcher:'stable'}));const e=f.entry(),stable=validateStableRegistration(e,{home:f.home});assert.ok(stable);assert.deepEqual(e.args,['serve']);assert.equal(f.entry('claude').command,e.command);assert.ok(!e.command.includes('.nvm'));
  complete(checkSetup(f.options));complete(setDefaults({...f.options,clients:['codex']}));complete(setCredentialReference({...f.options,clients:['codex']}));complete(setPolicySource({...f.options,clients:['codex']},true));complete(setPolicySource({...f.options,clients:['codex']},false));
@@ -40,8 +50,7 @@ test('legacy remains default; existing direct registration requires explicit mig
  const r=setupHosts({...f.options,clients:['codex'],launcher:'stable'});assert.equal(r.status,'partial');assert.ok(r.clients[0].codes.includes('stable_launcher_migration_required'));assert.deepEqual(readFileSync(f.config),before);assert.equal(existsSync(join(f.home,'.local')),false);
 });
 test('managed npx migration preserves the policy and observers and remains selected on later setup',posix,t=>{
- const prefix=dirname(dirname(process.execPath));
- if(!['lib/node_modules/npm/bin/npx-cli.js','share/nodejs/npm/bin/npx-cli.js'].some(file=>existsSync(join(prefix,file))))return t.skip('Node npm CLI unavailable');
+ if(!useClonedNpxNode(t))return;
  const f=fixture(t),options={...f.options,clients:['codex']as['codex']};
  complete(setupHosts(options));
  complete(setStatisticsCollection(true,options));
@@ -66,8 +75,7 @@ test('managed npx migration preserves the policy and observers and remains selec
  assert.equal(existsSync(entry.command),true);
 });
 test('Claude can select managed npx without changing the Codex launcher',posix,t=>{
- const prefix=dirname(dirname(process.execPath));
- if(!['lib/node_modules/npm/bin/npx-cli.js','share/nodejs/npm/bin/npx-cli.js'].some(file=>existsSync(join(prefix,file))))return t.skip('Node npm CLI unavailable');
+ if(!useClonedNpxNode(t))return;
  const f=fixture(t);complete(setupHosts(f.options));
  const original=f.entry(),policy=readFileSync(f.policy('claude'));
  const selected={...f.options,clients:['claude']as['claude'],launcher:'npx'as const};

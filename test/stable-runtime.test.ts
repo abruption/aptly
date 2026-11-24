@@ -7,6 +7,7 @@ import { once } from 'node:events';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { createTestTemp, temporaryRoot } from '../test-support/temp.ts';
+import { copyNpxTestNode } from '../test-support/npx-runtime.ts';
 import { materializeStableRuntime, planStableRuntime, stableObserverCommand, stableRuntimeLimits, stableReference, validateStableRegistration } from '../src/stable-runtime.ts';
 function unsafeTestAncestry(){let path=temporaryRoot().root;while(!existsSync(path))path=dirname(path);for(;;){const observed=lstatSync(path),stat=observed.isSymbolicLink()?statSync(path):observed;if((stat.mode&0o022)&&!(stat.uid===0&&stat.isDirectory()&&(stat.mode&0o1000)))return true;const next=dirname(path);if(next===path)return false;path=next;}}
 const posix={skip:process.platform==='win32'?'POSIX opt-in only':unsafeTestAncestry()?'Selected temporary volume has unsafe writable ancestry; no live-execution proof is claimed.':false};
@@ -59,9 +60,14 @@ test('immutable runtime survives deleted Node and npm prefix and strips injectio
 });
 
 test('managed npx runs its verified payload with empty cache and ignores caller npm configuration',posix,t=>{
- const prefix=dirname(dirname(process.execPath));
- if(!['lib/node_modules/npm/bin/npx-cli.js','share/nodejs/npm/bin/npx-cli.js'].some(file=>existsSync(join(prefix,file))))return t.skip('Node npm CLI unavailable');
- const f=fixture(t),plan=planStableRuntime({home:f.home,packageRoot:f.pkg,launcher:'npx'});
+ const nodePath=copyNpxTestNode(t);
+ if(!nodePath)return;
+ const f=fixture(t),options={home:f.home,packageRoot:f.pkg,nodePath,launcher:'npx'as const};
+ const npm=join(dirname(dirname(nodePath)),'lib/node_modules/npm');
+ chmodSync(npm,0o770);
+ assert.throws(()=>planStableRuntime(options),error('stable_source_unverified'));
+ chmodSync(npm,0o700);
+ const plan=planStableRuntime(options);
  materializeStableRuntime(plan);
  rmSync(join(f.home,'old-prefix'),{recursive:true});
  const cwd=join(f.home,'workspace');mkdirSync(cwd,{mode:0o700});
@@ -75,11 +81,11 @@ test('managed npx runs its verified payload with empty cache and ignores caller 
 });
 
 test('managed npx cleans up when the host terminates a running MCP', {...posix,timeout:15000},async t=>{
- const prefix=dirname(dirname(process.execPath));
- if(!['lib/node_modules/npm/bin/npx-cli.js','share/nodejs/npm/bin/npx-cli.js'].some(file=>existsSync(join(prefix,file))))return t.skip('Node npm CLI unavailable');
+ const nodePath=copyNpxTestNode(t);
+ if(!nodePath)return;
  const f=fixture(t);
  save(join(f.pkg,'dist/src/server.js'),"export async function serve(){process.stdout.write('ready');setInterval(()=>{},1000);}");
- const plan=planStableRuntime({home:f.home,packageRoot:f.pkg,launcher:'npx'});
+ const plan=planStableRuntime({home:f.home,packageRoot:f.pkg,nodePath,launcher:'npx'});
  materializeStableRuntime(plan);
  const child=spawn(plan.command,['serve'],{env:{HOME:f.home,PATH:''},stdio:['ignore','pipe','pipe']});
  const closed=once(child,'close');
