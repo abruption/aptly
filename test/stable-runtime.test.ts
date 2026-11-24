@@ -63,6 +63,13 @@ test('managed npx runs its verified payload with empty cache and ignores caller 
  const nodePath=copyNpxTestNode(t);
  if(!nodePath)return;
  const f=fixture(t),options={home:f.home,packageRoot:f.pkg,nodePath,launcher:'npx'as const};
+ const toolDir=join(f.home,'unusual tools');
+ save(join(f.pkg,'dist/src/server.js'),`import {spawnSync} from 'node:child_process';
+ export async function serve(){
+  const path=process.env.PATH??null;
+  const tool=path===${JSON.stringify(toolDir)}?spawnSync('secret-tool',[],{encoding:'utf8'}):null;
+  process.stdout.write(JSON.stringify({path,tool:tool?.stdout??null,carrier:process.env.APTLY_HOST_PATH??null,present:process.env.APTLY_HOST_PATH_PRESENT??null}));
+ }`);
  const npm=join(dirname(dirname(nodePath)),'lib/node_modules/npm');
  chmodSync(npm,0o770);
  assert.throws(()=>planStableRuntime(options),error('stable_source_unverified'));
@@ -72,9 +79,14 @@ test('managed npx runs its verified payload with empty cache and ignores caller 
  rmSync(join(f.home,'old-prefix'),{recursive:true});
  const cwd=join(f.home,'workspace');mkdirSync(cwd,{mode:0o700});
  save(join(cwd,'.npmrc'),'script-shell=/missing-workspace-shell\n');
- const result=spawnSync(plan.command,['serve'],{cwd,env:{HOME:f.home,PATH:'',NPM_CONFIG_SCRIPT_SHELL:'/missing-inherited-shell',NODE_OPTIONS:'--require /no-inherited-module'},encoding:'utf8',timeout:15000});
- assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
- assert.equal(JSON.parse(result.stdout).value,'public dependency');
+ save(join(toolDir,'secret-tool'),'#!/bin/sh\nprintf synthetic-secret-tool',0o700);
+ for(const pathValue of [toolDir,'',undefined]){
+  const env={HOME:f.home,NPM_CONFIG_SCRIPT_SHELL:'/missing-inherited-shell',NODE_OPTIONS:'--require /no-inherited-module',APTLY_HOST_PATH:'spoof',APTLY_HOST_PATH_PRESENT:'1'};
+  if(pathValue!==undefined)env.PATH=pathValue;
+  const result=spawnSync(plan.command,['serve'],{cwd,env,encoding:'utf8',timeout:15000});
+  assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
+  const output=JSON.parse(result.stdout);assert.equal(output.path,pathValue??null);assert.equal(output.tool,pathValue===toolDir?'synthetic-secret-tool':null);assert.equal(output.carrier,null);assert.equal(output.present,null);
+ }
  assert.equal(fs.readdirSync(plan.runtimeRoot).some(name=>name.startsWith('.npx-session-')),false);
  writeFileSync(join(plan.payloadRoot,'dist/src/server.js'),'throw Error("mutated source")');
  assert.notEqual(spawnSync(plan.command,['serve'],{cwd,env:{HOME:f.home,PATH:''},encoding:'utf8',timeout:10000}).status,0);

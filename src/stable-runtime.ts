@@ -115,12 +115,19 @@ const npxBootstrap=([
  ["path.join(root,'launch')", "path.join(root,'launch-npx')"],
  ["if(mode!=='serve'&&mode!=='observe')bad();if(mode==='serve'&&process.argv.length!==3)bad();",
   "if(mode!=='serve'&&mode!=='serve-verified'&&mode!=='observe')bad();if(!quiet&&process.argv.length!==3)bad();"],
- ["if(mode==='serve'){const server","if(mode==='serve')await runNpx(m,payload);\n else if(mode==='serve-verified'){const server"],
+ ["if(mode==='serve'){const server","if(mode==='serve')await runNpx(m,payload);\n else if(mode==='serve-verified'){restoreHostPath();const server"],
 ] as const).reduce((source,[before,after])=>{
  if(source.split(before).length!==2)fail('stable_runtime_unverified');
  return source.replace(before,()=>after);
 },bootstrap)
  + String.raw`
+function restoreHostPath(){
+ const present=process.env.APTLY_HOST_PATH_PRESENT,value=process.env.APTLY_HOST_PATH;
+ delete process.env.APTLY_HOST_PATH_PRESENT;delete process.env.APTLY_HOST_PATH;
+ if(present==='1'&&value!==undefined)process.env.PATH=value;
+ else if(present==='0'&&value===undefined)delete process.env.PATH;
+ else bad();
+}
 async function runNpx(m,payload){
  const processes=require('node:child_process');
  const bin=path.dirname(process.execPath),prefix=path.dirname(bin);
@@ -147,6 +154,9 @@ async function runNpx(m,payload){
   fs.writeFileSync(path.join(work,'package.json'),JSON.stringify({name:'aptly-launcher',private:true,dependencies:{aptly:m.version}}),{mode:0o600});
   for(const name of ['user-npmrc','global-npmrc'])fs.writeFileSync(path.join(work,name),'',{mode:0o600});
   const env=Object.fromEntries(Object.entries(process.env).filter(([name])=>!/^npm_/i.test(name)&&!['NODE_OPTIONS','NODE_PATH','NODE_REPL_EXTERNAL_MODULE','INIT_CWD'].includes(name)));
+  delete env.APTLY_HOST_PATH;delete env.APTLY_HOST_PATH_PRESENT;
+  env.APTLY_HOST_PATH_PRESENT=Object.hasOwn(process.env,'PATH')?'1':'0';
+  if(env.APTLY_HOST_PATH_PRESENT==='1')env.APTLY_HOST_PATH=process.env.PATH;
   Object.assign(env,{PATH:bin+':/usr/bin:/bin',npm_config_cache:path.join(work,'cache'),npm_config_userconfig:path.join(work,'user-npmrc'),
    npm_config_globalconfig:path.join(work,'global-npmrc'),npm_config_registry:'https://registry.npmjs.org/',npm_config_update_notifier:'false',
    npm_config_prefix:path.join(work,'global'),npm_config_global:'false',npm_config_script_shell:'/bin/sh',

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync,renameSync} from 'node:fs';
+import {chmodSync,mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync,renameSync,rmSync} from 'node:fs';
 import fs from 'node:fs';
-import {join} from 'node:path';
+import {dirname,join} from 'node:path';
 import {syncBuiltinESMExports} from 'node:module';
 import {parse,stringify} from 'smol-toml';
 import {createTestTemp} from '../test-support/temp.ts';
@@ -85,6 +85,30 @@ test('Claude can select managed npx without changing the Codex launcher',posix,t
  assert.deepEqual(f.entry(),original);
  assert.deepEqual(readFileSync(f.policy('claude')),policy);
  complete(setCredentialReference({...f.options,clients:['claude']}));
+});
+test('absent and unmanaged registrations are refused before qualifying npx',posix,t=>{
+ if(!useClonedNpxNode(t))return;
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};
+ const migration={...options,launcher:'npx'as const};
+ const npm=join(dirname(dirname(process.execPath)),'lib/node_modules/npm');
+ chmodSync(npm,0o770);
+ const rejected=code=>assert.deepEqual(migrateLauncher(migration).clients[0].codes,[code]);
+
+ rejected('launcher_migration_not_owned');
+ assert.equal(existsSync(f.config),false);
+
+ mkdirSync(dirname(f.config),{mode:0o700});
+ const custom=stringify({mcp_servers:{aptly:{command:'/custom/aptly',args:[]}}});
+ writeFileSync(f.config,custom);
+ rejected('launcher_migration_not_owned');
+ assert.equal(readFileSync(f.config,'utf8'),custom);
+
+ rmSync(f.config);
+ complete(setupHosts(options));
+ const previous=f.entry();
+ rejected('stable_source_unverified');
+ assert.deepEqual(f.entry(),previous);
+ assert.equal(existsSync(join(f.home,'.local')),false);
 });
 test('migration dry-run has no runtime/host writes and actual migration preserves env/policy/data',posix,t=>{
  const f=fixture(t);complete(setupHosts(f.options));const original=f.entry(),policy=readFileSync(f.policy()),state=join(f.home,'.codex/aptly/state'),ledger=join(state,'ledger.json');writeFileSync(ledger,'PRESERVE_LEDGER');const options={...f.options,clients:['codex']as['codex'],launcher:'stable'as const};

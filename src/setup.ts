@@ -352,21 +352,24 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     const root = resolve(options.packageRoot ?? join(dirname(fileURLToPath(import.meta.url)), '..', ...(import.meta.url.includes('/dist/src/') ? ['..'] : [])));
     const additions = { APTLY_HOOK_POLICY_PATH: policyPath, ROUTER_LEDGER_PATH: join(stateDir, 'ledger.json') };
     let created = false, tomlBlock: string | undefined;
+    const migration = edit && 'migrate' in edit ? edit : undefined;
+    const entry = servers.aptly;
+    if (migration && (!oldOwner || !object(entry) || (oldOwner.mcp_created ? !isDeepStrictEqual(entry, oldOwner.mcp) : !migration.includeExisting))) {
+      fail('launcher_migration_not_owned');
+    }
     // Explicit migration may replace an exact-owned unavailable/older generation.
     // Its bytes are never executed or trusted for credential injection; only the
     // replacement made from this CLI's verified source is used after commit.
-    const ownedStableMigration=edit&&'migrate'in edit&&oldOwner?.mcp_created&&isDeepStrictEqual(servers.aptly,oldOwner.mcp)?stableReference(servers.aptly,{home:options.home}):null;
-    const existingStable=ownedStableMigration??validateStableRegistration(servers.aptly,{home:options.home});
-    if(options.launcher&&servers.aptly!==undefined&&options.launcher!==existingStable?.launcher&&!(edit&&'migrate'in edit))fail('stable_launcher_migration_required');
-    const managedLauncher=options.launcher??existingStable?.launcher;
-    if(managedLauncher&&(servers.aptly===undefined||!!(edit&&'migrate'in edit)))stableRuntime=planStableRuntime({packageRoot:root,home:options.home,launcher:managedLauncher});
-    if (edit && 'migrate' in edit) {
-      if (!oldOwner || !object(servers.aptly) || (oldOwner.mcp_created ? !isDeepStrictEqual(servers.aptly, oldOwner.mcp) : !edit.includeExisting)) fail('launcher_migration_not_owned');
-      const entry = servers.aptly;
+    const ownedStableMigration=migration&&oldOwner?.mcp_created?stableReference(entry,{home:options.home}):null;
+    const existingStable=ownedStableMigration??validateStableRegistration(entry,{home:options.home});
+    if(options.launcher&&entry!==undefined&&options.launcher!==existingStable?.launcher&&!migration)fail('stable_launcher_migration_required');
+    if (migration) {
       if (!existingStable && (typeof entry.command !== 'string' || !isAbsolute(entry.command) || !['node','node.exe'].includes(basename(entry.command).toLowerCase()) || !Array.isArray(entry.args) || entry.args.length !== 1 || typeof entry.args[0] !== 'string' || !isAbsolute(entry.args[0]) || !/(?:^|[\\/])(?:dist[\\/]src[\\/]server\.js|src[\\/]server\.ts)$/.test(entry.args[0]))) fail('launcher_migration_not_standard');
       if (!entries.some(entry => isDeepStrictEqual(entry,oldOwner!.hook)) || !isDeepStrictEqual(json(policy.before),oldOwner!.policy)) fail('managed_entry_changed');
       for (const [key,value] of Object.entries(oldOwner!.env_added)) if (entry.env?.[key] !== value) fail('managed_entry_changed');
     }
+    const managedLauncher=options.launcher??existingStable?.launcher;
+    if(managedLauncher&&(entry===undefined||migration))stableRuntime=planStableRuntime({packageRoot:root,home:options.home,launcher:managedLauncher});
     if (servers.aptly === undefined) {
       created = true;
       servers.aptly = { ...(client === 'claude' ? { type: 'stdio' } : {}), command: stableRuntime?.descriptor.command??process.execPath, args: stableRuntime?.descriptor.args??[join(root, 'dist', 'src', 'server.js')], ...(client === 'codex' ? { env_vars: ['OPENAI_API_KEY'] } : {}), env: { ROUTER_PROVIDER: edit && 'defaults' in edit ? 'decisions' : env.ROUTER_PROVIDER === 'fixture' ? 'fixture' : 'decisions', ...additions } };
