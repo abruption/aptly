@@ -28,14 +28,7 @@ aptly set env OPENAI_API_KEY
 
 ## 更新
 
-执行前，请停止相关宿主、MCP 服务器和 CLI 进程。
-
-```sh
-aptly update
-aptly setup --client all
-```
-
-请重启宿主，无需重新输入密钥。如果从 stable 启动器或旧版本迁移，请参阅[更新指南](docs/guide/zh-CN/installation.md#guide-package-updates)。
+关闭相关宿主、MCP 服务器和 CLI 后，运行 `aptly update`。在 macOS 和 Linux 上，更新会将 Aptly 管理的现有注册迁移到托管 npx。在 Windows 上，更新会升级软件包。从 0.1.21 升级时，请使用新的 CLI 再运行一次 `aptly update`。请在 Codex 的 `/hooks` 中批准变更后的 Hook，然后重启宿主。[更新指南](docs/guide/zh-CN/installation.md#guide-package-updates)
 
 ## 文档
 

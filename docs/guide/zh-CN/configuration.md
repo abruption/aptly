@@ -74,7 +74,7 @@ aptly setup --client codex --migrate-launcher --launcher stable --dry-run
 aptly setup --client codex --migrate-launcher --launcher stable
 ```
 
-全局 Aptly 更新后也须用相同命令更新保留副本。普通 `setup` 不替换副本，过期副本会以 `stable_snapshot_outdated` 提示。迁移会一并更新其拥有的 MCP 和统计观察器，不会接管修改过的启动器或 Hook。如果目标是保留的标准注册，请审核后添加 `--include-existing`。Codex 中更改过的 Hook 须在 `/hooks` 中重新批准。
+如果继续使用 stable，请在全局 Aptly 更新后用相同命令更新保留副本。普通 `setup` 不替换副本，过期副本会以 `stable_snapshot_outdated` 提示。迁移会一并更新其拥有的 MCP 和统计观察器，不会接管修改过的启动器或 Hook。如果目标是保留的标准注册，请审核后添加 `--include-existing`。Codex 中更改过的 Hook 须在 `/hooks` 中重新批准。
 
 <details>
 <summary>启动器限制与恢复</summary>
@@ -89,18 +89,18 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 ### 托管 npx 启动器
 
-在 macOS 和 Linux 上，可以显式选择 `npx`。这需要自带 npm 的 Node.js 24 或更高版本。Aptly 保存已安装的软件包及其依赖的固定快照，并在隔离的工作目录和干净的 npm 配置中离线运行 `npx`。MCP 启动时不会访问注册表或选择 `latest`。
+在 macOS 和 Linux 上，不带参数的 `aptly update` 更新软件包后，会尝试将当前环境所选配置主目录中未修改且由 Aptly 管理的 Codex 和 Claude Code 注册迁移到托管 npx。direct 和 stable 注册均可迁移；自定义或非托管注册以及不存在的注册保持不变。失败按宿主分别报告，一个宿主成功时另一个仍可能失败。从 0.1.21 首次运行 `aptly update` 时只更新软件包，请使用新 CLI 再运行一次。在 Windows 上，不带参数的更新只更新软件包。
 
-使用较早公开版本的用户请先运行 `aptly update`，再使用新安装的 `aptly` setup 迁移。请先检查 dry run，再执行迁移。
+这需要自带 npm 的 Node.js 24 或更高版本。Aptly 保存已安装的软件包及其依赖的固定快照，并在隔离的工作目录和干净的 npm 配置中离线运行 `npx`。MCP 启动时不会访问注册表或选择 `latest`。
+
+如需显式迁移单个宿主，请先检查 dry run，再执行迁移。使用 Claude Code 时，请将 `codex` 替换为 `claude`。
 
 ```sh
 aptly setup --client codex --migrate-launcher --launcher npx --dry-run
 aptly setup --client codex --migrate-launcher --launcher npx
 ```
 
-使用 Claude Code 时，请将上述命令中的 `codex` 替换为 `claude`。
-
-今后可以使用 `aptly update --client codex --launcher npx` 同时请求包更新和启动器迁移。请分别检查软件包更新与启动器迁移的结果。通过所有权检查后，现有 Hook 和凭据将予以保留。更改后，请在 Codex 的 `/hooks` 中重新信任 Hook，然后重启宿主。托管启动器支持 macOS 和 Linux。
+`aptly update --client codex --launcher npx` 也只针对单个宿主。Windows 不支持显式托管迁移。请分别检查软件包和迁移结果。Hook 和凭据在通过所有权检查的条件下保留；请在 `/hooks` 中重新信任更改后的 Codex Hook，然后重启宿主。
 
 <a id="guide-models-and-environment"></a>
 

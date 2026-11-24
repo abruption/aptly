@@ -74,7 +74,7 @@ aptly setup --client codex --migrate-launcher --launcher stable --dry-run
 aptly setup --client codex --migrate-launcher --launcher stable
 ```
 
-グローバル Aptly の更新後も同じコマンドで保存コピーを更新する必要があります。通常の `setup` はコピーを置き換えず、古いコピーは `stable_snapshot_outdated` で通知します。移行時は所有する MCP・統計オブザーバーを併せて更新します。変更されたランチャー・Hook は引き継ぎません。保持された標準登録が対象なら確認後に `--include-existing` を追加してください。Codex の変更された Hook は `/hooks` で再承認します。
+stable を使い続ける場合は、グローバル Aptly の更新後に同じコマンドで保存コピーを更新してください。通常の `setup` はコピーを置き換えず、古いコピーは `stable_snapshot_outdated` で通知します。移行時は所有する MCP・統計オブザーバーを併せて更新します。変更されたランチャー・Hook は引き継ぎません。保持された標準登録が対象なら確認後に `--include-existing` を追加してください。Codex の変更された Hook は `/hooks` で再承認します。
 
 <details>
 <summary>ランチャーの制限と復旧</summary>
@@ -89,18 +89,18 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 ### 管理型 npx ランチャー
 
-macOS・Linux では `npx` を明示的に選択できます。npm を同梱する Node.js 24 以上が必要です。インストール済みの Aptly パッケージと依存関係を固定スナップショットとして保存し、分離された作業ディレクトリとクリーンな npm 設定で `npx` をオフライン実行します。MCP 起動時にレジストリへアクセスしたり `latest` を選択したりしません。
+macOS・Linux では引数なしの `aptly update` がパッケージを更新した後、現在の環境で選択された設定ホームにある、変更されていない Aptly 所有の Codex・Claude Code 登録を管理型 npx に移行を試みます。direct・stable 登録が対象で、カスタム・非管理の登録や存在しない登録はそのままです。失敗はホスト別に報告され、一方が成功しても他方は失敗する場合があります。0.1.21 からの初回 `aptly update` はパッケージのみ更新するため、新しい CLI で再実行してください。Windows では引数なしの更新はパッケージのみ更新します。
 
-以前の公開版を使っている場合は、まず `aptly update` を実行し、新しくインストールされた `aptly` で以下のコマンドを実行してください。dry run を確認してから実行します。
+npm を同梱する Node.js 24 以上が必要です。インストール済みパッケージと依存関係の固定スナップショットを保存し、分離された作業ディレクトリとクリーンな npm 設定で `npx` をオフライン実行します。MCP 起動時にレジストリへアクセスしたり `latest` を選択したりしません。
+
+単一ホストを明示的に移行するには dry run を確認してから実行してください。Claude Code では `codex` を `claude` に置き換えます。
 
 ```sh
 aptly setup --client codex --migrate-launcher --launcher npx --dry-run
 aptly setup --client codex --migrate-launcher --launcher npx
 ```
 
-Claude Code では、上記のコマンドの `codex` を `claude` に置き換えてください。
-
-今後は `aptly update --client codex --launcher npx` でパッケージ更新とランチャー移行を同時に要求できます。パッケージ更新とランチャー移行の結果を個別に確認してください。既存の Hook と資格情報は所有権の確認を条件に保持します。変更された Codex Hook は `/hooks` で再び信頼し、ホストを再起動する必要があります。管理型ランチャーの対応プラットフォームは macOS と Linux です。
+`aptly update --client codex --launcher npx` も単一ホストが対象です。Windows での明示的な管理型移行には対応しません。パッケージと移行の結果を個別に確認してください。Hook と資格情報は所有権確認を条件に保持します。変更された Codex Hook を `/hooks` で再承認し、ホストを再起動してください。
 
 <a id="guide-models-and-environment"></a>
 

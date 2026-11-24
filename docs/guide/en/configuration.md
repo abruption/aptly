@@ -74,7 +74,7 @@ aptly setup --client codex --migrate-launcher --launcher stable --dry-run
 aptly setup --client codex --migrate-launcher --launcher stable
 ```
 
-After updating global Aptly, run the same command to update the preserved copy. Ordinary `setup` does not replace it; an old copy reports `stable_snapshot_outdated`. Migration updates owned MCP and statistics observers together. Modified launchers and Hooks are not adopted. To target a preserved standard registration, review it and add `--include-existing`. Approve changed Codex Hooks again in `/hooks`.
+If you continue using stable, run the same command after updating global Aptly to update the preserved copy. Ordinary `setup` does not replace it; an old copy reports `stable_snapshot_outdated`. Migration updates owned MCP and statistics observers together. Modified launchers and Hooks are not adopted. To target a preserved standard registration, review it and add `--include-existing`. Approve changed Codex Hooks again in `/hooks`.
 
 <details>
 <summary>Launcher limits and recovery</summary>
@@ -89,18 +89,18 @@ If ownership matches, a missing, damaged, or older-format copy can be explicitly
 
 ### Managed npx launcher
 
-On macOS and Linux, you can opt in to `npx`. Node.js 24 or later with bundled npm is required. Aptly preserves a pinned snapshot of the installed package and dependencies, then runs `npx` offline in an isolated working directory with clean npm configuration. MCP startup does not contact the registry or select `latest`.
+On macOS and Linux, bare `aptly update` updates the package, then attempts to migrate unchanged Aptly-owned Codex and Claude Code registrations in the configuration homes selected by the current environment to managed npx. Direct and stable registrations are eligible; custom or unmanaged registrations and absent registrations are left alone. Failures are reported per host, so one host can succeed while another fails. The first `aptly update` from 0.1.21 only updates the package; run it again with the new CLI. On Windows, bare update changes only the package.
 
-Users of an older published version should first run `aptly update`, then migrate using the newly installed `aptly` setup. Review the dry run before applying it.
+Node.js 24 or later with bundled npm is required. Aptly preserves a pinned snapshot of the installed package and dependencies, then runs `npx` offline in an isolated working directory with clean npm configuration. MCP startup does not contact the registry or select `latest`.
+
+To migrate one host explicitly, review the dry run before applying it. For Claude Code, replace `codex` with `claude`.
 
 ```sh
 aptly setup --client codex --migrate-launcher --launcher npx --dry-run
 aptly setup --client codex --migrate-launcher --launcher npx
 ```
 
-For Claude Code, replace `codex` with `claude` in these commands.
-
-For future updates, `aptly update --client codex --launcher npx` requests both the package update and launcher migration. Check the package update and launcher migration results separately. The migration preserves Hooks and credentials subject to ownership checks. Review and trust changed Codex Hooks in `/hooks`, then restart the host. The managed launcher supports macOS and Linux.
+`aptly update --client codex --launcher npx` also targets one host. Explicit managed migration is unsupported on Windows. Check package and migration results separately. Hooks and credentials are preserved subject to ownership checks. Trust changed Codex Hooks again in `/hooks`, then restart the host.
 
 <a id="guide-models-and-environment"></a>
 

@@ -61,30 +61,75 @@ export function updateGlobalInstallation(options:{packageRoot:string},dependenci
   }
 }
 
-/** Update first, then migrate only the explicitly selected host using the verified installed CLI. */
-export function updateGlobalAndMigrate(options:{packageRoot:string;client:'codex'|'claude'},dependencies:UpdateDependencies & {platform?:NodeJS.Platform}={}):UpdateResult & {migration?:{client:'codex'|'claude';status:string;codes:string[];requires_hook_review?:boolean}} {
-  if((dependencies.platform??process.platform)==='win32')return {status:'error',codes:['npx_launcher_platform_unsupported']};
-  const updated=updateGlobalInstallation(options,dependencies);
-  if(updated.status!=='complete')return updated;
-  const errorResult=(code:string):UpdateResult=>({status:'error',version:updated.version,codes:['package_updated',code,'mcp_restart_required']});
+type UpdateClient = 'codex'|'claude';
+type MigrationResult = {client:UpdateClient;status:'configured'|'unchanged'|'skipped'|'error';codes:string[];requires_hook_review?:boolean};
+type UpdateMigrationResult = UpdateResult & {migration?:MigrationResult;migrations?:MigrationResult[]};
+
+function readMigration(raw:unknown,client:UpdateClient,exitedWithError:boolean):MigrationResult|undefined {
+  if(typeof raw!=='string'||Buffer.byteLength(raw)>65536)return;
   try {
-    if(lstatSync(options.packageRoot).isSymbolicLink()||verifyPackage(options.packageRoot)!==updated.version)failed('update_result_unverified');
-  }catch{return errorResult('update_result_unverified');}
+    const value=JSON.parse(raw);
+    if(!value||!Array.isArray(value.clients)||value.clients.length!==1)return;
+    const result=value.clients[0];
+    if(!result||result.client!==client||!Array.isArray(result.codes)||result.codes.length>64||
+      !result.codes.every((code:unknown)=>typeof code==='string'&&/^[a-z0-9_]{1,100}$/.test(code))||
+      (result.requires_hook_review!==undefined&&typeof result.requires_hook_review!=='boolean'))return;
+    const valid=exitedWithError
+      ? value.status==='partial'&&result.status==='error'&&result.codes.length>0
+      : value.status==='complete'&&['configured','unchanged'].includes(result.status)&&result.codes.includes('launcher_migrated');
+    if(!valid)return;
+    return {client,status:result.status,codes:result.codes,...(result.requires_hook_review!==undefined?{requires_hook_review:result.requires_hook_review}:{})};
+  }catch{return;}
+}
+
+function runMigration(cli:string,client:UpdateClient,dependencies:UpdateDependencies,automatic:boolean):MigrationResult {
+  const failure=(code:string):MigrationResult=>({client,status:'error',codes:[code]});
+  let raw:unknown,exitedWithError=false;
   try {
-    // Use the invoker's host environment, including CODEX_HOME or CLAUDE_CONFIG_DIR.
-    // The verified CLI performs its own per-client ownership checks.
-    const cli=join(options.packageRoot,'dist','bin','aptly.js');
-    const raw=(dependencies.run??runNpm)(dependencies.nodePath??process.execPath,[cli,'setup','--client',options.client,'--migrate-launcher','--launcher','npx'],120000);
-    if(Buffer.byteLength(raw)>65536)throw new Error('invalid result');
-    const result:unknown=JSON.parse(raw);
-    if(!result||typeof result!=='object')throw new Error('invalid result');
-    const value=result as {status?:unknown;clients?:unknown};
-    if(value.status!=='complete'||!Array.isArray(value.clients)||value.clients.length!==1)throw new Error('invalid result');
-    const client=value.clients[0];
-    if(!client||client.client!==options.client||!['configured','unchanged'].includes(client.status)||!Array.isArray(client.codes)||client.codes.length>64||!client.codes.every((code:unknown)=>typeof code==='string'&&/^[a-z0-9_]{1,100}$/.test(code))||!client.codes.includes('launcher_migrated')||(client.requires_hook_review!==undefined&&typeof client.requires_hook_review!=='boolean'))throw new Error('invalid result');
-    return {status:'complete',version:updated.version,codes:['package_updated','launcher_migrated','mcp_restart_required'],migration:{client:options.client,status:client.status,codes:client.codes,...(client.requires_hook_review!==undefined?{requires_hook_review:client.requires_hook_review}:{})}};
-  } catch(error) {
-    const reason=error&&typeof error==='object'&&'code' in error&&error.code==='ETIMEDOUT'?'launcher_migration_unverified':'launcher_migration_failed';
-    return errorResult(reason);
+    // Inherit the caller's selected host homes. The new CLI revalidates ownership.
+    raw=(dependencies.run??runNpm)(dependencies.nodePath??process.execPath,[cli,'setup','--client',client,'--migrate-launcher','--launcher','npx'],120000);
+  }catch(error){
+    const child=error as {code?:unknown;signal?:unknown;status?:unknown;stdout?:unknown}|null;
+    if(child?.code==='ETIMEDOUT'||child?.code==='ENOBUFS'||typeof child?.signal==='string')return failure('launcher_migration_unverified');
+    if(child?.status!==1)return failure('launcher_migration_failed');
+    exitedWithError=true;
+    raw=child.stdout;
   }
+  const result=readMigration(raw,client,exitedWithError);
+  if(!result)return failure('launcher_migration_failed');
+  if(automatic&&result.status==='error'&&result.codes.length===1&&['launcher_migration_not_owned','launcher_migration_not_standard'].includes(result.codes[0]))return {...result,status:'skipped'};
+  return result;
+}
+
+/** Update first, then let the verified fresh CLI migrate the selected or existing owned hosts. */
+export function updateGlobalAndMigrate(options:{packageRoot:string;client?:UpdateClient},dependencies:UpdateDependencies & {platform?:NodeJS.Platform}={}):UpdateMigrationResult {
+  const supported=['darwin','linux'].includes(dependencies.platform??process.platform);
+  if(!supported&&options.client)return {status:'error',codes:['npx_launcher_platform_unsupported']};
+  const updated=updateGlobalInstallation(options,dependencies);
+  if(updated.status!=='complete'||!supported)return updated;
+  const errorResult=(code:string):UpdateResult=>({status:'error',version:updated.version,codes:['package_updated',code,'mcp_restart_required']});
+  const migrate=(client:UpdateClient,automatic:boolean):MigrationResult=>{
+    try {
+      if(lstatSync(options.packageRoot).isSymbolicLink()||verifyPackage(options.packageRoot)!==updated.version)failed('update_result_unverified');
+    }catch{return {client,status:'error',codes:['update_result_unverified']};}
+    return runMigration(join(options.packageRoot,'dist','bin','aptly.js'),client,dependencies,automatic);
+  };
+
+  if(options.client){
+    const migration=migrate(options.client,false);
+    if(migration.status==='error'){
+      const [first]=migration.codes;
+      return errorResult(['update_result_unverified','launcher_migration_unverified'].includes(first)?first:'launcher_migration_failed');
+    }
+    return {status:'complete',version:updated.version,codes:['package_updated','launcher_migrated','mcp_restart_required'],migration};
+  }
+  const clients:UpdateClient[]=['codex','claude'];
+  const migrations=clients.map(client=>migrate(client,true));
+  const errors=migrations.filter(result=>result.status==='error');
+  if(errors.length){
+    const codes=new Set(errors.map(result=>['update_result_unverified','launcher_migration_unverified'].includes(result.codes[0])?result.codes[0]:'launcher_migration_failed'));
+    return {status:'error',version:updated.version,codes:['package_updated',...codes,'mcp_restart_required'],migrations};
+  }
+  if(migrations.every(result=>result.status==='skipped'))return {...updated,migrations};
+  return {status:'complete',version:updated.version,codes:['package_updated','launcher_migrated','mcp_restart_required'],migrations};
 }

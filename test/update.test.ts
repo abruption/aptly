@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync,readFileSync,symlinkSync,rmSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
-import {updateGlobalInstallation} from '../src/update.ts';
+import {updateGlobalInstallation,updateGlobalAndMigrate} from '../src/update.ts';
 import {createTestTemp} from '../test-support/temp.ts';
 
 function fixture(t){
@@ -74,7 +74,7 @@ test('CLI update help and invalid arguments cannot start an installation',async 
  const run=args=>spawnSync(process.execPath,[resolve('bin/aptly.ts'),'update',...args],{env:{PATH:process.env.PATH,HOME:home,USERPROFILE:home,CI:'true'},encoding:'utf8',timeout:15000});
  const help=run(['--help']);assert.equal(help.status,0);assert.match(help.stdout,/Stop other hosts/);
  for(const args of [['--prefix','other'],['--client','codex'],['--launcher','npx'],['--client','all','--launcher','npx'],['--client','codex','--launcher','stable'],['--client','codex','--client','claude','--launcher','npx']]){const invalid=run(args);assert.equal(invalid.status,1);assert.match(invalid.stderr,/update_invalid_options/);}
- const explicit=run(['--client','codex','--launcher','npx','--help']);assert.equal(explicit.status,0);assert.match(explicit.stdout,/package first/);
+ const explicit=run(['--client','codex','--launcher','npx','--help']);assert.equal(explicit.status,0);assert.match(explicit.stdout,/selects only one host/);
 });
 
 test('explicit npx update invokes the verified new CLI after installation with scoped arguments',async t=>{
@@ -113,4 +113,90 @@ test('timed out npx migration after package update is reported as unverified',as
  };
  assert.deepEqual(updateGlobalAndMigrate({packageRoot:f.target,client:'codex'},{nodePath:f.node,run}),
   {status:'error',version:'0.1.3',codes:['package_updated','launcher_migration_unverified','mcp_restart_required']});
+});
+
+test('plain update invokes the fresh CLI for both clients after one global install',t=>{
+ const f=fixture(t),migrated=[];
+ const run=(exe,args,timeout)=>{
+  if(args[0]===f.npm)return f.run(exe,args,timeout);
+  const client=args[3];
+  assert.equal(exe,f.node);
+  assert.deepEqual(args,[join(f.target,'dist/bin/aptly.js'),'setup','--client',client,'--migrate-launcher','--launcher','npx']);
+  assert.equal(JSON.parse(readFileSync(join(f.target,'package.json'),'utf8')).version,'0.1.3');
+  migrated.push(client);
+  return JSON.stringify({status:'complete',clients:[{client,status:'configured',codes:['launcher_migrated']}]});
+ };
+ const result=updateGlobalAndMigrate({packageRoot:f.target},{nodePath:f.node,run,platform:'linux'});
+ assert.deepEqual(migrated,['codex','claude']);
+ assert.equal(f.calls.filter(c=>c.args[1]==='install').length,1);
+ assert.deepEqual(result.codes,['package_updated','launcher_migrated','mcp_restart_required']);
+ assert.deepEqual(result.migrations?.map(({client,status})=>[client,status]),[['codex','configured'],['claude','configured']]);
+});
+
+test('plain update skips an unmanaged registration and still migrates the other host',t=>{
+ const f=fixture(t);
+ const run=(exe,args,timeout)=>{
+  if(args[0]===f.npm)return f.run(exe,args,timeout);
+  if(args[3]==='codex')throw Object.assign(Error('private diagnostic'),{status:1,stdout:JSON.stringify({status:'partial',clients:[{client:'codex',status:'error',codes:['launcher_migration_not_owned']}]})});
+  return JSON.stringify({status:'complete',clients:[{client:'claude',status:'unchanged',codes:['launcher_migrated']}]});
+ };
+ const result=updateGlobalAndMigrate({packageRoot:f.target},{nodePath:f.node,run,platform:'darwin'});
+ assert.equal(result.status,'complete');
+ assert.deepEqual(result.migrations,[
+  {client:'codex',status:'skipped',codes:['launcher_migration_not_owned']},
+  {client:'claude',status:'unchanged',codes:['launcher_migrated']},
+ ]);
+ assert.equal(JSON.stringify(result).includes('private'),false);
+});
+
+test('plain update reports one host error alongside the other host migration',t=>{
+ const f=fixture(t);
+ const run=(exe,args,timeout)=>{
+  if(args[0]===f.npm)return f.run(exe,args,timeout);
+  if(args[3]==='codex')throw Object.assign(Error('private diagnostic'),{status:1,stdout:JSON.stringify({status:'partial',clients:[{client:'codex',status:'error',codes:['managed_hook_changed']}]})});
+  return JSON.stringify({status:'complete',clients:[{client:'claude',status:'configured',codes:['launcher_migrated']}]});
+ };
+ const result=updateGlobalAndMigrate({packageRoot:f.target},{nodePath:f.node,run,platform:'linux'});
+ assert.equal(result.status,'error');
+ assert.deepEqual(result.codes,['package_updated','launcher_migration_failed','mcp_restart_required']);
+ assert.deepEqual(result.migrations,[
+  {client:'codex',status:'error',codes:['managed_hook_changed']},
+  {client:'claude',status:'configured',codes:['launcher_migrated']},
+ ]);
+});
+
+test('plain update on Windows does not invoke host migration',t=>{
+ const f=fixture(t);
+ const result=updateGlobalAndMigrate({packageRoot:f.target},{nodePath:f.node,run:f.run,platform:'win32'});
+ assert.equal(result.status,'complete');
+ assert.ok(result.codes.includes('host_configuration_preserved'));
+ assert.equal(result.migrations,undefined);
+ assert.ok(f.calls.every(call=>call.args[0]===f.npm));
+});
+
+test('interrupted migration is unverified and the other host is still checked',t=>{
+ const f=fixture(t);
+ const run=(exe,args,timeout)=>{
+  if(args[0]===f.npm)return f.run(exe,args,timeout);
+  if(args[3]==='codex')throw Object.assign(Error('private diagnostic'),{status:null,signal:'SIGKILL'});
+  throw Object.assign(Error('private diagnostic'),{status:1,stdout:JSON.stringify({status:'partial',clients:[{client:'claude',status:'error',codes:['launcher_migration_not_owned']}]})});
+ };
+ const result=updateGlobalAndMigrate({packageRoot:f.target},{nodePath:f.node,run,platform:'linux'});
+ assert.equal(result.status,'error');
+ assert.deepEqual(result.codes,['package_updated','launcher_migration_unverified','mcp_restart_required']);
+ assert.deepEqual(result.migrations,[
+  {client:'codex',status:'error',codes:['launcher_migration_unverified']},
+  {client:'claude',status:'skipped',codes:['launcher_migration_not_owned']},
+ ]);
+});
+
+test('plain update never treats failed child execution as a successful migration',t=>{
+ const f=fixture(t);
+ const run=(exe,args,timeout)=>{
+  if(args[0]===f.npm)return f.run(exe,args,timeout);
+  throw Object.assign(Error('untrusted child diagnostics'),{status:1,stdout:JSON.stringify({status:'complete',clients:[{client:args[3],status:'configured',codes:['launcher_migrated']}]})});
+ };
+ const result=updateGlobalAndMigrate({packageRoot:f.target},{nodePath:f.node,run,platform:'linux'});
+ assert.equal(result.status,'error');
+ assert.deepEqual(result.migrations?.map(r=>r.codes),[['launcher_migration_failed'],['launcher_migration_failed']]);
 });

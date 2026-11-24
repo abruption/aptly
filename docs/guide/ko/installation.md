@@ -91,13 +91,14 @@ aptly setup --client all
 
 ```sh
 aptly update
-aptly setup --client all
 aptly --version
 ```
 
-`update`는 같은 npm prefix에 최신 버전을 설치하며 설정·키를 보존합니다. 설치 스크립트는 실행하지 않습니다. 설정 후 호스트를 재시작하십시오. npm 오류나 로컬·소스 설치에서는 위 수동 설치 명령을 사용하십시오. `dry-run=true`인 npm 설정은 거절합니다.
+`update`는 설치 스크립트 없이 같은 npm prefix의 패키지를 업데이트합니다. macOS·Linux에서는 새 CLI가 현재 환경에서 선택된 설정 홈의 변경되지 않은 Aptly 소유 Codex·Claude Code 등록을 관리형 npx로 전환을 시도합니다. direct와 stable 등록이 대상이며 사용자 지정·비관리 등록과 미등록 호스트는 그대로 둡니다. 패키지 업데이트와 호스트별 전환 결과를 각각 확인하십시오. 한 호스트가 성공해도 다른 호스트는 실패할 수 있습니다. Windows에서는 패키지만 업데이트합니다.
 
-stable 실행기의 보존 사본은 전역 패키지와 별개입니다. [명시적 마이그레이션](configuration.md#guide-stable-launcher)으로 갱신하십시오. 기존 Node 경로가 사라졌다면 [실행 경로 복구](troubleshooting.md#guide-launcher-recovery)를 따르십시오.
+0.1.21에서는 첫 실행에서 패키지만 업데이트합니다. 설치된 새 CLI로 `aptly update`를 다시 실행하면 기존 등록의 전환을 시도합니다. 기존 등록에 `setup`은 필요하지 않습니다. 새 등록에는 `aptly setup`을 사용할 수 있습니다. 소유권 확인 범위에서 Hook·자격 정보와 전송 범위를 보존합니다. 변경된 Codex Hook은 `/hooks`에서 다시 승인하고 호스트를 재시작하십시오. 전송 범위는 [전송 안내](transmission.md)에서 확인하고 필요하면 명시적으로 선택하십시오.
+
+npm 오류나 로컬·소스 설치에서는 위 수동 설치 명령을 사용하십시오. `dry-run=true`인 npm 설정은 거절합니다. 기존 Node 경로가 사라졌다면 [실행 경로 복구](troubleshooting.md#guide-launcher-recovery)를 따르십시오.
 
 <details>
 <summary>0.1.2 이전 원장에서 업그레이드</summary>

@@ -15,7 +15,7 @@ import { checkSetup, setupHosts, removeSetup, setDefaults, setEnvironment, confi
 import { readEnvironmentValue } from '../src/cli-input.ts';
 import { prepareApiKey } from '../src/credential-setup.ts';
 import { linuxStoreReadiness } from '../src/linux-store-readiness.ts';
-import { updateGlobalInstallation, updateGlobalAndMigrate } from '../src/update.ts';
+import { updateGlobalAndMigrate } from '../src/update.ts';
 import { updateNotification } from '../src/update-notifier.ts';
 import { resolveCliHelp } from '../src/cli-help.ts';
 import {runTransmissionReview,reviewAfterSetup} from '../src/transmission-review-cli.ts';
@@ -33,8 +33,16 @@ try {
   for(let i=0;i<args.length;i++){const flag=args[i];if(seen.has(flag))throw new Error('update_invalid_options');seen.add(flag);const value=args[++i];if(flag==='--client'&&(value==='codex'||value==='claude'))updateClient=value;else if(flag==='--launcher'&&value==='npx')updateLauncher=true;else throw new Error('update_invalid_options');}
   if(!!updateClient!==updateLauncher)throw new Error('update_invalid_options');
    const packageRoot=fileURLToPath(new URL(import.meta.url.endsWith('.ts')?'../':'../../',import.meta.url));
-   const result=updateClient?updateGlobalAndMigrate({packageRoot,client:updateClient}):updateGlobalInstallation({packageRoot});output(updateClient?result:result.status==='complete'?{...result,next_steps:['aptly setup','aptly set transmission --review'],...(process.platform!=='win32'?{stable_launcher_update_note:'Existing stable registrations retain their snapshot until an explicit per-client migration; run aptly setup --help for --migrate-launcher --launcher stable.'}:{})}:result);if(result.status==='error')process.exitCode=1;
-   else if(!updateClient&&process.stderr.isTTY&&!process.env.CI)process.stderr.write('Run aptly setup after updating; its first interactive run reviews transmission scope. Use aptly set transmission --review for an explicit review, then restart MCP.\n');
+   const result=updateGlobalAndMigrate({packageRoot,client:updateClient});
+   const setupRequired=result.status==='complete'&&result.codes.includes('setup_required');
+   output(setupRequired?{...result,next_steps:['aptly setup','aptly set transmission --review']}:result);
+   if(result.status==='error')process.exitCode=1;
+   if(process.stderr.isTTY&&!process.env.CI){
+    if(setupRequired)process.stderr.write('Run aptly setup to register a new host. Use aptly set transmission --review to review the transmission scope, then restart MCP.\n');
+    const configured=(result.migrations??(result.migration?[result.migration]:[])).filter(host=>host.status==='configured');
+    if(configured.some(host=>host.requires_hook_review))process.stderr.write('Approve changed Codex Hooks in /hooks.\n');
+    if(configured.length)process.stderr.write('Restart the migrated hosts to load the new launcher.\n');
+   }
  } else if(command==='doctor'){
   let clients:('codex'|'claude')[]=['codex','claude'];
   if(args.length){if(args.length!==2||args[0]!=='--client'||!['codex','claude','all'].includes(args[1]))throw new Error('doctor_invalid_options');clients=args[1]==='all'?['codex','claude']:[args[1] as 'codex'|'claude'];}
