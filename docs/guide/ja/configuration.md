@@ -87,6 +87,21 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 </details>
 
+### 管理型 npx ランチャー
+
+macOS・Linux では `npx` を明示的に選択できます。npm を同梱する Node.js 24 以上が必要です。インストール済みの Aptly パッケージと依存関係を固定スナップショットとして保存し、分離された作業ディレクトリとクリーンな npm 設定で `npx` をオフライン実行します。MCP 起動時にレジストリへアクセスしたり `latest` を選択したりしません。
+
+以前の公開版を使っている場合は、まず `aptly update` を実行し、新しくインストールされた `aptly` で以下のコマンドを実行してください。dry run を確認してから実行します。
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher npx --dry-run
+aptly setup --client codex --migrate-launcher --launcher npx
+```
+
+Claude Code では、上記のコマンドの `codex` を `claude` に置き換えてください。
+
+今後は `aptly update --client codex --launcher npx` でパッケージ更新とランチャー移行を同時に要求できます。パッケージ更新とランチャー移行の結果を個別に確認してください。既存の Hook と資格情報は所有権の確認を条件に保持します。変更された Codex Hook は `/hooks` で再び信頼し、ホストを再起動する必要があります。管理型ランチャーの対応プラットフォームは macOS と Linux です。
+
 <a id="guide-models-and-environment"></a>
 
 ## モデルと環境変数

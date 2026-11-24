@@ -87,6 +87,21 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 </details>
 
+### 관리형 npx 실행기
+
+macOS·Linux에서 `npx`를 명시적으로 선택할 수 있습니다. 번들 npm이 포함된 Node.js 24 이상이 필요합니다. 설치된 Aptly 패키지와 의존성의 고정 사본을 보존하고, 전용 작업 디렉터리와 npm 설정에서 `npx`를 오프라인으로 실행합니다. MCP 시작 시 레지스트리에 접근하거나 `latest`를 선택하지 않습니다.
+
+이전 게시 버전에서는 먼저 `aptly update`를 실행하십시오. 설치가 끝나면 새 `aptly`로 아래 명령을 실행하십시오. dry run을 검토한 후 실행합니다.
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher npx --dry-run
+aptly setup --client codex --migrate-launcher --launcher npx
+```
+
+Claude Code에서는 위 명령의 `codex`를 `claude`로 바꾸십시오.
+
+이후 `aptly update --client codex --launcher npx`로 패키지 업데이트와 실행기 전환을 함께 요청할 수 있습니다. 패키지 업데이트와 실행기 전환 결과를 각각 확인하십시오. 기존 Hook과 자격 정보는 소유권 확인 범위에서 보존하며, 변경된 Codex Hook은 `/hooks`에서 다시 신뢰하고 호스트를 재시작해야 합니다. 관리형 실행기의 지원 플랫폼은 macOS와 Linux입니다.
+
 <a id="guide-models-and-environment"></a>
 
 ## 모델과 환경변수

@@ -87,6 +87,21 @@ aptly setup --client codex --migrate-launcher --launcher stable
 
 </details>
 
+### 托管 npx 启动器
+
+在 macOS 和 Linux 上，可以显式选择 `npx`。这需要自带 npm 的 Node.js 24 或更高版本。Aptly 保存已安装的软件包及其依赖的固定快照，并在隔离的工作目录和干净的 npm 配置中离线运行 `npx`。MCP 启动时不会访问注册表或选择 `latest`。
+
+使用较早公开版本的用户请先运行 `aptly update`，再使用新安装的 `aptly` setup 迁移。请先检查 dry run，再执行迁移。
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher npx --dry-run
+aptly setup --client codex --migrate-launcher --launcher npx
+```
+
+使用 Claude Code 时，请将上述命令中的 `codex` 替换为 `claude`。
+
+今后可以使用 `aptly update --client codex --launcher npx` 同时请求包更新和启动器迁移。请分别检查软件包更新与启动器迁移的结果。通过所有权检查后，现有 Hook 和凭据将予以保留。更改后，请在 Codex 的 `/hooks` 中重新信任 Hook，然后重启宿主。托管启动器支持 macOS 和 Linux。
+
 <a id="guide-models-and-environment"></a>
 
 ## 模型与环境变量

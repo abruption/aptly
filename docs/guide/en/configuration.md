@@ -87,6 +87,21 @@ If ownership matches, a missing, damaged, or older-format copy can be explicitly
 
 </details>
 
+### Managed npx launcher
+
+On macOS and Linux, you can opt in to `npx`. Node.js 24 or later with bundled npm is required. Aptly preserves a pinned snapshot of the installed package and dependencies, then runs `npx` offline in an isolated working directory with clean npm configuration. MCP startup does not contact the registry or select `latest`.
+
+Users of an older published version should first run `aptly update`, then migrate using the newly installed `aptly` setup. Review the dry run before applying it.
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher npx --dry-run
+aptly setup --client codex --migrate-launcher --launcher npx
+```
+
+For Claude Code, replace `codex` with `claude` in these commands.
+
+For future updates, `aptly update --client codex --launcher npx` requests both the package update and launcher migration. Check the package update and launcher migration results separately. The migration preserves Hooks and credentials subject to ownership checks. Review and trust changed Codex Hooks in `/hooks`, then restart the host. The managed launcher supports macOS and Linux.
+
 <a id="guide-models-and-environment"></a>
 
 ## Models and environment variables

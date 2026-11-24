@@ -60,3 +60,31 @@ export function updateGlobalInstallation(options:{packageRoot:string},dependenci
     return {status:'error',codes:[code]};
   }
 }
+
+/** Update first, then migrate only the explicitly selected host using the verified installed CLI. */
+export function updateGlobalAndMigrate(options:{packageRoot:string;client:'codex'|'claude'},dependencies:UpdateDependencies & {platform?:NodeJS.Platform}={}):UpdateResult & {migration?:{client:'codex'|'claude';status:string;codes:string[];requires_hook_review?:boolean}} {
+  if((dependencies.platform??process.platform)==='win32')return {status:'error',codes:['npx_launcher_platform_unsupported']};
+  const updated=updateGlobalInstallation(options,dependencies);
+  if(updated.status!=='complete')return updated;
+  const errorResult=(code:string):UpdateResult=>({status:'error',version:updated.version,codes:['package_updated',code,'mcp_restart_required']});
+  try {
+    if(lstatSync(options.packageRoot).isSymbolicLink()||verifyPackage(options.packageRoot)!==updated.version)failed('update_result_unverified');
+  }catch{return errorResult('update_result_unverified');}
+  try {
+    // Use the invoker's host environment, including CODEX_HOME or CLAUDE_CONFIG_DIR.
+    // The verified CLI performs its own per-client ownership checks.
+    const cli=join(options.packageRoot,'dist','bin','aptly.js');
+    const raw=(dependencies.run??runNpm)(dependencies.nodePath??process.execPath,[cli,'setup','--client',options.client,'--migrate-launcher','--launcher','npx'],120000);
+    if(Buffer.byteLength(raw)>65536)throw new Error('invalid result');
+    const result:unknown=JSON.parse(raw);
+    if(!result||typeof result!=='object')throw new Error('invalid result');
+    const value=result as {status?:unknown;clients?:unknown};
+    if(value.status!=='complete'||!Array.isArray(value.clients)||value.clients.length!==1)throw new Error('invalid result');
+    const client=value.clients[0];
+    if(!client||client.client!==options.client||!['configured','unchanged'].includes(client.status)||!Array.isArray(client.codes)||client.codes.length>64||!client.codes.every((code:unknown)=>typeof code==='string'&&/^[a-z0-9_]{1,100}$/.test(code))||!client.codes.includes('launcher_migrated')||(client.requires_hook_review!==undefined&&typeof client.requires_hook_review!=='boolean'))throw new Error('invalid result');
+    return {status:'complete',version:updated.version,codes:['package_updated','launcher_migrated','mcp_restart_required'],migration:{client:options.client,status:client.status,codes:client.codes,...(client.requires_hook_review!==undefined?{requires_hook_review:client.requires_hook_review}:{})}};
+  } catch(error) {
+    const reason=error&&typeof error==='object'&&'code' in error&&error.code==='ETIMEDOUT'?'launcher_migration_unverified':'launcher_migration_failed';
+    return errorResult(reason);
+  }
+}

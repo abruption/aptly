@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync,renameSync} from 'node:fs';
 import fs from 'node:fs';
-import {join} from 'node:path';
+import {dirname,join} from 'node:path';
 import {syncBuiltinESMExports} from 'node:module';
 import {parse,stringify} from 'smol-toml';
 import {createTestTemp} from '../test-support/temp.ts';
@@ -38,6 +38,45 @@ test('explicit new stable setup creates shared immutable launcher; check/credent
 test('legacy remains default; existing direct registration requires explicit migration for stable',posix,t=>{
  const f=fixture(t);complete(setupHosts(f.options));assert.equal(f.entry().command,process.execPath);const before=readFileSync(f.config);
  const r=setupHosts({...f.options,clients:['codex'],launcher:'stable'});assert.equal(r.status,'partial');assert.ok(r.clients[0].codes.includes('stable_launcher_migration_required'));assert.deepEqual(readFileSync(f.config),before);assert.equal(existsSync(join(f.home,'.local')),false);
+});
+test('managed npx migration preserves the policy and observers and remains selected on later setup',posix,t=>{
+ const prefix=dirname(dirname(process.execPath));
+ if(!['lib/node_modules/npm/bin/npx-cli.js','share/nodejs/npm/bin/npx-cli.js'].some(file=>existsSync(join(prefix,file))))return t.skip('Node npm CLI unavailable');
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};
+ complete(setupHosts(options));
+ complete(setStatisticsCollection(true,options));
+ const before=f.entry(),policy=readFileSync(f.policy()),scope={...options,launcher:'npx'as const};
+ complete(migrateLauncher(scope,true));
+ assert.deepEqual(f.entry(),before);
+ assert.equal(existsSync(join(f.home,'.local')),false);
+ complete(migrateLauncher(scope));
+ const entry=f.entry(),managed=validateStableRegistration(entry,{home:f.home});
+ assert.equal(managed?.launcher,'npx');
+ assert.match(entry.command,/launch-npx$/);
+ assert.deepEqual(entry.env,before.env);
+ assert.deepEqual(readFileSync(f.policy()),policy);
+ assert.ok(JSON.parse(readFileSync(join(f.home,'.codex/hooks.json'),'utf8')).hooks.PostToolUse[0].hooks[0].command.includes(entry.command));
+ complete(setCredentialReference(options));
+ complete(setupHosts(options));
+ complete(migrateLauncher(options));
+ assert.equal(f.entry().command,entry.command);
+ assert.equal(collectDoctor(options).clients[0].runtime_launcher,'npx');
+ complete(migrateLauncher({...options,launcher:'stable'}));
+ assert.equal(validateStableRegistration(f.entry(),{home:f.home})?.launcher,'stable');
+ assert.equal(existsSync(entry.command),true);
+});
+test('Claude can select managed npx without changing the Codex launcher',posix,t=>{
+ const prefix=dirname(dirname(process.execPath));
+ if(!['lib/node_modules/npm/bin/npx-cli.js','share/nodejs/npm/bin/npx-cli.js'].some(file=>existsSync(join(prefix,file))))return t.skip('Node npm CLI unavailable');
+ const f=fixture(t);complete(setupHosts(f.options));
+ const original=f.entry(),policy=readFileSync(f.policy('claude'));
+ const selected={...f.options,clients:['claude']as['claude'],launcher:'npx'as const};
+ complete(migrateLauncher(selected,true));
+ complete(migrateLauncher(selected));
+ assert.equal(validateStableRegistration(f.entry('claude'),{home:f.home})?.launcher,'npx');
+ assert.deepEqual(f.entry(),original);
+ assert.deepEqual(readFileSync(f.policy('claude')),policy);
+ complete(setCredentialReference({...f.options,clients:['claude']}));
 });
 test('migration dry-run has no runtime/host writes and actual migration preserves env/policy/data',posix,t=>{
  const f=fixture(t);complete(setupHosts(f.options));const original=f.entry(),policy=readFileSync(f.policy()),state=join(f.home,'.codex/aptly/state'),ledger=join(state,'ledger.json');writeFileSync(ledger,'PRESERVE_LEDGER');const options={...f.options,clients:['codex']as['codex'],launcher:'stable'as const};
