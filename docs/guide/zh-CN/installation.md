@@ -91,13 +91,14 @@ aptly setup --client all
 
 ```sh
 aptly update
-aptly setup --client all
 aptly --version
 ```
 
-`update` 在同一 npm prefix 中安装最新版，并保留设置和密钥；它不会运行安装脚本。设置后请重启宿主。如果出现 npm 错误，或使用本地、源码安装，请使用上面的手动安装命令。`dry-run=true` 的 npm 设置会被拒绝。
+`update` 在同一 npm prefix 中更新软件包，不运行安装脚本。在 macOS 和 Linux 上，新 CLI 随后会尝试将当前环境所选配置主目录中未修改且由 Aptly 管理的 Codex 和 Claude Code 注册迁移到托管 npx。direct 和 stable 注册均可迁移；自定义或非托管注册以及不存在的注册保持不变。请分别检查软件包和各宿主的迁移结果：一个宿主成功时另一个仍可能失败。在 Windows 上，该命令只更新软件包。
 
-stable 启动器的保留副本独立于全局软件包。请通过[显式迁移](configuration.md#guide-stable-launcher)更新。如果原 Node 路径已不存在，请按[启动路径恢复](troubleshooting.md#guide-launcher-recovery)操作。
+0.1.21 的现有更新程序首次运行时只更新软件包。请使用新安装的 CLI 再次运行 `aptly update`，以尝试迁移现有注册；现有注册不需要 setup。需要新注册时可以使用 `aptly setup`。通过所有权检查后，Hook、凭据和传输范围选择会保留。请在 `/hooks` 中重新信任更改后的 Codex Hook 并重启宿主。请查看[传输范围](transmission.md)，并在需要时显式选择。
+
+遇到 npm 错误或使用本地／源码安装时，请使用上面的手动安装命令。npm 配置中的 `dry-run=true` 会被拒绝。如果旧 Node 路径已不存在，请参阅[启动路径恢复](troubleshooting.md#guide-launcher-recovery)。
 
 <details>
 <summary>从 0.1.2 之前的账本升级</summary>

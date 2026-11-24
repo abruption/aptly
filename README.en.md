@@ -28,14 +28,7 @@ Choose the transmission scope in `set default` and enter your API key through th
 
 ## Update
 
-Stop the relevant hosts, MCP servers, and CLI processes before running these commands.
-
-```sh
-aptly update
-aptly setup --client all
-```
-
-Restart the host. You do not need to re-enter the key. If migrating a stable launcher or an older version, see [updates](docs/guide/en/installation.md#guide-package-updates).
+Stop the related hosts, MCP servers, and CLI processes, then run `aptly update`. On macOS and Linux, the update migrates existing Aptly-owned registrations to managed npx. On Windows, it updates the package. When upgrading from 0.1.21, run `aptly update` again with the new CLI. Approve changed Codex Hooks in `/hooks` and restart the host. [Update guide](docs/guide/en/installation.md#guide-package-updates)
 
 ## Documentation
 

@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync,renameSync} from 'node:fs';
+import {chmodSync,mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync,renameSync,rmSync} from 'node:fs';
 import fs from 'node:fs';
-import {join} from 'node:path';
+import {dirname,join} from 'node:path';
 import {syncBuiltinESMExports} from 'node:module';
 import {parse,stringify} from 'smol-toml';
 import {createTestTemp} from '../test-support/temp.ts';
+import {copyNpxTestNode} from '../test-support/npx-runtime.ts';
 import {setupHosts,migrateLauncher,checkSetup,setCredentialReference,setDefaults,setPolicySource,setStatisticsCollection,removeSetup,showStatistics,showTransmission} from '../src/setup.ts';
 import {collectDoctor} from '../src/doctor.ts';
 import {validateStableRegistration} from '../src/stable-runtime.ts';
@@ -30,6 +31,15 @@ function fixture(t){
  return {dir,home,root,options,config,entry,policy};
 }
 const complete=r=>assert.equal(r.status,'complete',JSON.stringify(r));
+function useClonedNpxNode(t){
+ const node=copyNpxTestNode(t);
+ if(!node)return false;
+ // Setup plans use the invoking Node path. No Node subprocess is run in this unit file.
+ const previous=Object.getOwnPropertyDescriptor(process,'execPath')!;
+ t.after(()=>Object.defineProperty(process,'execPath',previous));
+ Object.defineProperty(process,'execPath',{...previous,value:node});
+ return true;
+}
 test('explicit new stable setup creates shared immutable launcher; check/credentials/defaults/policy/doctor remain compatible',posix,t=>{
  const f=fixture(t);complete(setupHosts({...f.options,launcher:'stable'}));const e=f.entry(),stable=validateStableRegistration(e,{home:f.home});assert.ok(stable);assert.deepEqual(e.args,['serve']);assert.equal(f.entry('claude').command,e.command);assert.ok(!e.command.includes('.nvm'));
  complete(checkSetup(f.options));complete(setDefaults({...f.options,clients:['codex']}));complete(setCredentialReference({...f.options,clients:['codex']}));complete(setPolicySource({...f.options,clients:['codex']},true));complete(setPolicySource({...f.options,clients:['codex']},false));
@@ -38,6 +48,67 @@ test('explicit new stable setup creates shared immutable launcher; check/credent
 test('legacy remains default; existing direct registration requires explicit migration for stable',posix,t=>{
  const f=fixture(t);complete(setupHosts(f.options));assert.equal(f.entry().command,process.execPath);const before=readFileSync(f.config);
  const r=setupHosts({...f.options,clients:['codex'],launcher:'stable'});assert.equal(r.status,'partial');assert.ok(r.clients[0].codes.includes('stable_launcher_migration_required'));assert.deepEqual(readFileSync(f.config),before);assert.equal(existsSync(join(f.home,'.local')),false);
+});
+test('managed npx migration preserves the policy and observers and remains selected on later setup',posix,t=>{
+ if(!useClonedNpxNode(t))return;
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};
+ complete(setupHosts(options));
+ complete(setStatisticsCollection(true,options));
+ const before=f.entry(),policy=readFileSync(f.policy()),scope={...options,launcher:'npx'as const};
+ complete(migrateLauncher(scope,true));
+ assert.deepEqual(f.entry(),before);
+ assert.equal(existsSync(join(f.home,'.local')),false);
+ complete(migrateLauncher(scope));
+ const entry=f.entry(),managed=validateStableRegistration(entry,{home:f.home});
+ assert.equal(managed?.launcher,'npx');
+ assert.match(entry.command,/launch-npx$/);
+ assert.deepEqual(entry.env,before.env);
+ assert.deepEqual(readFileSync(f.policy()),policy);
+ assert.ok(JSON.parse(readFileSync(join(f.home,'.codex/hooks.json'),'utf8')).hooks.PostToolUse[0].hooks[0].command.includes(entry.command));
+ complete(setCredentialReference(options));
+ complete(setupHosts(options));
+ complete(migrateLauncher(options));
+ assert.equal(f.entry().command,entry.command);
+ assert.equal(collectDoctor(options).clients[0].runtime_launcher,'npx');
+ complete(migrateLauncher({...options,launcher:'stable'}));
+ assert.equal(validateStableRegistration(f.entry(),{home:f.home})?.launcher,'stable');
+ assert.equal(existsSync(entry.command),true);
+});
+test('Claude can select managed npx without changing the Codex launcher',posix,t=>{
+ if(!useClonedNpxNode(t))return;
+ const f=fixture(t);complete(setupHosts(f.options));
+ const original=f.entry(),policy=readFileSync(f.policy('claude'));
+ const selected={...f.options,clients:['claude']as['claude'],launcher:'npx'as const};
+ complete(migrateLauncher(selected,true));
+ complete(migrateLauncher(selected));
+ assert.equal(validateStableRegistration(f.entry('claude'),{home:f.home})?.launcher,'npx');
+ assert.deepEqual(f.entry(),original);
+ assert.deepEqual(readFileSync(f.policy('claude')),policy);
+ complete(setCredentialReference({...f.options,clients:['claude']}));
+});
+test('absent and unmanaged registrations are refused before qualifying npx',posix,t=>{
+ if(!useClonedNpxNode(t))return;
+ const f=fixture(t),options={...f.options,clients:['codex']as['codex']};
+ const migration={...options,launcher:'npx'as const};
+ const npm=join(dirname(dirname(process.execPath)),'lib/node_modules/npm');
+ chmodSync(npm,0o770);
+ const rejected=code=>assert.deepEqual(migrateLauncher(migration).clients[0].codes,[code]);
+
+ rejected('launcher_migration_not_owned');
+ assert.equal(existsSync(f.config),false);
+
+ mkdirSync(dirname(f.config),{mode:0o700});
+ const custom=stringify({mcp_servers:{aptly:{command:'/custom/aptly',args:[]}}});
+ writeFileSync(f.config,custom);
+ rejected('launcher_migration_not_owned');
+ assert.equal(readFileSync(f.config,'utf8'),custom);
+
+ rmSync(f.config);
+ complete(setupHosts(options));
+ const previous=f.entry();
+ rejected('stable_source_unverified');
+ assert.deepEqual(f.entry(),previous);
+ assert.equal(existsSync(join(f.home,'.local')),false);
 });
 test('migration dry-run has no runtime/host writes and actual migration preserves env/policy/data',posix,t=>{
  const f=fixture(t);complete(setupHosts(f.options));const original=f.entry(),policy=readFileSync(f.policy()),state=join(f.home,'.codex/aptly/state'),ledger=join(state,'ledger.json');writeFileSync(ledger,'PRESERVE_LEDGER');const options={...f.options,clients:['codex']as['codex'],launcher:'stable'as const};

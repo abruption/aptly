@@ -8,9 +8,10 @@ import { basename, dirname, isAbsolute, join, parse as parsePath, relative, reso
 import { assertNoRedirectedAncestors, readRegularFile, systemAliasAllowed } from './files.ts';
 
 export const stableRuntimeLimits=Object.freeze({files:12000,totalBytes:128*1024*1024,fileBytes:8*1024*1024,manifestBytes:2*1024*1024});
+export type ManagedLauncher = 'stable' | 'npx';
 export interface StableFile {readonly path:string;readonly size:number;readonly sha256:string}
 export interface StableManifest {readonly schema_version:1;readonly kind:'aptly-stable-runtime';readonly version:string;readonly home:string;readonly node_path:string;readonly launcher_revision:1;readonly bootstrap_sha256:string;readonly launcher_sha256:string;readonly files:readonly StableFile[];readonly generation:string}
-export interface StableRegistration {readonly command:string;readonly args:readonly ['serve'];readonly packageRoot:string;readonly runtimeRoot:string;readonly version:string;readonly generation:string;readonly manifest:StableManifest;readonly integrity:'full'|'metadata'}
+export interface StableRegistration {readonly command:string;readonly args:readonly ['serve'];readonly packageRoot:string;readonly runtimeRoot:string;readonly version:string;readonly generation:string;readonly manifest:StableManifest;readonly integrity:'full'|'metadata';readonly launcher:ManagedLauncher}
 export interface StableRuntimePlan extends StableRegistration {readonly descriptor:{readonly command:string;readonly args:readonly ['serve']};readonly payloadRoot:string}
 type CapturedFile={path:string;source:string;size:number;sha256:string;identity:string};
 const plans=new WeakMap<StableRuntimePlan,{root:string;files:CapturedFile[]}>();
@@ -32,7 +33,8 @@ function canonicalAllowed(path:string):string{
   }else current=next;}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')current=next;else throw error;}
  }return current;
 }
-export interface StableReference {readonly command:string;readonly args:readonly ['serve'];readonly generation:string;readonly runtimeRoot:string}
+const launchName=(mode:ManagedLauncher)=>mode==='npx'?'launch-npx':'launch';
+export interface StableReference {readonly command:string;readonly args:readonly ['serve'];readonly generation:string;readonly runtimeRoot:string;readonly launcher:ManagedLauncher}
 /** Shape only. Reads OS alias metadata, never runtime bytes or credentials. */
 export function stableReference(entry:unknown,{home=homedir()}:{home?:string}={}):StableReference|null{
  const command=object(entry)?entry.command:undefined;if(typeof command!=='string')return null;
@@ -40,8 +42,9 @@ export function stableReference(entry:unknown,{home=homedir()}:{home?:string}={}
  if(![baseFor(lexicalHome),baseFor(aliasHome)].some(base=>within(candidate,base)))return null;
  const canonicalHome=process.platform==='win32'?lexicalHome:canonicalAllowed(lexicalHome),bases=[baseFor(lexicalHome),baseFor(canonicalHome)],base=bases.find(base=>within(candidate,base));if(!base)fail('stable_runtime_unverified');
  if(!cleanAbsolute(command)||Object.hasOwn(entry as object,'url')||((entry as any).type!==undefined&&(entry as any).type!=='stdio')||!Array.isArray((entry as any).args)||(entry as any).args.length!==1||(entry as any).args[0]!=='serve')fail('stable_runtime_unverified');
- const suffix=relative(base,candidate).split(sep);if(suffix.length!==2||!/^[a-f0-9]{64}$/.test(suffix[0])||suffix[1]!=='launch')fail('stable_runtime_unverified');
- const runtimeRoot=join(baseFor(canonicalHome),suffix[0]);return frozen({command:join(runtimeRoot,'launch'),args:['serve'] as ['serve'],generation:suffix[0],runtimeRoot});
+ const suffix=relative(base,candidate).split(sep);if(suffix.length!==2||!/^[a-f0-9]{64}$/.test(suffix[0])||!['launch','launch-npx'].includes(suffix[1]))fail('stable_runtime_unverified');
+ const runtimeRoot=join(baseFor(canonicalHome),suffix[0]);
+ return frozen({command:join(runtimeRoot,suffix[1]),args:['serve'] as ['serve'],generation:suffix[0],runtimeRoot,launcher:suffix[1]==='launch-npx'?'npx' as const:'stable' as const});
 }
 function platform(){if(process.platform==='win32')fail('stable_launcher_platform_unsupported');}
 function safeAncestors(path:string){
@@ -107,6 +110,80 @@ async function main(){
 main().catch(()=>{if(!quiet){process.stderr.write('aptly: stable_runtime_unavailable\n');process.exitCode=1;}});
 `;
 const bootstrapHash=digest(bootstrap);
+// Adapt the verified bootstrap without changing any released stable generation.
+const npxBootstrap=([
+ ["path.join(root,'launch')", "path.join(root,'launch-npx')"],
+ ["if(mode!=='serve'&&mode!=='observe')bad();if(mode==='serve'&&process.argv.length!==3)bad();",
+  "if(mode!=='serve'&&mode!=='serve-verified'&&mode!=='observe')bad();if(!quiet&&process.argv.length!==3)bad();"],
+ ["if(mode==='serve'){const server","if(mode==='serve')await runNpx(m,payload);\n else if(mode==='serve-verified'){restoreHostPath();const server"],
+] as const).reduce((source,[before,after])=>{
+ if(source.split(before).length!==2)fail('stable_runtime_unverified');
+ return source.replace(before,()=>after);
+},bootstrap)
+ + String.raw`
+function restoreHostPath(){
+ const present=process.env.APTLY_HOST_PATH_PRESENT,value=process.env.APTLY_HOST_PATH;
+ delete process.env.APTLY_HOST_PATH_PRESENT;delete process.env.APTLY_HOST_PATH;
+ if(present==='1'&&value!==undefined)process.env.PATH=value;
+ else if(present==='0'&&value===undefined)delete process.env.PATH;
+ else bad();
+}
+async function runNpx(m,payload){
+ const processes=require('node:child_process');
+ const bin=path.dirname(process.execPath),prefix=path.dirname(bin);
+ const candidates=[path.join(prefix,'lib/node_modules/npm/bin/npx-cli.js'),path.join(prefix,'share/nodejs/npm/bin/npx-cli.js')];
+ const npx=candidates.find(file=>{
+  try{
+   let current=file;
+   if(!fs.lstatSync(file).isFile())return false;
+   for(;;){
+    const s=fs.lstatSync(current);
+    const stickyRoot=s.isDirectory()&&s.uid===0&&(s.mode&512)!==0;
+    if(s.isSymbolicLink()||((s.mode&18)&&!stickyRoot)||(process.getuid&&s.uid!==0&&s.uid!==process.getuid()))return false;
+    const parent=path.dirname(current);if(parent===current)return true;current=parent;
+   }
+  }catch{return false;}
+ });
+ if(!npx)bad();
+ const work=fs.mkdtempSync(path.join(root,'.npx-session-'));
+ const quote=value=>"'"+value.replaceAll("'","'\\''")+"'";
+ try{
+  const modules=path.join(work,'node_modules');
+  fs.mkdirSync(modules,{mode:0o700});
+  fs.symlinkSync(payload,path.join(modules,'aptly'),'dir');
+  fs.writeFileSync(path.join(work,'package.json'),JSON.stringify({name:'aptly-launcher',private:true,dependencies:{aptly:m.version}}),{mode:0o600});
+  for(const name of ['user-npmrc','global-npmrc'])fs.writeFileSync(path.join(work,name),'',{mode:0o600});
+  const env=Object.fromEntries(Object.entries(process.env).filter(([name])=>!/^npm_/i.test(name)&&!['NODE_OPTIONS','NODE_PATH','NODE_REPL_EXTERNAL_MODULE','INIT_CWD'].includes(name)));
+  delete env.APTLY_HOST_PATH;delete env.APTLY_HOST_PATH_PRESENT;
+  env.APTLY_HOST_PATH_PRESENT=Object.hasOwn(process.env,'PATH')?'1':'0';
+  if(env.APTLY_HOST_PATH_PRESENT==='1')env.APTLY_HOST_PATH=process.env.PATH;
+  Object.assign(env,{PATH:bin+':/usr/bin:/bin',npm_config_cache:path.join(work,'cache'),npm_config_userconfig:path.join(work,'user-npmrc'),
+   npm_config_globalconfig:path.join(work,'global-npmrc'),npm_config_registry:'https://registry.npmjs.org/',npm_config_update_notifier:'false',
+   npm_config_prefix:path.join(work,'global'),npm_config_global:'false',npm_config_script_shell:'/bin/sh',
+   npm_config_audit:'false',npm_config_fund:'false',npm_config_loglevel:'silent'});
+  const command='exec '+quote(process.execPath)+' --no-warnings '+quote(path.join(root,'bootstrap.cjs'))+' serve-verified';
+  const child=processes.spawn(process.execPath,[npx,'--offline','--no','--ignore-scripts','--package=aptly@'+m.version,'--call',command],
+   {cwd:work,env,stdio:['inherit','inherit','ignore'],detached:true});
+  let killTimer,stopping=false;
+  const signals=['SIGINT','SIGTERM','SIGHUP'];
+  const forward=signal=>{
+   if(!child.pid)return;
+   stopping=true;
+   try{process.kill(-child.pid,signal);}catch{}
+   killTimer??=setTimeout(()=>{try{process.kill(-child.pid,'SIGKILL');}catch{}},2000);
+  };
+  const handlers=new Map(signals.map(signal=>[signal,()=>forward(signal)]));
+  for(const [signal,handle]of handlers)process.on(signal,handle);
+  try{
+   const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve);});
+   if(code!==0&&!stopping)bad();
+  }finally{clearTimeout(killTimer);for(const [signal,handle]of handlers)process.off(signal,handle);}
+ }finally{fs.rmSync(work,{recursive:true,force:true});}
+}
+`;
+const npxBootstrapHash=digest(npxBootstrap);
+const bootstrapFor=(mode:ManagedLauncher)=>mode==='npx'?npxBootstrap:bootstrap;
+const hashFor=(mode:ManagedLauncher)=>mode==='npx'?npxBootstrapHash:bootstrapHash;
 
 function sourceFiles(packageRoot:string):{files:CapturedFile[];version:string}{
  const root=canonicalAllowed(packageRoot),files:CapturedFile[]=[];let bytes=0;
@@ -156,11 +233,11 @@ function sourceFiles(packageRoot:string):{files:CapturedFile[];version:string}{
  return{files,version:metadata.version};
 }
 function manifestBody(manifest:Omit<StableManifest,'generation'>|StableManifest){return{schema_version:manifest.schema_version,kind:manifest.kind,version:manifest.version,home:manifest.home,node_path:manifest.node_path,launcher_revision:manifest.launcher_revision,bootstrap_sha256:manifest.bootstrap_sha256,launcher_sha256:manifest.launcher_sha256,files:manifest.files};}
-function readManifest(root:string,home:string):StableManifest{
+function readManifest(root:string,home:string,mode:ManagedLauncher):StableManifest{
  const value=JSON.parse(readPrivate(join(root,'manifest.json'),stableRuntimeLimits.manifestBytes).toString('utf8'));
- if(!exact(value,['schema_version','kind','version','home','node_path','launcher_revision','bootstrap_sha256','launcher_sha256','files','generation'])||value.schema_version!==1||value.kind!=='aptly-stable-runtime'||value.launcher_revision!==1||value.home!==home||!cleanAbsolute(value.node_path)||typeof value.version!=='string'||!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(value.version)||value.bootstrap_sha256!==bootstrapHash||!Array.isArray(value.files)||value.files.length>stableRuntimeLimits.files)fail('stable_runtime_unverified');
- const expectedLauncher=launcher(value.node_path,home);
- if(value.launcher_sha256!==digest(expectedLauncher)||readPrivate(join(root,'launch'),65536).toString('utf8')!==expectedLauncher||readPrivate(join(root,'bootstrap.cjs'),65536).toString('utf8')!==bootstrap||(lstatSync(join(root,'launch')).mode&0o100)===0)fail('stable_runtime_unverified');
+ if(!exact(value,['schema_version','kind','version','home','node_path','launcher_revision','bootstrap_sha256','launcher_sha256','files','generation'])||value.schema_version!==1||value.kind!=='aptly-stable-runtime'||value.launcher_revision!==1||value.home!==home||!cleanAbsolute(value.node_path)||typeof value.version!=='string'||!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(value.version)||value.bootstrap_sha256!==hashFor(mode)||!Array.isArray(value.files)||value.files.length>stableRuntimeLimits.files)fail('stable_runtime_unverified');
+ const expectedLauncher=launcher(value.node_path,home,mode),entry=join(root,launchName(mode));
+ if(value.launcher_sha256!==digest(expectedLauncher)||readPrivate(entry,65536).toString('utf8')!==expectedLauncher||readPrivate(join(root,'bootstrap.cjs'),65536).toString('utf8')!==bootstrapFor(mode)||(lstatSync(entry).mode&0o100)===0)fail('stable_runtime_unverified');
  let bytes=0,previous='';for(const f of value.files){
   if(!exact(f,['path','size','sha256'])||!safeRelative(f.path)||f.path<=previous||!Number.isSafeInteger(f.size)||f.size<0||f.size>stableRuntimeLimits.fileBytes||typeof f.sha256!=='string'||!/^[a-f0-9]{64}$/.test(f.sha256))fail('stable_runtime_unverified');previous=f.path;bytes+=f.size;
  }
@@ -181,17 +258,28 @@ function validatePayload(root:string,manifest:StableManifest,metadataOnly:boolea
   }
  }walk(join(root,'payload'),'');if(seen.size!==expected.size)fail('stable_runtime_unverified');
 }
-export function planStableRuntime(options:{packageRoot:string;home?:string;nodePath?:string}):StableRuntimePlan{
+export function planStableRuntime(options:{packageRoot:string;home?:string;nodePath?:string;launcher?:ManagedLauncher}):StableRuntimePlan{
  platform();try{
   const root=canonicalAllowed(options.packageRoot),home=canonicalAllowed(options.home??homedir()),nodePath=options.nodePath??process.execPath;
+  const mode=options.launcher??'stable';
   if(!cleanAbsolute(home)||!cleanAbsolute(nodePath)||!cleanAbsolute(options.packageRoot))fail('stable_source_unverified');
   // Existing parents may be absent in a dry run; never create them here.
   safeAncestors(home);
+  if(mode==='npx'){
+   const prefix=dirname(dirname(nodePath));
+   const cli=['lib/node_modules/npm/bin/npx-cli.js','share/nodejs/npm/bin/npx-cli.js'].some(relative=>{
+    const file=join(prefix,relative);
+    try{safeAncestors(file);return lstatSync(file).isFile();}catch{return false;}
+   });
+   if(!cli)fail('stable_source_unverified');
+  }
   let existing=baseFor(home);while(!existsSync(existing)){const parent=dirname(existing);if(parent===existing)fail('stable_runtime_unverified');existing=parent;}safeAncestors(existing);assertNoRedirectedAncestors(existing);if(existsSync(baseFor(home)))privatePath(baseFor(home),true);
-  const captured=sourceFiles(root),body:Omit<StableManifest,'generation'>={schema_version:1,kind:'aptly-stable-runtime',version:captured.version,home,node_path:nodePath,launcher_revision:1,bootstrap_sha256:bootstrapHash,launcher_sha256:digest(launcher(nodePath,home)),files:captured.files.map(({path,size,sha256})=>({path,size,sha256}))};
+  const captured=sourceFiles(root);
+  const body:Omit<StableManifest,'generation'>={schema_version:1,kind:'aptly-stable-runtime',version:captured.version,home,node_path:nodePath,launcher_revision:1,bootstrap_sha256:hashFor(mode),launcher_sha256:digest(launcher(nodePath,home,mode)),files:captured.files.map(({path,size,sha256})=>({path,size,sha256}))};
   const generation=digest(JSON.stringify(body)),runtimeRoot=join(baseFor(home),generation),manifest:StableManifest={...body,generation};
   if(Buffer.byteLength(JSON.stringify(manifest)+'\n')>stableRuntimeLimits.manifestBytes)fail('stable_runtime_limit');
-  const plan=frozen({command:join(runtimeRoot,'launch'),args:['serve'] as ['serve'],packageRoot:join(runtimeRoot,'payload'),payloadRoot:join(runtimeRoot,'payload'),runtimeRoot,version:captured.version,generation,manifest,integrity:'full' as const,descriptor:{command:join(runtimeRoot,'launch'),args:['serve'] as ['serve']}});
+  const command=join(runtimeRoot,launchName(mode));
+  const plan=frozen({command,args:['serve'] as ['serve'],packageRoot:join(runtimeRoot,'payload'),payloadRoot:join(runtimeRoot,'payload'),runtimeRoot,version:captured.version,generation,manifest,integrity:'full' as const,launcher:mode,descriptor:{command,args:['serve'] as ['serve']}});
   if(existsSync(runtimeRoot)&&!validateStableRegistration(plan.descriptor,{home}))fail('stable_runtime_unverified');
   plans.set(plan,{root,files:captured.files});return plan;
  }catch(error){if(error instanceof Error&&['stable_source_changed','stable_runtime_limit','stable_runtime_unverified'].includes(error.message))throw error;fail('stable_source_unverified');}
@@ -221,7 +309,7 @@ export function materializeStableRuntime(plan:StableRuntimePlan):void{
    const data=readRegularFile(file.source,{maxBytes:stableRuntimeLimits.fileBytes});if(identity(file.source)!==file.identity||data.length!==file.size||digest(data)!==file.sha256)fail('stable_source_changed');
    const target=join(stage,'payload',file.path);ensureDirectory(dirname(target),true);writeDurable(target,data,0o600);
   }
-  writeDurable(join(stage,'bootstrap.cjs'),bootstrap,0o600);writeDurable(join(stage,'launch'),launcher(plan.manifest.node_path,plan.manifest.home),0o700);writeDurable(join(stage,'manifest.json'),JSON.stringify(plan.manifest)+'\n',0o600);
+  writeDurable(join(stage,'bootstrap.cjs'),bootstrapFor(plan.launcher),0o600);writeDurable(join(stage,launchName(plan.launcher)),launcher(plan.manifest.node_path,plan.manifest.home,plan.launcher),0o700);writeDurable(join(stage,'manifest.json'),JSON.stringify(plan.manifest)+'\n',0o600);
   validatePayload(stage,plan.manifest,false);assertSource(plan,captured!);syncTree(stage);syncDirectory(base);
   // Private lock serializes product writers. Same-UID hostile writers remain
   // outside the authentication boundary; no signature/OS sandbox is claimed.
@@ -233,10 +321,10 @@ export function materializeStableRuntime(plan:StableRuntimePlan):void{
 export function validateStableRegistration(entry:unknown,{home=homedir(),metadataOnly=false}:{home?:string;metadataOnly?:boolean}={}):StableRegistration|null{
  const reference=stableReference(entry,{home});if(!reference)return null;
  platform();try{
-  const selectedHome=canonicalAllowed(home),{command,runtimeRoot}=reference;checkedRoot(runtimeRoot,selectedHome);
-  const before=identity(join(runtimeRoot,'manifest.json')),manifest=readManifest(runtimeRoot,selectedHome);validatePayload(runtimeRoot,manifest,metadataOnly);
+  const selectedHome=canonicalAllowed(home),{command,runtimeRoot,launcher:mode}=reference;checkedRoot(runtimeRoot,selectedHome);
+  const before=identity(join(runtimeRoot,'manifest.json')),manifest=readManifest(runtimeRoot,selectedHome,mode);validatePayload(runtimeRoot,manifest,metadataOnly);
   if(before!==identity(join(runtimeRoot,'manifest.json')))fail('stable_runtime_unverified');
-  return frozen({command,args:['serve'] as ['serve'],packageRoot:join(runtimeRoot,'payload'),runtimeRoot,version:manifest.version,generation:manifest.generation,manifest,integrity:metadataOnly?'metadata' as const:'full' as const});
+  return frozen({command,args:['serve'] as ['serve'],packageRoot:join(runtimeRoot,'payload'),runtimeRoot,version:manifest.version,generation:manifest.generation,manifest,integrity:metadataOnly?'metadata' as const:'full' as const,launcher:mode});
  }catch{fail('stable_runtime_unverified');}
 }
 export function stableObserverCommand(registration:StableRegistration,client:'codex'|'claude',policyPath:string):string{
@@ -249,7 +337,14 @@ export function stableObserverCommand(registration:StableRegistration,client:'co
  }catch{fail('stable_runtime_unverified');}
 }
 
-function launcher(nodePath:string,home:string):string {
+function launcher(nodePath:string,home:string,mode:ManagedLauncher):string {
+ const name=launchName(mode);
+ const requireNpm=mode==='npx'?` if [ "$quiet" -eq 0 ]; then
+  prefix=\${candidate%/*/*}
+  qualify_file "$prefix/lib/node_modules/npm/bin/npx-cli.js" private ||
+   qualify_file "$prefix/share/nodejs/npm/bin/npx-cli.js" private || return 1
+ fi
+`:'';
  return `#!/bin/sh
 # Aptly immutable stable launcher v1. No login profiles or shell evaluation.
 quiet=0
@@ -259,7 +354,7 @@ unset NODE_OPTIONS NODE_PATH NODE_REPL_EXTERNAL_MODULE
 for utility in /usr/bin/env /usr/bin/uname /usr/bin/id /usr/bin/stat /usr/bin/sort /usr/bin/readlink /bin/date /bin/sleep; do
  [ -x "$utility" ] || stop
 done
-case "$0" in /*/launch) root=\${0%/launch};; *) stop;; esac
+case "$0" in /*/${name}) root=\${0%/${name}};; *) stop;; esac
 kernel=$(/usr/bin/uname -s) || stop
 case "$kernel" in Darwin|Linux) :;; *) stop;; esac
 owner=$(/usr/bin/id -u) || stop
@@ -322,12 +417,12 @@ private_file() {
  [ "$user" = "$owner" ] && [ "$((0$bits & 077))" -eq 0 ] && [ "$links" = 1 ]
 }
 # Reject directories/FIFOs/links and unsafe ancestry BEFORE opening hash input.
-private_file "$root/launch" && [ -x "$root/launch" ] || stop
+private_file "$root/${name}" && [ -x "$root/${name}" ] || stop
 private_file "$root/bootstrap.cjs" || stop
 if [ -x /usr/bin/sha256sum ]; then sum=$(/usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C /usr/bin/sha256sum "$root/bootstrap.cjs" 2>/dev/null) || stop
 elif [ -x /usr/bin/shasum ]; then sum=$(/usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C /usr/bin/shasum -a 256 "$root/bootstrap.cjs" 2>/dev/null) || stop
 else stop; fi
-[ "\${sum%% *}" = ${quote(bootstrapHash)} ] || stop
+[ "\${sum%% *}" = ${quote(hashFor(mode))} ] || stop
 count=0
 seen=
 try_node() {
@@ -357,7 +452,7 @@ try_node() {
  kill "$watchdog" 2>/dev/null; wait "$watchdog" 2>/dev/null
  budget || stop
  [ "$status" -eq 0 ] || return 1
- # APTLY_OBSERVER_BEGIN
+${requireNpm} # APTLY_OBSERVER_BEGIN
  if [ "$quiet" -eq 1 ]; then
   exec 3<&0 || stop
   observer_child=

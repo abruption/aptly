@@ -8,7 +8,7 @@ import { parse } from 'smol-toml';
 import { resolveCatalog } from './catalog.ts';
 import { budgetEnvironmentDefaults, budgetEnvironmentKeys, parseBudgetValue, resolveBudgetSettings, budgetErrorDetails } from './budget.ts';
 import { Router, defaultPolicy } from './core.ts';
-import { planStableRuntime, materializeStableRuntime, validateStableRegistration, stableReference, stableObserverCommand, type StableRuntimePlan, type StableRegistration } from './stable-runtime.ts';
+import { planStableRuntime, materializeStableRuntime, validateStableRegistration, stableReference, stableObserverCommand, type StableRuntimePlan, type StableRegistration, type ManagedLauncher } from './stable-runtime.ts';
 import { resolveHostPaths as resolved } from './host-paths.ts';
 import { QuerySnapshot } from './query-snapshot.ts';
 import { loadAutomaticHookPolicy, queryAutomaticHookPolicy, effectiveTransmission, type AutoPolicy } from './automatic-hook.ts';
@@ -24,7 +24,7 @@ export interface SetupOptions {
   home?: string;
   env?: NodeJS.ProcessEnv;
   packageRoot?: string;
-  launcher?: 'stable';
+  launcher?: ManagedLauncher;
   automatic?: boolean;
   clients?: Client[];
   mode?: 'defaults' | 'advisory';
@@ -352,21 +352,24 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     const root = resolve(options.packageRoot ?? join(dirname(fileURLToPath(import.meta.url)), '..', ...(import.meta.url.includes('/dist/src/') ? ['..'] : [])));
     const additions = { APTLY_HOOK_POLICY_PATH: policyPath, ROUTER_LEDGER_PATH: join(stateDir, 'ledger.json') };
     let created = false, tomlBlock: string | undefined;
+    const migration = edit && 'migrate' in edit ? edit : undefined;
+    const entry = servers.aptly;
+    if (migration && (!oldOwner || !object(entry) || (oldOwner.mcp_created ? !isDeepStrictEqual(entry, oldOwner.mcp) : !migration.includeExisting))) {
+      fail('launcher_migration_not_owned');
+    }
     // Explicit migration may replace an exact-owned unavailable/older generation.
     // Its bytes are never executed or trusted for credential injection; only the
     // replacement made from this CLI's verified source is used after commit.
-    const ownedStableMigration=edit&&'migrate'in edit&&oldOwner?.mcp_created&&isDeepStrictEqual(servers.aptly,oldOwner.mcp)?stableReference(servers.aptly,{home:options.home}):null;
-    const existingStable=ownedStableMigration??validateStableRegistration(servers.aptly,{home:options.home});
-    if(options.launcher==='stable'&&servers.aptly!==undefined&&!existingStable&&!(edit&&'migrate'in edit))fail('stable_launcher_migration_required');
-    const stableRequested=options.launcher==='stable'||!!existingStable;
-    if(stableRequested&&(servers.aptly===undefined||!!(edit&&'migrate'in edit)))stableRuntime=planStableRuntime({packageRoot:root,home:options.home});
-    if (edit && 'migrate' in edit) {
-      if (!oldOwner || !object(servers.aptly) || (oldOwner.mcp_created ? !isDeepStrictEqual(servers.aptly, oldOwner.mcp) : !edit.includeExisting)) fail('launcher_migration_not_owned');
-      const entry = servers.aptly;
+    const ownedStableMigration=migration&&oldOwner?.mcp_created?stableReference(entry,{home:options.home}):null;
+    const existingStable=ownedStableMigration??validateStableRegistration(entry,{home:options.home});
+    if(options.launcher&&entry!==undefined&&options.launcher!==existingStable?.launcher&&!migration)fail('stable_launcher_migration_required');
+    if (migration) {
       if (!existingStable && (typeof entry.command !== 'string' || !isAbsolute(entry.command) || !['node','node.exe'].includes(basename(entry.command).toLowerCase()) || !Array.isArray(entry.args) || entry.args.length !== 1 || typeof entry.args[0] !== 'string' || !isAbsolute(entry.args[0]) || !/(?:^|[\\/])(?:dist[\\/]src[\\/]server\.js|src[\\/]server\.ts)$/.test(entry.args[0]))) fail('launcher_migration_not_standard');
       if (!entries.some(entry => isDeepStrictEqual(entry,oldOwner!.hook)) || !isDeepStrictEqual(json(policy.before),oldOwner!.policy)) fail('managed_entry_changed');
       for (const [key,value] of Object.entries(oldOwner!.env_added)) if (entry.env?.[key] !== value) fail('managed_entry_changed');
     }
+    const managedLauncher=options.launcher??existingStable?.launcher;
+    if(managedLauncher&&(entry===undefined||migration))stableRuntime=planStableRuntime({packageRoot:root,home:options.home,launcher:managedLauncher});
     if (servers.aptly === undefined) {
       created = true;
       servers.aptly = { ...(client === 'claude' ? { type: 'stdio' } : {}), command: stableRuntime?.descriptor.command??process.execPath, args: stableRuntime?.descriptor.args??[join(root, 'dist', 'src', 'server.js')], ...(client === 'codex' ? { env_vars: ['OPENAI_API_KEY'] } : {}), env: { ROUTER_PROVIDER: edit && 'defaults' in edit ? 'decisions' : env.ROUTER_PROVIDER === 'fixture' ? 'fixture' : 'decisions', ...additions } };
@@ -473,7 +476,7 @@ function prepare(options: SetupOptions, client: Client, removing: boolean, edit?
     }
     result.transmission_review = reviewMatches(review.after, options, client, policyValue) ? 'complete' : 'required';
     const snapshotOutdated=!!existingStable&&!stableRuntime&&'version'in existingStable&&existingStable.version!==json(read(join(root,'package.json')).text).version;
-    if(snapshotOutdated)result.recovery=[`aptly setup --client ${client} --migrate-launcher --launcher stable --dry-run`];
+    if(snapshotOutdated)result.recovery=[`aptly setup --client ${client} --migrate-launcher --launcher ${existingStable.launcher} --dry-run`];
     if (client === 'codex') result.requires_hook_review = true;
     result.codes = [...(snapshotOutdated?['stable_snapshot_outdated']:[]),...(client === 'codex' ? ['requires_hook_review'] : []), ...(result.transmission === 'unselected' ? ['transmission_selection_required'] : result.transmission_source === 'legacy' ? ['legacy_transmission_excerpt'] : []), ...(requestedScope !== undefined || result.budget?.restart_required ? ['mcp_restart_required'] : [])];
     dirs.push(dir, privateDir, stateDir);
@@ -521,14 +524,14 @@ function execute(options: SetupOptions, removing: boolean, edit?: EnvironmentEdi
   const clients = [...new Set(options.clients ?? ['codex', 'claude'])] as Client[];
   if (clients.some(client => client !== 'codex' && client !== 'claude')) return { status: 'partial', clients: [] };
   const env = options.env ?? process.env;
-  if(options.launcher!==undefined&&(options.launcher!=='stable'||removing||!!(edit&&!('migrate'in edit))))return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['stable_launcher_invalid_options']}))};
+  if(options.launcher!==undefined&&(!['stable','npx'].includes(options.launcher)||removing||!!(edit&&!('migrate'in edit))||(options.automatic&&options.launcher==='npx')))return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['stable_launcher_invalid_options']}))};
   if (options.transmission !== undefined && !['none','description','excerpt'].includes(options.transmission)) return {status:'partial',clients:clients.map(client=>({client,status:'error',codes:['transmission_invalid_scope']}))};
   if (!removing && options.automatic && (env.APTLY_SKIP_SETUP === '1' || !!env.CI)) return { status: 'skipped', clients: clients.map(client => ({ client, status: 'skipped', codes: [env.APTLY_SKIP_SETUP === '1' ? 'setup_disabled' : 'ci_environment'] })) };
   const prepared = captured ?? clients.map(client => {
     try { return prepare(options, client, removing, edit); } catch (e: any) { return { changes: [] as Snapshot[], observations: [] as Snapshot[], dirs: [] as string[], result: errorResult(client,e) }; }
   });
   const results = prepared.map(plan => plan.result);
-  if ((edit||options.launcher==='stable') && results.some(result => result.status === 'error')) return { status: 'partial', clients: results.map(result => result.status === 'error' ? result : { ...result, status: 'skipped', codes: ['other_host_validation_failed'] }) };
+  if ((edit||options.launcher!==undefined) && results.some(result => result.status === 'error')) return { status: 'partial', clients: results.map(result => result.status === 'error' ? result : { ...result, status: 'skipped', codes: ['other_host_validation_failed'] }) };
   // Each host is independent; prepare every host before committing any host.
   for (const plan of prepared) {
     if (!plan.changes.length) continue;

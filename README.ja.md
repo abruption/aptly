@@ -28,14 +28,7 @@ aptly set env OPENAI_API_KEY
 
 ## 更新
 
-実行前に、関連するホスト・MCP サーバー・CLI プロセスを停止してください。
-
-```sh
-aptly update
-aptly setup --client all
-```
-
-ホストを再起動してください。キーの再入力は不要です。stable ランチャーや以前のバージョンから移行する場合は、[更新案内](docs/guide/ja/installation.md#guide-package-updates)を確認してください。
+関連するホスト・MCP サーバー・CLI を停止してから `aptly update` を実行してください。macOS と Linux では Aptly が所有する既存登録を管理型 npx に移行し、Windows ではパッケージを更新します。0.1.21 から更新する場合は、新しい CLI で `aptly update` をもう一度実行してください。変更された Codex Hook を `/hooks` で承認し、ホストを再起動してください。[更新ガイド](docs/guide/ja/installation.md#guide-package-updates)
 
 ## ドキュメント
 

@@ -74,7 +74,7 @@ aptly setup --client codex --migrate-launcher --launcher stable --dry-run
 aptly setup --client codex --migrate-launcher --launcher stable
 ```
 
-グローバル Aptly の更新後も同じコマンドで保存コピーを更新する必要があります。通常の `setup` はコピーを置き換えず、古いコピーは `stable_snapshot_outdated` で通知します。移行時は所有する MCP・統計オブザーバーを併せて更新します。変更されたランチャー・Hook は引き継ぎません。保持された標準登録が対象なら確認後に `--include-existing` を追加してください。Codex の変更された Hook は `/hooks` で再承認します。
+stable を使い続ける場合は、グローバル Aptly の更新後に同じコマンドで保存コピーを更新してください。通常の `setup` はコピーを置き換えず、古いコピーは `stable_snapshot_outdated` で通知します。移行時は所有する MCP・統計オブザーバーを併せて更新します。変更されたランチャー・Hook は引き継ぎません。保持された標準登録が対象なら確認後に `--include-existing` を追加してください。Codex の変更された Hook は `/hooks` で再承認します。
 
 <details>
 <summary>ランチャーの制限と復旧</summary>
@@ -86,6 +86,21 @@ aptly setup --client codex --migrate-launcher --launcher stable
 所有権が一致すれば、紛失・破損・旧形式のコピーから新しい CLI ソースへ明示的に移行できます。破損した同世代・未完了の lock は自動で上書き・削除しません。別のホーム・プロセスが参照する可能性があるため、以前のコピーも自動削除しません。書き込みプロセスと参照を確認してから状態を確認してください。直接 Node ランチャー同士の移行には別途統計の更新（`statistics_observer_migration_required`）が必要な場合があります。
 
 </details>
+
+### 管理型 npx ランチャー
+
+macOS・Linux では引数なしの `aptly update` がパッケージを更新した後、現在の環境で選択された設定ホームにある、変更されていない Aptly 所有の Codex・Claude Code 登録を管理型 npx に移行を試みます。direct・stable 登録が対象で、カスタム・非管理の登録や存在しない登録はそのままです。失敗はホスト別に報告され、一方が成功しても他方は失敗する場合があります。0.1.21 からの初回 `aptly update` はパッケージのみ更新するため、新しい CLI で再実行してください。Windows では引数なしの更新はパッケージのみ更新します。
+
+npm を同梱する Node.js 24 以上が必要です。インストール済みパッケージと依存関係の固定スナップショットを保存し、分離された作業ディレクトリとクリーンな npm 設定で `npx` をオフライン実行します。MCP 起動時にレジストリへアクセスしたり `latest` を選択したりしません。
+
+単一ホストを明示的に移行するには dry run を確認してから実行してください。Claude Code では `codex` を `claude` に置き換えます。
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher npx --dry-run
+aptly setup --client codex --migrate-launcher --launcher npx
+```
+
+`aptly update --client codex --launcher npx` も単一ホストが対象です。Windows での明示的な管理型移行には対応しません。パッケージと移行の結果を個別に確認してください。Hook と資格情報は所有権確認を条件に保持します。変更された Codex Hook を `/hooks` で再承認し、ホストを再起動してください。
 
 <a id="guide-models-and-environment"></a>
 

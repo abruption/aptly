@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { createTestTemp, temporaryRoot } from '../test-support/temp.ts';
+import { copyNpxTestNode } from '../test-support/npx-runtime.ts';
 import { materializeStableRuntime, planStableRuntime, stableObserverCommand, stableRuntimeLimits, stableReference, validateStableRegistration } from '../src/stable-runtime.ts';
 function unsafeTestAncestry(){let path=temporaryRoot().root;while(!existsSync(path))path=dirname(path);for(;;){const observed=lstatSync(path),stat=observed.isSymbolicLink()?statSync(path):observed;if((stat.mode&0o022)&&!(stat.uid===0&&stat.isDirectory()&&(stat.mode&0o1000)))return true;const next=dirname(path);if(next===path)return false;path=next;}}
 const posix={skip:process.platform==='win32'?'POSIX opt-in only':unsafeTestAncestry()?'Selected temporary volume has unsafe writable ancestry; no live-execution proof is claimed.':false};
@@ -55,6 +57,58 @@ test('immutable runtime survives deleted Node and npm prefix and strips injectio
  const result=run(plan,'serve',{NODE_OPTIONS:'--require /missing/never-execute.cjs',NODE_PATH:'/missing',NODE_REPL_EXTERNAL_MODULE:'/missing'});
  assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');const output=JSON.parse(result.stdout);assert.deepEqual({value:output.value,options:output.options,repl:output.repl},{value:'public dependency',options:null,repl:null});assert.equal(typeof output.exec,'string');
  const observe=run(plan,'observe');assert.equal(observe.status,0,observe.stderr);assert.equal(observe.stdout,'');assert.equal(observe.stderr,'');
+});
+
+test('managed npx runs its verified payload with empty cache and ignores caller npm configuration',posix,t=>{
+ const nodePath=copyNpxTestNode(t);
+ if(!nodePath)return;
+ const f=fixture(t),options={home:f.home,packageRoot:f.pkg,nodePath,launcher:'npx'as const};
+ const toolDir=join(f.home,'unusual tools');
+ save(join(f.pkg,'dist/src/server.js'),`import {spawnSync} from 'node:child_process';
+ export async function serve(){
+  const path=process.env.PATH??null;
+  const tool=path===${JSON.stringify(toolDir)}?spawnSync('secret-tool',[],{encoding:'utf8'}):null;
+  process.stdout.write(JSON.stringify({path,tool:tool?.stdout??null,carrier:process.env.APTLY_HOST_PATH??null,present:process.env.APTLY_HOST_PATH_PRESENT??null}));
+ }`);
+ const npm=join(dirname(dirname(nodePath)),'lib/node_modules/npm');
+ chmodSync(npm,0o770);
+ assert.throws(()=>planStableRuntime(options),error('stable_source_unverified'));
+ chmodSync(npm,0o700);
+ const plan=planStableRuntime(options);
+ materializeStableRuntime(plan);
+ rmSync(join(f.home,'old-prefix'),{recursive:true});
+ const cwd=join(f.home,'workspace');mkdirSync(cwd,{mode:0o700});
+ save(join(cwd,'.npmrc'),'script-shell=/missing-workspace-shell\n');
+ save(join(toolDir,'secret-tool'),'#!/bin/sh\nprintf synthetic-secret-tool',0o700);
+ for(const pathValue of [toolDir,'',undefined]){
+  const env={HOME:f.home,NPM_CONFIG_SCRIPT_SHELL:'/missing-inherited-shell',NODE_OPTIONS:'--require /no-inherited-module',APTLY_HOST_PATH:'spoof',APTLY_HOST_PATH_PRESENT:'1'};
+  if(pathValue!==undefined)env.PATH=pathValue;
+  const result=spawnSync(plan.command,['serve'],{cwd,env,encoding:'utf8',timeout:15000});
+  assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
+  const output=JSON.parse(result.stdout);assert.equal(output.path,pathValue??null);assert.equal(output.tool,pathValue===toolDir?'synthetic-secret-tool':null);assert.equal(output.carrier,null);assert.equal(output.present,null);
+ }
+ assert.equal(fs.readdirSync(plan.runtimeRoot).some(name=>name.startsWith('.npx-session-')),false);
+ writeFileSync(join(plan.payloadRoot,'dist/src/server.js'),'throw Error("mutated source")');
+ assert.notEqual(spawnSync(plan.command,['serve'],{cwd,env:{HOME:f.home,PATH:''},encoding:'utf8',timeout:10000}).status,0);
+});
+
+test('managed npx cleans up when the host terminates a running MCP', {...posix,timeout:15000},async t=>{
+ const nodePath=copyNpxTestNode(t);
+ if(!nodePath)return;
+ const f=fixture(t);
+ save(join(f.pkg,'dist/src/server.js'),"export async function serve(){process.stdout.write('ready');setInterval(()=>{},1000);}");
+ const plan=planStableRuntime({home:f.home,packageRoot:f.pkg,nodePath,launcher:'npx'});
+ materializeStableRuntime(plan);
+ const child=spawn(plan.command,['serve'],{env:{HOME:f.home,PATH:''},stdio:['ignore','pipe','pipe']});
+ const closed=once(child,'close');
+ let stderr='';child.stderr!.on('data',chunk=>{stderr+=String(chunk);});
+ t.after(()=>{if(child.exitCode===null&&child.signalCode===null)child.kill('SIGTERM');});
+ const [ready]=await Promise.race([once(child.stdout!,'data'),closed]);
+ assert.equal(String(ready),'ready',stderr);
+ child.kill('SIGTERM');
+ assert.deepEqual(await closed,[0,null]);
+ assert.equal(stderr,'');
+ assert.equal(fs.readdirSync(plan.runtimeRoot).some(name=>name.startsWith('.npx-session-')),false);
 });
 
 test('nvm numeric installed release fallback works with empty PATH after the original prefix disappears',posix,t=>{

@@ -91,13 +91,14 @@ Stop the relevant hosts, MCP servers, and CLI processes, then run from a verifie
 
 ```sh
 aptly update
-aptly setup --client all
 aptly --version
 ```
 
-`update` installs the latest version in the same npm prefix and preserves settings and keys. It does not run install scripts. Restart the host after setup. On npm errors or local/source installations, use the manual installation command above. npm configuration with `dry-run=true` is rejected.
+`update` updates the package in the same npm prefix without running install scripts. On macOS and Linux, the new CLI then attempts to migrate unchanged Aptly-owned Codex and Claude Code registrations in the configuration homes selected by the current environment to managed npx. Direct and stable registrations are eligible; custom or unmanaged registrations and absent registrations are left alone. Check package and per-host migration results separately: one host can succeed while another fails. On Windows, the command updates only the package.
 
-A stable launcher's preserved copy is separate from the global package. Update it with an [explicit migration](configuration.md#guide-stable-launcher). If the old Node path has disappeared, follow [launcher recovery](troubleshooting.md#guide-launcher-recovery).
+The existing 0.1.21 updater only updates the package on its first run. Run `aptly update` again with the newly installed CLI to attempt migration of existing registrations; setup is not required for them. Use `aptly setup` for a new registration if needed. Hooks, credentials, and transmission choices are preserved subject to ownership checks. Trust changed Codex Hooks again in `/hooks` and restart the host. Review the [transmission scope](transmission.md) and explicitly choose it if needed.
+
+On npm errors or local/source installations, use the manual installation command above. npm configuration with `dry-run=true` is rejected. If the old Node path has disappeared, follow [launcher recovery](troubleshooting.md#guide-launcher-recovery).
 
 <details>
 <summary>Upgrade from a pre-0.1.2 ledger</summary>

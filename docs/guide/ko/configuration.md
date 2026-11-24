@@ -74,7 +74,7 @@ aptly setup --client codex --migrate-launcher --launcher stable --dry-run
 aptly setup --client codex --migrate-launcher --launcher stable
 ```
 
-전역 Aptly 업데이트 후에도 같은 명령으로 보존 사본을 갱신해야 합니다. 일반 `setup`은 사본을 교체하지 않으며 오래된 사본은 `stable_snapshot_outdated`로 알립니다. 전환은 소유한 MCP·통계 관찰자를 함께 갱신합니다. 수정된 실행기·Hook은 인수하지 않습니다. 보존된 표준 등록이 대상이면 검토 후 `--include-existing`을 추가하십시오. Codex의 변경된 Hook은 `/hooks`에서 다시 승인합니다.
+stable을 계속 사용하는 경우 전역 Aptly 업데이트 후 같은 명령으로 보존 사본을 갱신하십시오. 일반 `setup`은 사본을 교체하지 않으며 오래된 사본은 `stable_snapshot_outdated`로 알립니다. 전환은 소유한 MCP·통계 관찰자를 함께 갱신합니다. 수정된 실행기·Hook은 인수하지 않습니다. 보존된 표준 등록이 대상이면 검토 후 `--include-existing`을 추가하십시오. Codex의 변경된 Hook은 `/hooks`에서 다시 승인합니다.
 
 <details>
 <summary>실행기 제한과 복구</summary>
@@ -86,6 +86,21 @@ aptly setup --client codex --migrate-launcher --launcher stable
 소유권이 일치하면 유실·손상·이전 형식 사본에서 새 CLI 소스로 명시 전환할 수 있습니다. 손상된 동일 세대 사본이나 미완료 lock은 자동으로 덮어쓰거나 삭제하지 않습니다. 다른 홈·프로세스가 참조할 수 있어 이전 사본도 자동 삭제하지 않습니다. 쓰기 프로세스와 참조를 확인한 뒤 상태를 검토하십시오. 직접 Node 실행기끼리의 전환은 별도 통계 갱신(`statistics_observer_migration_required`)이 필요할 수 있습니다.
 
 </details>
+
+### 관리형 npx 실행기
+
+macOS·Linux에서 인자 없이 실행한 `aptly update`는 패키지 업데이트 후 현재 환경에서 선택된 설정 홈의 변경되지 않은 Aptly 소유 Codex·Claude Code 등록을 관리형 npx로 전환을 시도합니다. direct와 stable 등록이 대상이며 사용자 지정·비관리 등록과 미등록 호스트는 그대로 둡니다. 호스트별 실패를 따로 보고하며 한 호스트가 성공해도 다른 호스트는 실패할 수 있습니다. 0.1.21에서는 첫 `aptly update`가 패키지만 갱신하므로 새 CLI로 다시 실행하십시오. Windows의 기본 업데이트는 패키지만 갱신합니다.
+
+번들 npm이 포함된 Node.js 24 이상이 필요합니다. 설치된 패키지와 의존성의 고정 사본을 보존하고 전용 작업 디렉터리와 정리된 npm 설정에서 `npx`를 오프라인으로 실행합니다. MCP 시작 시 레지스트리에 접근하거나 `latest`를 선택하지 않습니다.
+
+한 호스트를 명시적으로 전환하려면 dry run을 검토한 후 실행하십시오. Claude Code는 `codex`를 `claude`로 바꾸십시오.
+
+```sh
+aptly setup --client codex --migrate-launcher --launcher npx --dry-run
+aptly setup --client codex --migrate-launcher --launcher npx
+```
+
+`aptly update --client codex --launcher npx`도 단일 호스트를 대상으로 합니다. 명시적 관리형 전환은 Windows에서 지원하지 않습니다. 패키지와 전환 결과를 각각 확인하십시오. Hook·자격 정보는 소유권 확인 범위에서 보존합니다. 변경된 Codex Hook은 `/hooks`에서 다시 승인하고 호스트를 재시작하십시오.
 
 <a id="guide-models-and-environment"></a>
 

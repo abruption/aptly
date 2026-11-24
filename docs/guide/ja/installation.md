@@ -91,13 +91,14 @@ aptly setup --client all
 
 ```sh
 aptly update
-aptly setup --client all
 aptly --version
 ```
 
-`update` は同じ npm prefix に最新バージョンをインストールし、設定・キーを保持します。インストールスクリプトは実行しません。設定後にホストを再起動してください。npm エラーやローカル・ソースインストールでは、上記の手動インストールコマンドを使ってください。`dry-run=true` の npm 設定は拒否します。
+`update` はインストールスクリプトを実行せず、同じ npm prefix のパッケージを更新します。macOS・Linux では、新しい CLI が現在の環境で選択された設定ホームにある、変更されていない Aptly 所有の Codex・Claude Code 登録を管理型 npx に移行を試みます。direct・stable 登録が対象で、カスタム・非管理の登録や存在しない登録はそのままです。パッケージとホスト別の移行結果を個別に確認してください。一方が成功しても他方は失敗する場合があります。Windows ではパッケージのみ更新します。
 
-stable ランチャーの保存コピーはグローバルパッケージとは別です。[明示的な移行](configuration.md#guide-stable-launcher)で更新してください。以前の Node パスが失われた場合は[起動パスの復旧](troubleshooting.md#guide-launcher-recovery)に従ってください。
+0.1.21 のアップデータ は初回にパッケージのみ更新します。新しい CLI で `aptly update` を再実行すると既存登録の移行を試みます。既存登録に setup は不要です。新規登録には必要に応じて `aptly setup` を使えます。Hook・資格情報・送信範囲の選択は所有権確認を条件に保持します。変更された Codex Hook を `/hooks` で再承認し、ホストを再起動してください。[送信範囲](transmission.md)を確認し、必要に応じて明示的に選択してください。
+
+npm エラーやローカル・ソースインストールでは上記の手動インストールコマンドを使ってください。`dry-run=true` の npm 設定は拒否します。以前の Node パスがなくなった場合は[実行パスの復旧](troubleshooting.md#guide-launcher-recovery)を参照してください。
 
 <details>
 <summary>0.1.2 より前の台帳からのアップグレード</summary>
